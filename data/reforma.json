@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795723024152,
+  "updatedAt": 1795723036440,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -499,18 +499,6 @@
           "note": ""
         },
         {
-          "id": "mwxz1mjsd6lswv",
-          "type": "wall",
-          "x1": 0,
-          "y1": 600,
-          "x2": 0,
-          "y2": 0,
-          "thick": 20,
-          "status": "existente",
-          "height": 260,
-          "note": ""
-        },
-        {
           "id": "mwxz1mjsyhji2z",
           "type": "wall",
           "x1": 450,
@@ -535,18 +523,6 @@
           "note": ""
         },
         {
-          "id": "mwxz1mjs5o39uq",
-          "type": "wall",
-          "x1": 0,
-          "y1": 260,
-          "x2": 250,
-          "y2": 260,
-          "thick": 10,
-          "status": "demoler",
-          "height": 260,
-          "note": ""
-        },
-        {
           "id": "mwxz1mjsaranj9",
           "type": "wall",
           "x1": 250,
@@ -556,33 +532,6 @@
           "thick": 10,
           "status": "nuevo",
           "height": 260,
-          "note": ""
-        },
-        {
-          "id": "mwxz1mjs9xyn60",
-          "type": "room",
-          "name": "Salón-cocina",
-          "points": [
-            [
-              10,
-              10
-            ],
-            [
-              445,
-              10
-            ],
-            [
-              445,
-              590
-            ],
-            [
-              10,
-              590
-            ]
-          ],
-          "color": "#fde68a",
-          "floor": "Porcelánico 60x60 gris",
-          "ceiling": 260,
           "note": ""
         },
         {
@@ -658,78 +607,6 @@
           "x": 220,
           "y": 540,
           "angle": 180,
-          "note": ""
-        },
-        {
-          "id": "mwxz1mjsgv26x1",
-          "type": "furn",
-          "kind": "mesa",
-          "name": "Mesa",
-          "w": 160,
-          "h": 90,
-          "x": 225,
-          "y": 160,
-          "angle": 0,
-          "note": ""
-        },
-        {
-          "id": "mwxz1mjsap2oht",
-          "type": "furn",
-          "kind": "encimera",
-          "name": "Encimera",
-          "w": 240,
-          "h": 60,
-          "x": 40,
-          "y": 135,
-          "angle": 270,
-          "note": ""
-        },
-        {
-          "id": "mwxz1mjs4yvyfn",
-          "type": "furn",
-          "kind": "placa",
-          "name": "Placa",
-          "w": 60,
-          "h": 60,
-          "x": 40,
-          "y": 70,
-          "angle": 270,
-          "note": ""
-        },
-        {
-          "id": "mwxz1mjsz01eyy",
-          "type": "furn",
-          "kind": "fregadero",
-          "name": "Fregadero",
-          "w": 80,
-          "h": 60,
-          "x": 40,
-          "y": 190,
-          "angle": 270,
-          "note": ""
-        },
-        {
-          "id": "mwxz1mjs3a47xs",
-          "type": "furn",
-          "kind": "nevera",
-          "name": "Frigorífico",
-          "w": 70,
-          "h": 65,
-          "x": 45,
-          "y": 300,
-          "angle": 270,
-          "note": ""
-        },
-        {
-          "id": "mwxz1mjsie6bor",
-          "type": "furn",
-          "kind": "cama",
-          "name": "Cama 150",
-          "w": 150,
-          "h": 200,
-          "x": 620,
-          "y": 110,
-          "angle": 0,
           "note": ""
         },
         {
