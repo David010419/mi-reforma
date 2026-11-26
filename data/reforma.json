@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795723381320,
+  "updatedAt": 1795723401093,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -582,29 +582,33 @@
           "height": 250,
           "note": ""
         }
-      ]
+      ],
+      "bgImage": null
     },
     {
       "id": "mwxz5yhe8xdri6",
       "name": "Planta Baja",
       "scope": "interior",
       "level": "Planta baja",
-      "elements": []
+      "elements": [],
+      "bgImage": null
     },
     {
       "id": "mwxz6a4ifut0hq",
       "name": "Planta Alta",
       "scope": "interior",
       "level": "Planta 1",
-      "elements": []
+      "elements": [],
+      "bgImage": null
     },
     {
       "id": "mwxz6ltacn9h7y",
       "name": "Buardilla",
       "scope": "interior",
       "level": "Planta 2",
-      "elements": []
+      "elements": [],
+      "bgImage": null
     }
   ],
-  "activePlan": "mwxz6ltacn9h7y"
+  "activePlan": "mwxz5jjmz8oikc"
 }
