@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795727685889,
+  "updatedAt": 1795727700652,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -308,30 +308,7 @@
       "notes": ""
     }
   ],
-  "quotes": [
-    {
-      "id": "mwxz1mjs06uqsk",
-      "category": "Carpintería",
-      "provider": "Ventanas Norte",
-      "amount": 4200,
-      "days": 25,
-      "includes": "PVC triple vidrio + persianas + instalación",
-      "excludes": "Remates de albañilería",
-      "status": "Elegido",
-      "notes": ""
-    },
-    {
-      "id": "mwxz1mjs5zlzbl",
-      "category": "Carpintería",
-      "provider": "Aluminios Sur",
-      "amount": 4850,
-      "days": 35,
-      "includes": "Aluminio RPT + instalación",
-      "excludes": "Retirada ventanas viejas",
-      "status": "En estudio",
-      "notes": ""
-    }
-  ],
+  "quotes": [],
   "plans": [
     {
       "id": "mwxz5jjmz8oikc",
