@@ -92,6 +92,7 @@ const Plan = (() => {
     { kind: 'estanteria', name: 'Estantería', w: 140, h: 35 }, { kind: 'chimenea', name: 'Chimenea', w: 110, h: 55 },
     { kind: 'mesa', name: 'Mesa comedor', w: 160, h: 90 }, { kind: 'mesaRedonda', name: 'Mesa redonda', w: 110, h: 110 }, { kind: 'silla', name: 'Silla', w: 45, h: 45 }, { kind: 'taburete', name: 'Taburete', w: 40, h: 40 },
     { kind: 'encimera', name: 'Encimera', w: 240, h: 60 }, { kind: 'fregadero', name: 'Fregadero', w: 80, h: 60 }, { kind: 'placa', name: 'Placa cocción', w: 60, h: 60 },
+    { kind: 'moduloCocina', name: 'Módulo cocina a medida', w: 80, h: 60, h3d: 85, z0: 0, plinth: 10, handleType: 'gola', frontColor: '#f1ede6', sections: [{ id: 's1', kind: 'cacerolero', h: 35, anim: true, cutlery: false }, { id: 's2', kind: 'cajon', h: 25, anim: true, cutlery: false }, { id: 's3', kind: 'cubertero', h: 15, anim: true, cutlery: true }] },
     { kind: 'muebleBajo', name: 'Mueble bajo cocina', w: 60, h: 60 }, { kind: 'muebleCajon', name: 'Cajonero cocina', w: 80, h: 60 }, { kind: 'muebleRincon', name: 'Rincón cocina', w: 90, h: 90 },
     { kind: 'muebleAlto', name: 'Mueble alto colgado', w: 80, h: 35, z0: 145, h3d: 70 }, { kind: 'campana', name: 'Campana extractora', w: 90, h: 50, z0: 155, h3d: 45 },
     { kind: 'nevera', name: 'Frigorífico', w: 70, h: 65 }, { kind: 'horno', name: 'Columna horno', w: 60, h: 60 }, { kind: 'microondas', name: 'Columna horno+micro', w: 60, h: 60, h3d: 215 },
@@ -120,6 +121,13 @@ const Plan = (() => {
     oscilobatiente: 'Oscilobatiente', balconera: 'Balconera acristalada', fija: 'Fija',
   };
   const SHUTTER_KINDS = { none: 'Sin persiana', manual: 'Persiana manual', electric: 'Persiana eléctrica ⚡' };
+  const HANDLE_KINDS = { gola: 'Perfil Gola', unero: 'Uñero fresado', push: 'Sistema Push (sin tirador)', tirador: 'Tirador exterior', abierto: 'Hueco abierto (sin frente)' };
+  const SECTION_KINDS = {
+    cajon: 'Cajón estándar', cacerolero: 'Cajón cacerolero', cubertero: 'Cajón con cubertero',
+    cajonInt: 'Cajón interior oculto', puerta: 'Puerta abatible', puerta2: 'Doble puerta abatible',
+    elevable: 'Puerta elevable (alto)', hueco: 'Hueco abierto / estante', horno: 'Hueco electrodoméstico',
+  };
+  const MODULAR_KITCHEN = new Set(['moduloCocina', 'muebleBajo', 'muebleCajon', 'muebleAlto', 'despensa', 'isla', 'peninsula']);
   const TOOLS = [
     { id: 'select', icon: 'pointer', label: 'Seleccionar y mover', key: 'V' },
     { id: 'pan', icon: 'move', label: 'Desplazar vista', key: 'H' },
@@ -173,6 +181,7 @@ const Plan = (() => {
   let cursor = null, lastShift = false, snapInd = null, hoverOpen = null, spaceDown = false;
   let undoStack = [], redoStack = [], fitted = false, raf = 0, pinch = null;
   let compareId = null, compareOpacity = 0.35, calib = null, tapGesture = null, pencilHintShown = false;
+  let multiSel = new Set(), multiMode = false;
   const pointers = new Map();
   const MIN_S = 0.04, MAX_S = 8;
 
@@ -302,7 +311,7 @@ const Plan = (() => {
       case 'lavavajillas': case 'secadora': o += `<circle r="${Math.min(w, h) * 0.25}" ${st}/><line x1="${x0 + 6}" y1="${y0 + 8}" x2="${-x0 - 6}" y2="${y0 + 8}" ${st}/>`; break;
       case 'horno': case 'microondas': o += R(x0 + 8, y0 + 10, w - 16, h - 20, 3, st) + `<line x1="${x0 + 10}" y1="${-y0 - 6}" x2="${-x0 - 10}" y2="${-y0 - 6}" ${st} stroke-width="${sw * 1.5}"/>`; break;
       case 'muebleBajo': case 'muebleRincon': case 'despensa': case 'vinoteca': o += `<line x1="${x0 + 6}" y1="${-y0 - 5}" x2="${-x0 - 6}" y2="${-y0 - 5}" ${st}/>`; break;
-      case 'muebleCajon': o += `<line x1="${x0 + 6}" y1="${-y0 - 5}" x2="${-x0 - 6}" y2="${-y0 - 5}" ${st}/><line x1="${-w * 0.2}" y1="${-y0 - 9}" x2="${w * 0.2}" y2="${-y0 - 9}" ${st} stroke-width="${sw * 1.6}"/>`; break;
+      case 'muebleCajon': case 'moduloCocina': o += `<line x1="${x0 + 6}" y1="${-y0 - 5}" x2="${-x0 - 6}" y2="${-y0 - 5}" ${st}/><line x1="${-w * 0.2}" y1="${-y0 - 9}" x2="${w * 0.2}" y2="${-y0 - 9}" ${st} stroke-width="${sw * 1.6}"/>`; break;
       case 'muebleAlto': o += R(x0 + 3, y0 + 3, w - 6, h - 6, 2, `${st} stroke-dasharray="${px(5)} ${px(3)}"`); break;
       case 'campana': o += `<path d="M${x0} ${y0} L${-x0} ${-y0} M${-x0} ${y0} L${x0} ${-y0}" ${st} stroke-dasharray="${px(4)} ${px(3)}"/><circle r="${Math.min(w, h) * 0.16}" ${st}/>`; break;
       case 'peninsula': o += `<line x1="${x0}" y1="0" x2="${-x0}" y2="0" ${st} stroke-dasharray="${px(5)} ${px(3)}"/>`; break;
@@ -585,6 +594,7 @@ const Plan = (() => {
           <select id="pGrid" title="Paso de la rejilla de ajuste">${[1, 2, 5, 10, 25, 50].map((g) => `<option value="${g}">${g} cm</option>`).join('')}</select>
           <button class="tgl" data-pt="ortho" title="Modo ortogonal (Shift lo alterna temporalmente)">${icon('ortho', 15)}<span>Orto</span></button>
           <button class="tgl" data-pt="autoDims" title="Mostrar la longitud de cada muro">${icon('dim', 15)}<span>Medidas</span></button>
+          <button class="tgl" id="pMultiBtn" data-pa="toggleMulti" title="Multiselección: toca varios elementos o arrastra un recuadro para mover/borrar/bloquear en grupo">${icon('checksq', 15)}<span>Multi</span></button>
           <button class="tgl" data-pt="pencilOnly" title="Modo Apple Pencil: el lápiz dibuja y el dedo solo mueve el plano (evita toques con la palma)">${icon('edit', 15)}<span>Pencil</span></button>
         </div>
         <div class="pt-group">
@@ -657,6 +667,7 @@ const Plan = (() => {
     const bgB = $('#pBgBtn'); if (bgB) bgB.classList.toggle('on', !!cur.bgImage);
     const cmpB = $('#pCmpBtn'); if (cmpB) cmpB.classList.toggle('on', !!compareId);
     const dpb = $('#pDeskPanelBtn'); if (dpb) dpb.classList.toggle('on', !pui.panelHidden);
+    const mb = $('#pMultiBtn'); if (mb) mb.classList.toggle('on', !!multiMode);
     if (root) root.classList.toggle('panel-hidden', !!pui.panelHidden);
     $('#pUndo').disabled = !undoStack.length; $('#pRedo').disabled = !redoStack.length;
     updateSelBar();
@@ -679,13 +690,23 @@ const Plan = (() => {
       bar.classList.add('show');
       return;
     }
+    if (multiSel.size > 1) {
+      bar.innerHTML = `<span class="small" style="font-weight:700;padding:0 6px">${multiSel.size} sel.</span>
+        <button class="btn sm" data-pa="lockSel">🔒</button>
+        <button class="btn sm" data-pa="dupSel">${icon('copy', 15)}</button>
+        <button class="btn sm danger" data-pa="delSel">${icon('trash', 15)}</button>
+        <button class="btn sm" data-pa="clearSel">${icon('x', 15)}</button>`;
+      bar.classList.add('show');
+      return;
+    }
     if (!el) { bar.innerHTML = ''; bar.classList.remove('show'); return; }
     const canRot = el.type === 'furn' || el.type === 'sym' || el.type === 'door';
     bar.innerHTML = `
       <button class="btn sm primary" data-pa="openPanel">${icon('sliders', 15)} Editar</button>
-      ${canRot ? `<button class="btn sm" data-pa="rotSel">${icon('rotate', 15)}</button>` : ''}
+      <button class="btn sm" data-pa="lockSel" title="${el.locked ? 'Desbloquear' : 'Bloquear'}">${el.locked ? '🔓' : '🔒'}</button>
+      ${canRot && !el.locked ? `<button class="btn sm" data-pa="rotSel">${icon('rotate', 15)}</button>` : ''}
       <button class="btn sm" data-pa="dupSel">${icon('copy', 15)}</button>
-      <button class="btn sm danger" data-pa="delSel">${icon('trash', 15)}</button>`;
+      ${!el.locked ? `<button class="btn sm danger" data-pa="delSel">${icon('trash', 15)}</button>` : ''}`;
     bar.classList.add('show');
   }
 
@@ -794,7 +815,24 @@ const Plan = (() => {
       : `<circle class="handle" data-handle="${h}" cx="${x}" cy="${y}" r="${px(hr)}" fill="#fff" stroke="${sc}" stroke-width="${px(2.5)}"/>`;
     const label = (x, y, txt, ang = 0) => `<g transform="translate(${x} ${y}) rotate(${readable(ang)})" pointer-events="none"><rect x="${-px(txt.length * 3.6 + 8)}" y="${-px(10)}" width="${px(txt.length * 7.2 + 16)}" height="${px(20)}" rx="${px(6)}" fill="${sc}"/><text text-anchor="middle" dominant-baseline="central" font-size="${px(11.5)}" font-weight="700" fill="#fff">${esc(txt)}</text></g>`;
     const el = sel && byId(sel);
-    if (el) {
+    // Resaltado de multiselección y recuadro de marquesina
+    if (multiSel.size > 0) {
+      multiSel.forEach((mid) => {
+        const me = byId(mid); if (!me) return;
+        const mb = bbox([me]); if (!mb) return;
+        o += `<rect x="${mb.x1 - px(4)}" y="${mb.y1 - px(4)}" width="${mb.x2 - mb.x1 + px(8)}" height="${mb.y2 - mb.y1 + px(8)}" rx="${px(4)}" fill="${sc}" fill-opacity=".08" stroke="${sc}" stroke-width="${px(1.8)}" stroke-dasharray="${px(5)} ${px(3)}" pointer-events="none"/>`;
+      });
+    }
+    if (drag && drag.mode === 'marquee' && drag.cur) {
+      const mx = Math.min(drag.start.x, drag.cur.x), my = Math.min(drag.start.y, drag.cur.y);
+      const mw = Math.abs(drag.cur.x - drag.start.x), mh = Math.abs(drag.cur.y - drag.start.y);
+      o += `<rect x="${mx}" y="${my}" width="${mw}" height="${mh}" fill="${sc}" fill-opacity=".12" stroke="${sc}" stroke-width="${px(1.6)}" stroke-dasharray="${px(6)} ${px(3)}" pointer-events="none"/>`;
+    }
+    if (el && multiSel.size <= 1) {
+      if (el.locked) {
+        const lb = bbox([el]);
+        if (lb) o += label((lb.x1 + lb.x2) / 2, lb.y1 - px(14), '🔒 Bloqueado');
+      }
       switch (el.type) {
         case 'wall':
           o += `<line x1="${el.x1}" y1="${el.y1}" x2="${el.x2}" y2="${el.y2}" stroke="${sc}" stroke-opacity=".35" stroke-width="${el.thick + px(8)}" stroke-linecap="square" pointer-events="none"/>`;
@@ -1213,7 +1251,9 @@ const Plan = (() => {
         pushUndo();
         if (placing.t === 'furn') {
           const q = snap(p), d = placing.def;
-          els().push({ id: uid(), type: 'furn', kind: d.kind, name: d.name, w: d.w, h: d.h, h3d: d.h3d || 0, z0: d.z0 || 0, x: q.x, y: q.y, angle: placing.angle || 0, note: '' });
+          const item = { id: uid(), type: 'furn', kind: d.kind, name: d.name, w: d.w, h: d.h, h3d: d.h3d || 0, z0: d.z0 || 0, x: q.x, y: q.y, angle: placing.angle || 0, note: '' };
+          if (d.sections) { item.sections = clone(d.sections).map((s) => Object.assign(s, { id: uid() })); item.plinth = d.plinth ?? 10; item.handleType = d.handleType || 'gola'; item.frontColor = d.frontColor || '#f1ede6'; }
+          els().push(item);
         } else {
           const q = symPlacement(p);
           els().push({ id: uid(), type: 'sym', kind: placing.kind, x: q.x, y: q.y, angle: q.angle, height: SYMBOLS[placing.kind].h, note: '' });
@@ -1233,6 +1273,7 @@ const Plan = (() => {
     const snapshot = JSON.stringify(els());
     if (hEl && sel) {
       const el = byId(sel);
+      if (el && el.locked) { toast('Elemento bloqueado (desbloquéalo en el panel)', 'warn'); return; }
       drag = { mode: 'handle', handle: hEl.dataset.handle, id: sel, start: p, orig: clone(el), snapshot, pushed: false, links: [] };
       if (el.type === 'wall' && !e.altKey) { const end = drag.handle === 'p1' ? 1 : 2; drag.links = linksAt({ x: el['x' + end], y: el['y' + end] }, el.id); }
       if (el.type === 'room' && drag.handle[0] === 'm') {
@@ -1247,14 +1288,33 @@ const Plan = (() => {
     if (t) {
       const id = t.dataset.id, el = byId(id);
       if (!el) return;
+      if (e.shiftKey || multiMode) {
+        if (multiSel.size === 0 && sel && sel !== id) multiSel.add(sel);
+        if (multiSel.has(id)) multiSel.delete(id); else multiSel.add(id);
+        sel = multiSel.size === 1 ? [...multiSel][0] : (multiSel.size > 1 ? id : null);
+        renderPanel(); updateSelBar(); requestRender();
+        return;
+      }
+      if (multiSel.size > 1 && multiSel.has(id)) {
+        const movable = [...multiSel].map(byId).filter((x) => x && !x.locked);
+        if (!movable.length) { toast('Todos los elementos seleccionados están bloqueados', 'warn'); return; }
+        drag = { mode: 'multiMove', start: p, snapshot, pushed: false, items: movable.map((x) => ({ id: x.id, orig: clone(x) })) };
+        return;
+      }
+      multiSel.clear();
       const wasSel = sel === id;
       if (!wasSel) { sel = id; renderPanel(); }
+      if (el.locked) { startPan(e); drag.selectOnly = true; return; }
       if (el.type === 'room' && !wasSel) { startPan(e); drag.selectOnly = true; return; }
       drag = { mode: 'move', id, start: p, orig: clone(el), snapshot, pushed: false, links: [] };
       if (el.type === 'wall' && !e.altKey) drag.links = [...linksAt({ x: el.x1, y: el.y1 }, id), ...linksAt({ x: el.x2, y: el.y2 }, id)];
       return;
     }
-    if (sel) { sel = null; renderPanel(); }
+    if (e.shiftKey || multiMode) {
+      drag = { mode: 'marquee', start: p, cur: p };
+      return;
+    }
+    if (sel || multiSel.size) { sel = null; multiSel.clear(); renderPanel(); }
     startPan(e);
   }
 
@@ -1283,6 +1343,20 @@ const Plan = (() => {
 
   function dragMove(e, p) {
     if (drag.mode === 'pan') { view.x = drag.vx + e.clientX - drag.sx; view.y = drag.vy + e.clientY - drag.sy; return; }
+    if (drag.mode === 'marquee') { drag.cur = p; return; }
+    if (drag.mode === 'multiMove') {
+      const g = pui.snap ? pui.grid : 0;
+      let dx = p.x - drag.start.x, dy = p.y - drag.start.y;
+      if (!drag.pushed) { if (Math.hypot(dx, dy) * view.s < 3) return; pushUndo(drag.snapshot); drag.pushed = true; }
+      if (g) { dx = Math.round(dx / g) * g; dy = Math.round(dy / g) * g; }
+      drag.items.forEach(({ id, orig: o }) => {
+        const it = byId(id); if (!it) return;
+        if (it.type === 'wall' || it.type === 'dim' || it.type === 'duct') { it.x1 = o.x1 + dx; it.y1 = o.y1 + dy; it.x2 = o.x2 + dx; it.y2 = o.y2 + dy; }
+        else if (it.type === 'room' || it.type === 'sketch') it.points = o.points.map(([x, y]) => [x + dx, y + dy]);
+        else if (it.type !== 'door' && it.type !== 'window') { it.x = o.x + dx; it.y = o.y + dy; }
+      });
+      return;
+    }
     if (drag.mode === 'rect') { draft.b = snap(p); const q = draft.b; snapInd = q.snapped ? q : null; return; }
     if (drag.mode === 'measure') { let q = snap(p); if (orthoOn(e)) q = ortho(draft.a, q); draft.b = q; return; }
     if (drag.mode === 'sketch') {
@@ -1376,6 +1450,21 @@ const Plan = (() => {
       }
       draft = null; requestRender(); return;
     }
+    if (d.mode === 'marquee') {
+      const x1 = Math.min(d.start.x, d.cur.x), y1 = Math.min(d.start.y, d.cur.y), x2 = Math.max(d.start.x, d.cur.x), y2 = Math.max(d.start.y, d.cur.y);
+      if (x2 - x1 > 5 || y2 - y1 > 5) {
+        multiSel.clear();
+        els().forEach((el) => {
+          if (el.locked || !layerOn(el, pui.layers)) return;
+          const eb = bbox([el]);
+          if (eb && eb.x1 >= x1 && eb.x2 <= x2 && eb.y1 >= y1 && eb.y2 <= y2) multiSel.add(el.id);
+        });
+        sel = multiSel.size === 1 ? [...multiSel][0] : (multiSel.size > 1 ? [...multiSel][0] : null);
+        renderPanel(); updateSelBar();
+      }
+      requestRender(); return;
+    }
+    if (d.mode === 'multiMove' && d.pushed) { commit(); return; }
     if (d.mode === 'rect') finishRect(draft ? draft.type : tool);
     else if ((d.mode === 'move' || d.mode === 'handle') && d.pushed) {
       const el = byId(d.id);
@@ -1386,46 +1475,75 @@ const Plan = (() => {
     requestRender();
   }
 
-  /* ---------- Acciones sobre la selección ---------- */
-  function deleteSel() {
-    const el = sel && byId(sel); if (!el) return;
+  /* ---------- Acciones sobre la selección (simple y multiselección) ---------- */
+  function selectedList() {
+    if (multiSel.size > 0) return [...multiSel].map(byId).filter(Boolean);
+    const el = sel && byId(sel);
+    return el ? [el] : [];
+  }
+  function toggleLockSel(forceState) {
+    const list = selectedList(); if (!list.length) return;
     pushUndo();
-    plan().elements = els().filter((x) => x.id !== el.id && !(el.type === 'wall' && x.wallId === el.id));
-    sel = null; commit();
+    const target = forceState !== undefined ? forceState : !list.every((x) => x.locked);
+    list.forEach((x) => { x.locked = target; });
+    commit();
+    toast(target ? `🔒 ${list.length === 1 ? 'Elemento bloqueado' : list.length + ' elementos bloqueados'}` : `🔓 ${list.length === 1 ? 'Elemento desbloqueado' : list.length + ' elementos desbloqueados'}`, 'info');
+  }
+  function deleteSel() {
+    const list = selectedList(); if (!list.length) return;
+    const removable = list.filter((x) => !x.locked);
+    if (!removable.length) { toast('Los elementos seleccionados están bloqueados (desbloquéalos primero)', 'warn'); return; }
+    const remIds = new Set(removable.map((x) => x.id));
+    const wallIds = new Set(removable.filter((x) => x.type === 'wall').map((x) => x.id));
+    pushUndo();
+    plan().elements = els().filter((x) => !remIds.has(x.id) && !(x.wallId && wallIds.has(x.wallId)));
+    sel = null; multiSel.clear(); commit();
+    if (removable.length < list.length) toast(`Eliminados ${removable.length} (${list.length - removable.length} bloqueados conservados)`, 'info');
   }
   function duplicateSel() {
-    const el = sel && byId(sel); if (!el) return;
+    const list = selectedList(); if (!list.length) return;
     pushUndo();
-    const c = clone(el); c.id = uid();
-    const d = 30;
-    switch (c.type) {
-      case 'wall': case 'dim': case 'duct': c.x1 += d; c.y1 += d; c.x2 += d; c.y2 += d; break;
-      case 'room': c.points = c.points.map(([x, y]) => [x + d, y + d]); c.name = (c.name || '') + ' (copia)'; break;
-      case 'door': case 'window': { const w = byId(c.wallId); if (w) { const L = wlen(w); c.t = clamp(c.t * L + c.width + 20, c.width / 2, L - c.width / 2) / L; } break; }
-      default: c.x += d; c.y += d;
-    }
-    els().push(c); sel = c.id; commit();
+    const d = 30, newIds = [];
+    list.forEach((el) => {
+      const c = clone(el); c.id = uid(); c.locked = false;
+      switch (c.type) {
+        case 'wall': case 'dim': case 'duct': c.x1 += d; c.y1 += d; c.x2 += d; c.y2 += d; break;
+        case 'room': case 'sketch': c.points = (c.points || []).map(([x, y]) => [x + d, y + d]); if (c.name) c.name += ' (copia)'; break;
+        case 'door': case 'window': { const w = byId(c.wallId); if (w) { const L = wlen(w); c.t = clamp(c.t * L + c.width + 20, c.width / 2, L - c.width / 2) / L; } break; }
+        default: c.x += d; c.y += d;
+      }
+      els().push(c); newIds.push(c.id);
+    });
+    if (newIds.length > 1) { multiSel = new Set(newIds); sel = newIds[0]; }
+    else { multiSel.clear(); sel = newIds[0]; }
+    commit();
   }
   function rotateSel() {
-    const el = sel && byId(sel); if (!el) return;
+    const list = selectedList().filter((x) => !x.locked); if (!list.length) return;
     pushUndo();
-    if (el.type === 'furn' || el.type === 'sym') el.angle = (((el.angle || 0) + 90) % 360);
-    else if (el.type === 'door') {
-      const seq = [['left', 1], ['right', 1], ['right', -1], ['left', -1]];
-      const i = seq.findIndex(([h, s]) => h === el.hinge && s === (el.side || 1));
-      [el.hinge, el.side] = seq[(i + 1) % 4];
-    } else { undoStack.pop(); return; }
+    let changed = false;
+    list.forEach((el) => {
+      if (el.type === 'furn' || el.type === 'sym') { el.angle = (((el.angle || 0) + 90) % 360); changed = true; }
+      else if (el.type === 'door') {
+        const seq = [['left', 1], ['right', 1], ['right', -1], ['left', -1]];
+        const i = seq.findIndex(([h, s]) => h === el.hinge && s === (el.side || 1));
+        [el.hinge, el.side] = seq[(i + 1) % 4]; changed = true;
+      }
+    });
+    if (!changed) { undoStack.pop(); return; }
     commit();
   }
   function nudge(dx, dy) {
-    const el = sel && byId(sel); if (!el) return;
+    const list = selectedList().filter((x) => !x.locked); if (!list.length) return;
     pushUndo();
-    switch (el.type) {
-      case 'wall': case 'dim': case 'duct': el.x1 += dx; el.y1 += dy; el.x2 += dx; el.y2 += dy; break;
-      case 'room': el.points = el.points.map(([x, y]) => [x + dx, y + dy]); break;
-      case 'door': case 'window': { const w = byId(el.wallId); if (w) { const L = wlen(w); const step = (dx || dy); el.t = clamp(el.t * L + step, el.width / 2, L - el.width / 2) / L; } break; }
-      default: el.x += dx; el.y += dy;
-    }
+    list.forEach((el) => {
+      switch (el.type) {
+        case 'wall': case 'dim': case 'duct': el.x1 += dx; el.y1 += dy; el.x2 += dx; el.y2 += dy; break;
+        case 'room': case 'sketch': el.points = (el.points || []).map(([x, y]) => [x + dx, y + dy]); break;
+        case 'door': case 'window': { const w = byId(el.wallId); if (w) { const L = wlen(w); const step = (dx || dy); el.t = clamp(el.t * L + step, el.width / 2, L - el.width / 2) / L; } break; }
+        default: el.x += dx; el.y += dy;
+      }
+    });
     commit();
   }
   function splitWall(w) {
@@ -1454,8 +1572,8 @@ const Plan = (() => {
       case 'pos': { const w = byId(el.wallId); if (w && Number.isFinite(n)) { const L = wlen(w); el.t = clamp(n + el.width / 2, el.width / 2, L - el.width / 2) / L; } return; }
       case 'width': if (n > 0) { el.width = n; const w = byId(el.wallId); if (w) { const L = wlen(w); el.width = Math.min(n, L); el.t = clamp(el.t * L, el.width / 2, L - el.width / 2) / L; } } return;
       case 'angle': if (Number.isFinite(n)) el.angle = ((n % 360) + 360) % 360; return;
-      case 'thick': case 'height': case 'sill': case 'w': case 'h': case 'h3d': case 'z0': case 'watts': case 'size': case 'ceiling':
-        if (Number.isFinite(n) && n >= 0) el[k] = n; return;
+      case 'thick': case 'height': case 'sill': case 'w': case 'h': case 'h3d': case 'z0': case 'plinth': case 'watts': case 'size': case 'ceiling':
+        if (Number.isFinite(n) && n >= 0) el[k] = k === 'w' && el.type === 'furn' ? clamp(n, 10, 600) : n; return;
       case 'x': case 'y': case 'offset': if (Number.isFinite(n)) el[k] = n; return;
       case 'kind':
         el.kind = v;
@@ -1483,8 +1601,9 @@ const Plan = (() => {
   function renderPanel() {
     if (!panel) return;
     const el = sel && byId(sel);
-    let h = `<div class="panel-mobile-head"><span>${el ? 'Propiedades' : tool === 'furn' ? 'Mobiliario y exterior' : tool === 'sym' ? 'Instalaciones' : 'Resumen del plano'}</span><button class="icon-btn sm" data-a="closePanel" title="Cerrar panel">${icon('x', 18)}</button></div>`;
-    if (el) h += propsFor(el);
+    let h = `<div class="panel-mobile-head"><span>${multiSel.size > 1 ? `Multiselección (${multiSel.size})` : el ? 'Propiedades' : tool === 'furn' ? 'Mobiliario y cocina' : tool === 'sym' ? 'Instalaciones' : 'Resumen del plano'}</span><button class="icon-btn sm" data-a="closePanel" title="Cerrar panel">${icon('x', 18)}</button></div>`;
+    if (multiSel.size > 1) h += multiProps();
+    else if (el) h += propsFor(el);
     else if (tool === 'furn') h += furnLibrary();
     else if (tool === 'sym') h += symLibrary();
     else if (tool === 'duct') h += ductToolOpts() + summary();
@@ -1562,8 +1681,25 @@ const Plan = (() => {
             <span>${d.label}</span><small>${d.h ? 'h ' + d.h : ''}</small></button>`).join('')}</div></div>`).join('')}`;
   }
 
+  function multiProps() {
+    const list = selectedList();
+    const lockedN = list.filter((x) => x.locked).length;
+    return `<div class="psec phead"><div class="phead-ic">${icon('checksq', 18)}</div><div><h4>${list.length} elementos</h4><small>Arrastra cualquiera para mover en grupo</small></div><button class="icon-btn sm" data-a="deselect">${icon('x', 16)}</button></div>
+      <div class="psec">
+        <div class="btn-col">
+          <button class="btn sm" data-a="dup">${icon('copy', 14)} Duplicar todos</button>
+          <button class="btn sm" data-a="rotate">${icon('rotate', 14)} Girar muebles / puertas 90°</button>
+          <button class="btn sm" data-a="lockAll">🔒 Bloquear todos</button>
+          ${lockedN ? `<button class="btn sm" data-a="unlockAllSel">🔓 Desbloquear seleccionados (${lockedN})</button>` : ''}
+          <button class="btn sm danger" data-a="del">${icon('trash', 14)} Eliminar no bloqueados</button>
+        </div>
+      </div>`;
+  }
+
   function propsFor(el) {
-    const head = (ic, title, sub = '') => `<div class="psec phead"><div class="phead-ic">${icon(ic, 18)}</div><div><h4>${title}</h4>${sub ? `<small>${sub}</small>` : ''}</div><button class="icon-btn sm" data-a="deselect" title="Cerrar (Esc)">${icon('x', 16)}</button></div>`;
+    const head = (ic, title, sub = '') => `<div class="psec phead"><div class="phead-ic">${icon(ic, 18)}</div><div><h4>${title}</h4>${sub ? `<small>${sub}</small>` : ''}</div>
+      <button class="icon-btn sm ${el.locked ? 'active-lock' : ''}" data-a="toggleLock" title="${el.locked ? 'Desbloquear elemento' : 'Bloquear elemento para no moverlo por accidente'}">${el.locked ? '🔒' : '🔓'}</button>
+      <button class="icon-btn sm" data-a="deselect" title="Cerrar (Esc)">${icon('x', 16)}</button></div>`;
     switch (el.type) {
       case 'wall': {
         const L = wlen(el), ops = els().filter((o) => o.wallId === el.id);
@@ -1619,15 +1755,40 @@ const Plan = (() => {
         const st3d = furn3DStyle(el.kind);
         const cirOpts = { '': 'Automático / Ninguno' };
         (S().electrical?.circuits || []).forEach((c) => { cirOpts[c.id] = `${c.code} · ${c.name} (${c.amps}A)`; });
+        const isMod = MODULAR_KITCHEN.has(el.kind);
+        const secs = Array.isArray(el.sections) ? el.sections : [];
+        const modH = el.h3d || st3d.h, plinth = el.plinth ?? (el.z0 > 0 ? 0 : 10), usedH = secs.reduce((a, s) => a + num(s.h, 0), 0);
+        const modHTML = isMod ? `<div class="psec">
+          <h4>${icon('layers', 16)} Módulo de cocina (10–300 cm)</h4>
+          <div class="pgrid">
+            ${F.sel('Tipo apertura / tirador', 'handleType', el.handleType || 'gola', HANDLE_KINDS, true)}
+            ${F.num('Zócalo', 'plinth', plinth)}
+            <label class="pf"><span>Color frente</span><input type="color" data-p="frontColor" value="${el.frontColor || '#f1ede6'}"></label>
+          </div>
+          <div class="pinfo" style="margin-top:4px"><span>Altura útil / ocupada</span><b class="${usedH > (modH - plinth) ? 'danger-txt' : ''}">${r1(usedH)} / ${r1(modH - plinth)} cm</b></div>
+          <div class="mod-secs">${secs.map((s, idx) => `<div class="mod-sec" data-sidx="${idx}">
+            <div class="ms-top">
+              <select data-sf="kind">${Object.entries(SECTION_KINDS).map(([k, l]) => `<option value="${k}" ${k === s.kind ? 'selected' : ''}>${l}</option>`).join('')}</select>
+              <div class="inp-suf ms-h"><input type="number" data-sf="h" value="${s.h}" min="5" max="240"><em>cm</em></div>
+              <button class="icon-btn sm" data-a="delSec" data-sidx="${idx}" title="Quitar">${icon('x', 13)}</button>
+            </div>
+            <div class="ms-opts">
+              <label class="chk small"><input type="checkbox" data-sf="anim" ${s.anim !== false ? 'checked' : ''}> Animar 3D</label>
+              <label class="chk small"><input type="checkbox" data-sf="cutlery" ${s.cutlery || s.kind === 'cubertero' ? 'checked' : ''}> Cubertero</label>
+            </div>
+          </div>`).join('') || '<p class="phint">Módulo hueco: añade cajones, puertas o estantes abajo.</p>'}</div>
+          <button class="btn sm" data-a="addSec">${icon('plus', 14)} Añadir cajón / puerta / hueco</button>
+        </div>` : '';
         return head('sofa', esc(el.name || 'Mueble'), `${r1(el.w)} × ${r1(el.h)} cm`) + `<div class="psec">
           ${F.text('Nombre', 'name', el.name)}
           <div class="pgrid">
-            ${F.num('Ancho', 'w', el.w)}${F.num('Fondo', 'h', el.h)}
-            ${F.num('Altura 3D', 'h3d', el.h3d || st3d.h)}${F.num('Elevación suelo (Z)', 'z0', el.z0 || st3d.z0 || 0)}
+            ${F.num('Ancho (10-300)', 'w', el.w)}${F.num('Fondo', 'h', el.h)}
+            ${F.num('Altura 3D', 'h3d', el.h3d || st3d.h)}${F.num('Elevación suelo (Z)', 'z0', el.z0 ?? st3d.z0 ?? 0)}
             ${F.num('Ángulo', 'angle', el.angle || 0, '°', 15)}${F.num('Consumo (si elec.)', 'watts', el.watts ?? (Obra.DEFAULT_WATTS[el.kind] || 0), 'W')}
             ${F.sel('Circuito eléctrico', 'circuitId', el.circuitId || '', cirOpts, true)}
           </div>
           ${F.area('Notas', 'note', el.note, 'Modelo, medidas a medida, acabado…')}</div>
+          ${modHTML}
           ${actions(B.rot, B.dup, B.del)}`;
       }
       case 'sym': {
@@ -1707,6 +1868,7 @@ const Plan = (() => {
           <label class="pf"><span>Planta / zona</span><input type="text" data-pl="level" list="planLevelList" value="${esc(plan().level || '')}" placeholder="Ej. Planta 1"><datalist id="planLevelList">${PLAN_LEVELS.map((l) => `<option value="${esc(l)}">`).join('')}</datalist></label>
         </div>
         <div class="pstats"><div><b>${fmtNum(st.area)} m²</b><span>Superficie útil</span></div><div><b>${st.rooms.length}</b><span>Estancias</span></div></div>
+        ${(() => { const n = els().filter((x) => x.locked).length; return n ? `<div class="pinfos" style="margin-top:4px"><div class="pinfo"><span>🔒 Elementos bloqueados</span><button class="link-btn" data-a="unlockAll">Desbloquear todos (${n})</button></div></div>` : ''; })()}
       </div>
       <div class="psec"><h4>${icon('roomrect', 16)} Estancias</h4>
         ${st.rooms.length ? `<div class="rooms">${st.rooms.map((r) => `<button class="room-row" data-a="selectEl" data-id="${r.id}"><i style="--c:${r.color}"></i><span>${esc(r.name || 'Sin nombre')}</span><b>${fmtNum(r.area)} m²</b><small>${fmtNum(r.perim)} m</small></button>`).join('')}</div>` : '<p class="phint">Dibuja estancias con las herramientas de muro o habitación.</p>'}
@@ -1833,6 +1995,9 @@ const Plan = (() => {
         case 'rotSel': rotateSel(); break;
         case 'dupSel': duplicateSel(); break;
         case 'delSel': deleteSel(); break;
+        case 'lockSel': toggleLockSel(); break;
+        case 'clearSel': sel = null; multiSel.clear(); renderPanel(); requestRender(); break;
+        case 'toggleMulti': multiMode = !multiMode; if (multiMode) setTool('select', true); syncTop(); toast(multiMode ? 'Multiselección activa: toca varios elementos o arrastra un recuadro' : 'Multiselección desactivada', 'info'); break;
       }
     });
     root.addEventListener('change', (e) => {
@@ -1866,6 +2031,16 @@ const Plan = (() => {
       if (t.dataset.pl) { plan()[t.dataset.pl] = t.value; Store.save(); syncTop(); renderPanel(); return; }
       if (t.dataset.wo) { pui[t.dataset.wo] = t.dataset.wo === 'wallThick' ? Math.max(1, num(t.value, 15)) : t.value; savePui(); requestRender(); setTimeout(renderPanelKeepFocus, 0); return; }
       if (t.dataset.do) { pui[t.dataset.do] = Math.max(0, num(t.value, 20)); savePui(); requestRender(); return; }
+      if (t.dataset.sf) {
+        const el = sel && byId(sel); if (!el || !Array.isArray(el.sections)) return;
+        const idx = +t.closest('[data-sidx]').dataset.sidx;
+        const s = el.sections[idx]; if (!s) return;
+        pushUndo();
+        if (t.type === 'checkbox') s[t.dataset.sf] = t.checked;
+        else if (t.dataset.sf === 'h') s.h = Math.max(5, num(t.value, 20));
+        else { s.kind = t.value; if (t.value === 'cubertero') s.cutlery = true; }
+        commit(); return;
+      }
       if (!t.dataset.p) return;
       const el = sel && byId(sel); if (!el) return;
       if (t.type === 'number' || t.tagName === 'SELECT') {
@@ -1883,7 +2058,11 @@ const Plan = (() => {
         case 'del': deleteSel(); setMobilePanel(false); break;
         case 'dup': duplicateSel(); break;
         case 'rotate': rotateSel(); break;
-        case 'deselect': sel = null; setMobilePanel(false); renderPanel(); requestRender(); break;
+        case 'deselect': sel = null; multiSel.clear(); setMobilePanel(false); renderPanel(); requestRender(); break;
+        case 'toggleLock': toggleLockSel(); break;
+        case 'lockAll': toggleLockSel(true); break;
+        case 'unlockAllSel': toggleLockSel(false); break;
+        case 'unlockAll': pushUndo(); els().forEach((x) => { x.locked = false; }); commit(); toast('Todos los elementos desbloqueados', 'success'); break;
         case 'split': if (el) splitWall(el); break;
         case 'hinge': if (el) { pushUndo(); el.hinge = el.hinge === 'right' ? 'left' : 'right'; commit(); } break;
         case 'flip': if (el) { pushUndo(); el.side = -(el.side || 1); commit(); } break;
@@ -1902,6 +2081,19 @@ const Plan = (() => {
         }
         case 'openTask': App.openTask(b.dataset.t); break;
         case 'openCge': Obra.openTab('electric'); break;
+        case 'addSec': {
+          if (!el) break;
+          pushUndo();
+          if (!Array.isArray(el.sections)) el.sections = [];
+          el.sections.push({ id: uid(), kind: 'cajon', h: 20, anim: true, cutlery: false });
+          commit(); break;
+        }
+        case 'delSec': {
+          if (!el || !Array.isArray(el.sections)) break;
+          pushUndo();
+          el.sections.splice(+b.dataset.sidx, 1);
+          commit(); break;
+        }
         case 'addTask': {
           if (!el) break;
           const title = (prompt(`Nueva tarea para «${el.name}»:`) || '').trim(); if (!title) break;
@@ -1959,7 +2151,7 @@ const Plan = (() => {
       case 'armario': case 'vestidor': case 'nevera': case 'horno': case 'microondas': case 'despensa': case 'trastero': return { h: 210, z0: 0, c: '#d6cfc4' };
       case 'muebleAlto': return { h: 70, z0: 145, c: '#ebe5dc' };
       case 'campana': return { h: 45, z0: 155, c: '#94a3b8' };
-      case 'muebleBajo': case 'muebleCajon': case 'muebleRincon': case 'vinoteca': case 'peninsula': return { h: 88, z0: 0, c: '#e5dfd6' };
+      case 'muebleBajo': case 'muebleCajon': case 'muebleRincon': case 'vinoteca': case 'peninsula': case 'moduloCocina': return { h: 85, z0: 0, c: '#e5dfd6' };
       case 'estanteria': return { h: 185, c: '#c8b8a2' };
       case 'pilar': return { h: 250, c: '#94a3b8' };
       case 'encimera': case 'fregadero': case 'placa': case 'isla': case 'lavadora': case 'secadora': case 'lavavajillas': case 'barbacoa': return { h: 90, c: '#e2ddd5' };
@@ -2163,10 +2355,18 @@ const Plan = (() => {
       if (L - cur > 1) addBox(segRect(w, cur, L, ht), 0, wh, col, alpha);
     });
 
-    // 4. Mobiliario en volumen 3D (con escaleras escalonadas reales)
+    // 4. Mobiliario en volumen 3D (con escaleras escalonadas y módulos de cocina configurables)
+    state3d._hitList = [];
     if (state3d.showFurn) {
       list.filter((e) => e.type === 'furn' && e.kind !== 'norte').forEach((f) => {
         const hw = f.w / 2, hh = f.h / 2, a = f.angle || 0;
+        const fHScale = Math.max(0.45, hFactor);
+        const st = furn3DStyle(f.kind);
+        const fH = (f.h3d || st.h) * fHScale;
+        const fZ0 = (f.z0 ?? st.z0 ?? 0) * hFactor;
+        const pCenter = proj(f.x, f.y, fZ0 + fH / 2);
+        state3d._hitList.push({ id: f.id, x: pCenter.x, y: pCenter.y, r: Math.max(18, Math.max(hw, hh) * scale * 0.9) });
+        const isSel3d = state3d.sel3dId === f.id;
         if (f.kind === 'escalera') {
           const steps = clamp(Math.round(f.w / 26), 5, 16);
           const maxH = 250 * Math.max(0.55, hFactor);
@@ -2176,26 +2376,80 @@ const Plan = (() => {
             const pts = [[x0, -hh], [x1, -hh], [x1, hh], [x0, hh]].map(([x, y]) => {
               const p = rotPt(x, y, a); return [f.x + p.x, f.y + p.y];
             });
-            const zTop = ((i + 1) / steps) * maxH;
-            addBox(pts, 0, zTop, i % 2 ? '#d6cfc4' : '#c9bfb0', 1);
+            addBox(pts, 0, ((i + 1) / steps) * maxH, isSel3d ? '#fb923c' : (i % 2 ? '#d6cfc4' : '#c9bfb0'), 1);
           }
           return;
         }
-        const st = furn3DStyle(f.kind);
-        const fH = (f.h3d || st.h) * Math.max(0.45, hFactor);
-        const fZ0 = (f.z0 ?? st.z0 ?? 0) * hFactor;
+        const localBox = (lx0, ly0, lx1, ly1, z0, z1, col, al = 1) => {
+          const pts = [[lx0, ly0], [lx1, ly0], [lx1, ly1], [lx0, ly1]].map(([x, y]) => { const p = rotPt(x, y, a); return [f.x + p.x, f.y + p.y]; });
+          addBox(pts, z0, z1, col, al);
+        };
+        const aKit = state3d.animKitchen || 0;
+        if (Array.isArray(f.sections) && f.sections.length) {
+          // Módulo de cocina configurable con zócalo, perfil Gola/Uñero, cajones, cubertero y puertas
+          const frontCol = isSel3d ? '#fdba74' : (f.frontColor || '#f1ede6');
+          const plinth = (f.plinth ?? (fZ0 > 0 ? 0 : 10)) * fHScale;
+          if (plinth > 1) localBox(-hw + 2, -hh + 2, hw - 2, hh - 4, fZ0, fZ0 + plinth, '#475569', 1);
+          // Casco base
+          localBox(-hw, -hh, hw, hh - 2, fZ0 + plinth, fZ0 + fH, isSel3d ? '#fb923c' : '#cbd5e1', 1);
+          let curZ = fZ0 + plinth;
+          f.sections.forEach((s) => {
+            const sh = Math.max(4, num(s.h, 20) * fHScale);
+            const zA = curZ, zB = Math.min(fZ0 + fH, curZ + sh);
+            curZ = zB;
+            if (zB - zA < 2) return;
+            if (s.kind === 'hueco' || s.kind === 'horno') {
+              localBox(-hw + 3, -hh + 3, hw - 3, hh, zA + 1, zB - 1, s.kind === 'horno' ? '#1e293b' : '#94a3b8', 1);
+            } else if (['cajon', 'cacerolero', 'cubertero', 'cajonInt'].includes(s.kind)) {
+              const pull = (s.anim !== false ? aKit : 0) * Math.min(42, f.h * 0.72);
+              if (pull > 1) {
+                // Caja interior del cajón extraído
+                localBox(-hw + 4, hh - 2, hw - 4, hh + pull, zA + 2, zA + Math.min(zB - zA - 2, 16 * fHScale), '#d6cfc4', 1);
+                // Divisiones de cubertero visibles al abrir
+                if (s.cutlery || s.kind === 'cubertero') {
+                  const divs = Math.max(3, Math.round(f.w / 16));
+                  const stepX = (f.w - 10) / divs;
+                  for (let d = 1; d < divs; d++) {
+                    const gx = -hw + 5 + d * stepX;
+                    localBox(gx - 0.8, hh + 1, gx + 0.8, hh + pull - 2, zA + 3, zA + Math.min(zB - zA - 3, 10 * fHScale), '#94a3b8', 1);
+                  }
+                }
+              }
+              // Frente del cajón
+              localBox(-hw + 1, hh + pull - 2, hw - 1, hh + pull + 1.5, zA + 1, zB - 1, frontCol, 1);
+              // Perfil Gola / Uñero / Tirador
+              if (f.handleType === 'gola' || f.handleType === 'unero') {
+                localBox(-hw + 2, hh + pull, hw - 2, hh + pull + 2, zB - 3.5, zB - 1, '#64748b', 1);
+              } else if (f.handleType === 'tirador') {
+                localBox(-Math.min(12, hw * 0.4), hh + pull + 1.5, Math.min(12, hw * 0.4), hh + pull + 3.5, zB - 6, zB - 4, '#334155', 1);
+              }
+            } else {
+              // Puerta abatible / doble / elevable
+              const openR = s.anim !== false ? aKit : 0;
+              if (openR > 0.05 && s.kind === 'elevable') {
+                localBox(-hw + 1, hh, hw - 1, hh + (zB - zA) * 0.8 * openR, zB - 3, zB, frontCol, 1);
+              } else if (openR > 0.05) {
+                const ang = openR * 70, dw = Math.min(f.w - 2, s.kind === 'puerta2' ? hw - 1 : f.w - 2);
+                const p0 = rotPt(-hw + 1, hh, a), p1 = rotPt(-hw + 1 + Math.cos((ang * Math.PI) / 180) * dw, hh + Math.sin((ang * Math.PI) / 180) * dw, a);
+                const p2 = rotPt(-hw + 1 + Math.cos((ang * Math.PI) / 180) * dw, hh + Math.sin((ang * Math.PI) / 180) * dw + 2.5, a), p3 = rotPt(-hw + 1, hh + 2.5, a);
+                addBox([[f.x + p0.x, f.y + p0.y], [f.x + p1.x, f.y + p1.y], [f.x + p2.x, f.y + p2.y], [f.x + p3.x, f.y + p3.y]], zA + 1, zB - 1, frontCol, 1);
+              } else {
+                localBox(-hw + 1, hh - 1.5, hw - 1, hh + 1.5, zA + 1, zB - 1, frontCol, 1);
+              }
+            }
+          });
+          return;
+        }
         const pts = [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]].map(([x, y]) => {
           const p = rotPt(x, y, a); return [f.x + p.x, f.y + p.y];
         });
-        addBox(pts, fZ0, fZ0 + fH, st.c, f.kind === 'pergola' ? 0.45 : 1);
-        // Animación de muebles de cocina (cajones saliendo / puertas abriéndose)
-        const aKit = state3d.animKitchen || 0;
+        addBox(pts, fZ0, fZ0 + fH, isSel3d ? '#fdba74' : st.c, f.kind === 'pergola' ? 0.45 : 1);
+        // Animación estándar de muebles de cocina sin secciones personalizadas
         if (aKit > 0.02) {
           if (f.kind === 'muebleCajon') {
             const pull = 34 * aKit;
-            const dPts = [[-hw + 4, hh], [hw - 4, hh], [hw - 4, hh + pull], [-hw + 4, hh + pull]].map(([x, y]) => { const p = rotPt(x, y, a); return [f.x + p.x, f.y + p.y]; });
-            addBox(dPts, fZ0 + 6, fZ0 + fH * 0.42, '#d4c8b8', 1);
-            addBox(dPts, fZ0 + fH * 0.48, fZ0 + fH * 0.88, '#ded4c6', 1);
+            localBox(-hw + 4, hh, hw - 4, hh + pull, fZ0 + 6, fZ0 + fH * 0.42, '#d4c8b8', 1);
+            localBox(-hw + 4, hh, hw - 4, hh + pull, fZ0 + fH * 0.48, fZ0 + fH * 0.88, '#ded4c6', 1);
           } else if (['muebleBajo', 'muebleAlto', 'horno', 'microondas', 'nevera', 'despensa', 'lavavajillas'].includes(f.kind)) {
             const ang = aKit * 72, dw = Math.min(f.w - 4, 60);
             const p0 = rotPt(-hw + 2, hh, a), p1 = rotPt(-hw + 2 + Math.cos((ang * Math.PI) / 180) * dw, hh + Math.sin((ang * Math.PI) / 180) * dw, a);
@@ -2367,6 +2621,7 @@ Respeta exactamente la posición de muros, puertas, ventanas y muebles del plano
     const state3d = Object.assign({
       yaw: -35, pitch: 42, zoom: 1, wallCut: 0.78, hideDemo: true,
       animDoors: 0, animGarage: 0, animWindows: 0, animShutters: 0, animKitchen: 0, nightMode: false,
+      edit3d: false, sel3dId: null,
     }, savedL);
     const GEM_KEY = 'mi-reforma:gemini:key';
     const st = stats(plan());
@@ -2384,15 +2639,16 @@ Respeta exactamente la posición de muros, puertas, ventanas y muebles del plano
             <div class="r3d-hint">Arrastra para rotar 360° e inclinar</div>
           </div>
           <div class="r3d-anim-bar">
-            <span class="muted small" style="font-weight:700">Probar / Animar:</span>
+            <button class="chip" id="r3dEditModeBtn" title="Toca un mueble en el 3D para moverlo en X, Y o apilarlo en altura Z">${icon('edit', 13)} Editar muebles en 3D</button>
             <button class="chip" data-anim="animDoors">Puertas</button>
             <button class="chip" data-anim="animGarage">Puerta garaje</button>
             <button class="chip" data-anim="animWindows">Ventanas</button>
             <button class="chip" data-anim="animShutters">Persianas</button>
             <button class="chip" data-anim="animKitchen">Cocina</button>
-            <button class="chip" id="r3dNightBtn">${icon('moon', 13)} Modo noche / Luces</button>
+            <button class="chip" id="r3dNightBtn">${icon('moon', 13)} Noche / Luces</button>
             <button class="btn sm ghost" id="r3dOpenCge">${icon('bolt', 13)} Cuadro Eléctrico</button>
           </div>
+          <div id="r3dEditBar" class="r3d-edit-bar" style="display:none"></div>
           <div class="r3d-controls">
             <label class="field"><span>Altura de muros</span><input type="range" id="r3dCut" min="0.2" max="1" step="0.05" value="0.78"></label>
             <label class="field"><span>Zoom</span><input type="range" id="r3dZoom" min="0.6" max="1.8" step="0.05" value="1"></label>
@@ -2449,16 +2705,74 @@ Respeta exactamente la posición de muros, puertas, ventanas y muebles del plano
         const draw = () => render3DCanvas(canvas, state3d);
         draw();
 
-        // Rotación táctil / ratón
-        let dragging = false, lx = 0, ly = 0;
-        canvas.addEventListener('pointerdown', (e) => { dragging = true; lx = e.clientX; ly = e.clientY; canvas.setPointerCapture(e.pointerId); });
+        // Rotación táctil / ratón + Selección directa en modo Editar 3D
+        const editBar = $('#r3dEditBar', card);
+        const renderEdit3dBar = () => {
+          const el = state3d.sel3dId ? byId(state3d.sel3dId) : null;
+          if (!state3d.edit3d || !el) {
+            editBar.style.display = state3d.edit3d ? '' : 'none';
+            if (state3d.edit3d) editBar.innerHTML = `<span class="muted small">Toca cualquier mueble o módulo en el 3D para seleccionarlo y ajustar su posición X, Y o altura Z (apilar).</span>`;
+            return;
+          }
+          const stf = furn3DStyle(el.kind);
+          editBar.style.display = '';
+          editBar.innerHTML = `<div class="r3de-head"><b>${esc(el.name || 'Mueble')}</b>${el.locked ? '<span class="muted small">🔒 Bloqueado</span>' : ''}
+              <div class="r3de-presets">
+                <button class="chip" data-e3z="0">Suelo (0)</button>
+                <button class="chip" data-e3z="90">Encimera (90)</button>
+                <button class="chip" data-e3z="145">Colgado (145)</button>
+                <button class="chip" data-e3rot="1">${icon('rotate', 12)} 90°</button>
+              </div>
+            </div>
+            <div class="r3de-grid">
+              <label class="pf"><span>X (cm)</span><input type="number" step="5" data-e3f="x" value="${Math.round(el.x)}"></label>
+              <label class="pf"><span>Y (cm)</span><input type="number" step="5" data-e3f="y" value="${Math.round(el.y)}"></label>
+              <label class="pf"><span>Altura suelo Z</span><input type="number" step="5" data-e3f="z0" value="${Math.round(el.z0 ?? stf.z0 ?? 0)}"></label>
+              <label class="pf"><span>Ancho</span><input type="number" step="5" data-e3f="w" value="${Math.round(el.w)}"></label>
+              <label class="pf"><span>Fondo</span><input type="number" step="5" data-e3f="h" value="${Math.round(el.h)}"></label>
+              <label class="pf"><span>Alto 3D</span><input type="number" step="5" data-e3f="h3d" value="${Math.round(el.h3d || stf.h)}"></label>
+            </div>`;
+        };
+        $('#r3dEditModeBtn', card).addEventListener('click', (e) => {
+          state3d.edit3d = !state3d.edit3d;
+          e.currentTarget.classList.toggle('on', state3d.edit3d);
+          if (!state3d.edit3d) state3d.sel3dId = null;
+          renderEdit3dBar(); draw();
+        });
+        editBar.addEventListener('input', (e) => {
+          const k = e.target.dataset.e3f; if (!k || !state3d.sel3dId) return;
+          const el = byId(state3d.sel3dId); if (!el || el.locked) return;
+          el[k] = num(e.target.value, el[k] || 0);
+          Store.save(); draw(); requestRender();
+        });
+        editBar.addEventListener('click', (e) => {
+          const el = state3d.sel3dId ? byId(state3d.sel3dId) : null; if (!el || el.locked) return;
+          const zb = e.target.closest('[data-e3z]');
+          if (zb) { el.z0 = +zb.dataset.e3z; Store.save(); renderEdit3dBar(); draw(); requestRender(); return; }
+          if (e.target.closest('[data-e3rot]')) { el.angle = ((el.angle || 0) + 90) % 360; Store.save(); draw(); requestRender(); }
+        });
+
+        let dragging = false, lx = 0, ly = 0, moved = false;
+        canvas.addEventListener('pointerdown', (e) => { dragging = true; moved = false; lx = e.clientX; ly = e.clientY; canvas.setPointerCapture(e.pointerId); });
         canvas.addEventListener('pointermove', (e) => {
           if (!dragging) return;
+          if (Math.hypot(e.clientX - lx, e.clientY - ly) > 3) moved = true;
           state3d.yaw += (e.clientX - lx) * 0.55;
           state3d.pitch = clamp(state3d.pitch + (e.clientY - ly) * 0.4, 15, 85);
           lx = e.clientX; ly = e.clientY; draw();
         });
-        canvas.addEventListener('pointerup', () => { dragging = false; });
+        canvas.addEventListener('pointerup', (e) => {
+          dragging = false;
+          if (!moved && state3d.edit3d && state3d._hitList) {
+            const rect = canvas.getBoundingClientRect();
+            const cx = (e.clientX - rect.left) * (canvas.width / rect.width);
+            const cy = (e.clientY - rect.top) * (canvas.height / rect.height);
+            let best = null, bd = Infinity;
+            state3d._hitList.forEach((h) => { const d = Math.hypot(cx - h.x, cy - h.y); if (d < h.r && d < bd) { bd = d; best = h; } });
+            state3d.sel3dId = best ? best.id : null;
+            renderEdit3dBar(); draw();
+          }
+        });
         canvas.addEventListener('pointercancel', () => { dragging = false; });
 
         $('#r3dCut', card).addEventListener('input', (e) => { state3d.wallCut = num(e.target.value, 0.78); draw(); });
