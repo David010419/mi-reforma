@@ -271,7 +271,7 @@ const Obra = (() => {
         <div class="search">${icon('search', 16)}<input id="oSearch" value="${esc(ui.q)}" placeholder="Buscar material, estancia, tienda o referencia…"></div>
         <button class="btn" data-oa="fromPlan">${icon('plan', 16)} Calcular desde el plano</button>
       </div>
-      ${list.length ? `<div class="card exp-table-wrap always-scroll"><table class="exp-table">
+      ${list.length ? `<div class="card exp-table-wrap"><table class="exp-table">
         <thead><tr><th>Material</th><th>Estancia</th><th class="num">Cantidad</th><th class="num">Precio/ud</th><th class="num">Total</th><th>Tienda / Ref</th><th>Estado</th><th></th></tr></thead>
         <tbody>${list.map((m) => {
           const tot = num(m.qty) * num(m.unitPrice);
@@ -286,7 +286,32 @@ const Obra = (() => {
             <td class="act"><button class="icon-btn sm" data-oa="editMat">${icon('edit', 15)}</button><button class="icon-btn sm" data-oa="delMat">${icon('trash', 15)}</button></td>
           </tr>`;
         }).join('')}</tbody>
-      </table></div>`
+      </table></div>
+      <div class="exp-cards">
+        ${list.map((m) => {
+          const tot = num(m.qty) * num(m.unitPrice);
+          return `<article class="card ecard" data-id="${m.id}">
+            <div class="ec-top">
+              ${m.zone ? `<span class="tagc" style="--c:${catColor(m.zone)}">${esc(m.zone)}</span>` : '<span class="muted small">Sin estancia</span>'}
+              <button class="pill pill-btn" data-oa="cycleMat" style="--c:${stCol(m.status)}">${esc(m.status || 'Elegido')}</button>
+            </div>
+            <div class="ec-main" data-oa="editMat">
+              <div class="ec-title">${esc(m.name)}</div>
+              <div class="ec-amount">${fmtMoney2(tot)}</div>
+            </div>
+            <div class="ec-grid">
+              <div><span>Cantidad</span><b>${fmtNum(m.qty, 2)} ${esc(m.unit || 'uds')}</b></div>
+              <div><span>Precio/ud</span><b>${fmtMoney2(m.unitPrice)}</b></div>
+              <div><span>Tienda</span><b>${esc(m.store || '—')}</b></div>
+              <div><span>Referencia</span><b class="mono">${esc(m.ref || '—')}</b></div>
+            </div>
+            <div class="ec-foot">
+              <button class="btn sm ghost" data-oa="editMat">${icon('edit', 14)} Editar</button>
+              <button class="btn sm ghost danger-txt" data-oa="delMat">${icon('trash', 14)} Eliminar</button>
+            </div>
+          </article>`;
+        }).join('')}
+      </div>`
         : `<div class="empty card">${icon('box', 42)}<h3>Sin materiales todavía</h3><p>Añade suelos, pintura, azulejos o sanitarios, o pulsa <b>Calcular desde el plano</b> para traer los m² automáticamente.</p></div>`}`;
   }
 

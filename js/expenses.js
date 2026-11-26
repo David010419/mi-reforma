@@ -283,7 +283,7 @@ const Expenses = (() => {
             <h3>${icon('calendar', 18)} 1. Calendario de disposiciones y evolución de cuota mensual</h3>
             <button class="btn sm" data-ea="addDisp">${icon('plus', 14)} Añadir disposición</button>
           </header>
-          <div class="exp-table-wrap always-scroll">
+          <div class="exp-table-wrap">
             <table class="exp-table loan-table">
               <thead>
                 <tr>
@@ -302,14 +302,15 @@ const Expenses = (() => {
               <tfoot id="lcDispFoot">${dispFootHTML(c)}</tfoot>
             </table>
           </div>
-          <p class="muted small lcard-note">${icon('hint', 14)} Los gastos con columna <i>Disposición / Origen</i> igual a <b>Disp. 1</b>, <b>Disp. 2</b>, etc. se suman automáticamente aquí. Pulsa en el gasto de una fila para filtrarlos en <button class="link-btn" data-ea="goRegistry">Registro de Gastos</button>.</p>
+          <div class="mob-cards" id="lcDispCards">${dispCardsHTML(c)}</div>
+          <p class="muted small lcard-note">${icon('hint', 14)} Los gastos con columna <i>Disposición / Origen</i> igual a <b>Disp. 1</b>, <b>Disp. 2</b>, etc. se suman automáticamente aquí. Pulsa en el gasto para filtrarlos en <button class="link-btn" data-ea="goRegistry">Registro de Gastos</button>.</p>
         </section>
 
         <section class="card lcard">
           <header class="lcard-head">
             <h3>${icon('layers', 18)} 2. Distribución de gastos por partida</h3>
           </header>
-          ${c.parts.length ? `<div class="exp-table-wrap always-scroll">
+          ${c.parts.length ? `<div class="exp-table-wrap">
             <table class="exp-table mini-part">
               <thead><tr><th>Categoría / Partida</th><th class="num">Total Gastado</th><th class="num">% s/ Gastos</th><th class="num">% s/ Dispuesto</th></tr></thead>
               <tbody>
@@ -324,6 +325,14 @@ const Expenses = (() => {
                 <tr><td><b>TOTAL EJECUTADO</b></td><td class="num nowrap"><b>${fmtMoney2(c.totalSpent)}</b></td><td class="num"><b>100,0%</b></td><td class="num"><b>${fmtPct(c.dispensed > 0 ? (c.totalSpent / c.dispensed) * 100 : 0, 1)}</b></td></tr>
               </tfoot>
             </table>
+          </div>
+          <div class="mob-cards part-cards">
+            ${c.parts.map((p) => `<button class="part-mob-row" data-ea="filterCat" data-val="${esc(p.name)}">
+              <div class="pm-top"><div class="part-name"><i style="--c:${catColor(p.name)}"></i><span>${esc(p.name)}</span></div><b>${fmtMoney2(p.amount)}</b></div>
+              <div class="part-bar"><i style="width:${Math.min(100, p.pctSpent)}%;background:${catColor(p.name)}"></i></div>
+              <div class="pm-sub"><span>${fmtPct(p.pctSpent, 1)} s/ gastos</span><span>${fmtPct(p.pctDisp, 1)} s/ dispuesto</span></div>
+            </button>`).join('')}
+            <div class="part-mob-tot"><span>TOTAL EJECUTADO</span><b>${fmtMoney2(c.totalSpent)}</b></div>
           </div>` : '<p class="muted empty-sm">Aún no hay gastos registrados.</p>'}
         </section>
       </div>
@@ -353,7 +362,7 @@ const Expenses = (() => {
         <header class="lcard-head">
           <h3>${icon('trend', 18)} 4. Simulación de cuotas según capital dispuesto (post-carencia y periodo variable)</h3>
         </header>
-        <div class="exp-table-wrap always-scroll">
+        <div class="exp-table-wrap">
           <table class="exp-table">
             <thead>
               <tr>
@@ -371,6 +380,7 @@ const Expenses = (() => {
             <tfoot id="lcSimFoot">${simFootHTML(c)}</tfoot>
           </table>
         </div>
+        <div class="mob-cards" id="lcSimCards">${simCardsHTML(c)}</div>
       </section>`;
   }
 
@@ -445,6 +455,58 @@ const Expenses = (() => {
     </tr>`;
   }
 
+  function dispCardsHTML(c) {
+    const restTot = c.dispensed - c.totalDispSpent;
+    return c.rows.map((r) => `<article class="mob-card" data-did="${r.d.id}">
+      <div class="mc-row-top">
+        <input class="mc-name" data-df="name" value="${esc(r.d.name)}">
+        <input class="mc-date" type="date" data-df="date" value="${esc(r.d.date || '')}">
+        <button class="icon-btn sm" data-ea="delDisp" title="Eliminar">${icon('x', 15)}</button>
+      </div>
+      <input class="mc-mile" data-df="milestone" value="${esc(r.d.milestone || '')}" placeholder="Hito / certificación de obra…">
+      <label class="mc-amt-wrap"><span>Importe dispuesto (€)</span><input type="number" step="100" data-df="amount" value="${r.amt || ''}" placeholder="0"></label>
+      <div class="ec-grid">
+        <div><span>Acumulado</span><b data-mc="acc">${r.amt > 0 ? fmtMoney2(r.acc) : '—'}</b></div>
+        <div><span>Cuota carencia</span><b data-mc="car" class="accent-txt">${r.amt > 0 ? fmtMoney2(r.cuotaCar) : '—'}</b></div>
+        <div><span>Gastado</span><b>${r.spent > 0 ? `<button class="link-btn" data-ea="filterOrigin" data-val="${esc(r.d.name)}">${fmtMoney2(r.spent)}</button>` : (r.amt > 0 ? fmtMoney2(0) : '—')}</b></div>
+        <div><span>Saldo restante</span><b data-mc="rest" class="${r.restante < 0 ? 'danger-txt' : ''}">${(r.amt > 0 || r.spent > 0) ? fmtMoney2(r.restante) : '—'}</b></div>
+      </div>
+    </article>`).join('') + `
+    <div class="mob-card tot" id="lcDispTotCard">
+      <div class="mc-tot-head"><b>TOTAL DISPUESTO</b><b class="accent-txt">${fmtMoney2(c.dispensed)}</b></div>
+      <div class="ec-grid">
+        <div><span>Cuota actual</span><b class="accent-txt">${fmtMoney2(c.currentCarencia)}</b></div>
+        <div><span>Total gastado</span><b>${fmtMoney2(c.totalDispSpent)}</b></div>
+        <div><span>Saldo restante</span><b class="${restTot < 0 ? 'danger-txt' : 'ok-txt'}">${fmtMoney2(restTot)}</b></div>
+      </div>
+    </div>`;
+  }
+
+  function simCardsHTML(c) {
+    const active = c.rows.filter((r) => r.amt > 0);
+    const incTot = c.currentVar - c.currentCarencia;
+    return active.map((r) => `<article class="mob-card">
+      <div class="mc-tot-head"><b>${esc(r.d.name)}</b><b>${fmtMoney2(r.acc)}</b></div>
+      <div class="ec-grid">
+        <div><span>Carencia (${fmtPct(c.rateCar, 2)})</span><b>${fmtMoney2(r.cuotaCar)}/mes</b></div>
+        <div><span>Periodo fijo (${fmtPct(c.rateFix, 2)})</span><b>${fmtMoney2(r.cuotaFix)}/mes</b></div>
+        <div><span>Capital vivo</span><b>${fmtMoney2(r.capVivo)}</b></div>
+        <div><span>Variable (${fmtPct(c.rateVar, 2)})</span><b class="accent-txt">${fmtMoney2(r.cuotaVar)}/mes</b></div>
+        <div><span>Incremento vs carencia</span><b class="${r.incVar > 0 ? 'warn-txt' : 'ok-txt'}">${r.incVar >= 0 ? '+' : ''}${fmtMoney2(r.incVar)}/mes</b></div>
+      </div>
+    </article>`).join('') + `
+    <div class="mob-card tot">
+      <div class="mc-tot-head"><b>CUOTA ACTUAL</b><b>${fmtMoney2(c.dispensed)}</b></div>
+      <div class="ec-grid">
+        <div><span>Carencia</span><b>${fmtMoney2(c.currentCarencia)}/mes</b></div>
+        <div><span>Periodo fijo</span><b>${fmtMoney2(c.currentFixed)}/mes</b></div>
+        <div><span>Capital vivo</span><b>${fmtMoney2(c.currentCapVivo)}</b></div>
+        <div><span>Variable (${fmtPct(c.rateVar, 2)})</span><b class="accent-txt">${fmtMoney2(c.currentVar)}/mes</b></div>
+        <div><span>Incremento</span><b class="${incTot > 0 ? 'warn-txt' : 'ok-txt'}">${incTot >= 0 ? '+' : ''}${fmtMoney2(incTot)}/mes</b></div>
+      </div>
+    </div>`;
+  }
+
   function updateControlLive() {
     if (ui.tab !== 'control') return;
     const c = computeLoan();
@@ -456,16 +518,32 @@ const Expenses = (() => {
     const ap = $('#lcAmortPills'); if (ap) ap.innerHTML = amortPillsHTML(c);
     const sb = $('#lcSimBody'); if (sb) sb.innerHTML = simBodyHTML(c);
     const sf = $('#lcSimFoot'); if (sf) sf.innerHTML = simFootHTML(c);
-    // Actualizar columnas calculadas en las filas sin perder el foco del input
+    const sc = $('#lcSimCards'); if (sc) sc.innerHTML = simCardsHTML(c);
+    const dtc = $('#lcDispTotCard');
+    if (dtc) {
+      const restTot = c.dispensed - c.totalDispSpent;
+      dtc.innerHTML = `<div class="mc-tot-head"><b>TOTAL DISPUESTO</b><b class="accent-txt">${fmtMoney2(c.dispensed)}</b></div>
+        <div class="ec-grid">
+          <div><span>Cuota actual</span><b class="accent-txt">${fmtMoney2(c.currentCarencia)}</b></div>
+          <div><span>Total gastado</span><b>${fmtMoney2(c.totalDispSpent)}</b></div>
+          <div><span>Saldo restante</span><b class="${restTot < 0 ? 'danger-txt' : 'ok-txt'}">${fmtMoney2(restTot)}</b></div>
+        </div>`;
+    }
+    // Actualizar columnas calculadas en filas y tarjetas sin perder el foco
     c.rows.forEach((r) => {
       const tr = content.querySelector(`tr[data-did="${r.d.id}"]`);
-      if (!tr) return;
-      const tds = tr.querySelectorAll('td');
-      if (tds[4]) tds[4].textContent = r.amt > 0 ? fmtMoney2(r.acc) : '—';
-      if (tds[5]) tds[5].textContent = r.amt > 0 ? fmtMoney2(r.cuotaCar) : '—';
-      if (tds[7]) {
-        tds[7].textContent = (r.amt > 0 || r.spent > 0) ? fmtMoney2(r.restante) : '—';
-        tds[7].className = 'num nowrap ' + (r.restante < 0 ? 'danger-txt' : '');
+      if (tr) {
+        const tds = tr.querySelectorAll('td');
+        if (tds[4]) tds[4].textContent = r.amt > 0 ? fmtMoney2(r.acc) : '—';
+        if (tds[5]) tds[5].textContent = r.amt > 0 ? fmtMoney2(r.cuotaCar) : '—';
+        if (tds[7]) { tds[7].textContent = (r.amt > 0 || r.spent > 0) ? fmtMoney2(r.restante) : '—'; tds[7].className = 'num nowrap ' + (r.restante < 0 ? 'danger-txt' : ''); }
+      }
+      const mc = content.querySelector(`article[data-did="${r.d.id}"]`);
+      if (mc) {
+        const a = mc.querySelector('[data-mc="acc"]'), cr = mc.querySelector('[data-mc="car"]'), rs = mc.querySelector('[data-mc="rest"]');
+        if (a) a.textContent = r.amt > 0 ? fmtMoney2(r.acc) : '—';
+        if (cr) cr.textContent = r.amt > 0 ? fmtMoney2(r.cuotaCar) : '—';
+        if (rs) { rs.textContent = (r.amt > 0 || r.spent > 0) ? fmtMoney2(r.restante) : '—'; rs.className = r.restante < 0 ? 'danger-txt' : ''; }
       }
     });
   }

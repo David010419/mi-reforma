@@ -748,6 +748,23 @@ button.save-ind.warn .ic { color: var(--warning); }
 .ai-key-box { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; padding: 12px; border-radius: 11px; background: var(--surface-2); border: 1px solid var(--border); }
 .ai-result img { box-shadow: var(--shadow); }
 
+/* ---------- Tarjetas móviles para tablas (Control Hipoteca, Partidas, Simulación) ---------- */
+.mob-cards { display: none; flex-direction: column; gap: 10px; }
+.mob-card { padding: 12px 14px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--border); display: flex; flex-direction: column; gap: 9px; }
+.mob-card.tot { background: linear-gradient(135deg, var(--accent-soft), var(--surface-2)); border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); }
+.mc-row-top { display: grid; grid-template-columns: 92px 1fr auto; gap: 8px; align-items: center; }
+.mc-name { font-weight: 700 !important; height: 34px !important; padding: 0 8px !important; }
+.mc-date { height: 34px !important; padding: 0 8px !important; }
+.mc-mile { height: 34px !important; }
+.mc-amt-wrap { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.mc-amt-wrap span { font-size: 12px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+.mc-amt-wrap input { max-width: 150px; text-align: right; font-weight: 700; height: 36px !important; }
+.mc-tot-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 14.5px; }
+.part-mob-row { width: 100%; border: 1px solid var(--border); background: var(--surface-2); border-radius: 10px; padding: 10px 12px; text-align: left; display: flex; flex-direction: column; gap: 5px; }
+.pm-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13.5px; }
+.pm-sub { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--muted); }
+.part-mob-tot { display: flex; justify-content: space-between; align-items: center; padding: 11px 12px; border-radius: 10px; background: var(--accent-soft); font-weight: 800; font-size: 14px; }
+
 /* ---------- Toasts ---------- */
 #toasts { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 8px; align-items: center; z-index: 100; pointer-events: none; }
 .toast {
@@ -771,6 +788,7 @@ button.save-ind.warn .ic { color: var(--warning); }
 }
 @media (max-width: 900px) {
   :root { --sidebar: 0px; }
+  html, body, .app, .main { overflow-x: hidden; max-width: 100vw; }
   .app { grid-template-columns: 1fr; }
   .mobile-bar {
     position: sticky; top: 0; z-index: 35; height: 48px; padding: 0 14px;
@@ -794,31 +812,39 @@ button.save-ind.warn .ic { color: var(--warning); }
     border-right: 0; border-top: 1px solid var(--border); gap: 0; z-index: 45;
   }
   .brand, .sidebar-foot, .nav-desk-only { display: none !important; }
-  .lp-row, .amort-grid { grid-template-columns: 1fr; }
+  .lp-row, .amort-grid, .r3d-controls { grid-template-columns: 1fr; }
   .amort-pills { grid-template-columns: 1fr 1fr; }
-  .gantt-head, .gantt-row { grid-template-columns: 150px minmax(420px, 1fr); }
+  /* Cronograma Gantt vertical sin scroll horizontal en móvil */
+  .gantt-scroll { overflow-x: visible; }
+  .gantt-head { display: none; }
+  .gantt-row { display: flex; flex-direction: column; align-items: stretch; padding: 10px 12px; gap: 4px; }
+  .gantt-lbl { padding: 0; border-right: 0; }
+  .gantt-track { height: 28px; }
+  .gantt-bar { top: 2px; height: 24px; }
+
   .nav { flex-direction: row; flex: 1; justify-content: space-around; gap: 0; }
   .nav a { flex-direction: column; gap: 2px; padding: 6px 6px; font-size: 10.5px; position: relative; min-width: 56px; align-items: center; }
   .nav a b { font-weight: 600; }
   .nav-badge { position: absolute; top: 1px; right: 4px; min-width: 17px; height: 16px; font-size: 10px; }
-  .view { padding: 16px 14px 96px; }
+  .view { padding: 14px 12px 96px; }
   #view-plano { height: calc(100vh - 110px); height: calc(100dvh - 110px); position: relative; }
-  .view-head h1 { font-size: 22px; }
+  .view-head h1 { font-size: 21px; }
   .settings-grid, .dash-grid { grid-template-columns: 1fr; }
   .dcard.span2, .scard.span2 { grid-column: auto; }
-  .board { grid-template-columns: repeat(4, 84vw); scroll-snap-type: x mandatory; }
-  .col { scroll-snap-align: start; }
+  /* Tablero Kanban apilado verticalmente en móvil (cero scroll horizontal) */
+  .board { grid-template-columns: 1fr; overflow-x: visible; }
+  .col { min-height: 0; }
+  .lcard { padding: 14px; }
 
-  /* Gastos en móvil: tarjetas en lugar de tabla */
-  .exp-table-wrap { display: none; }
-  .exp-cards { display: flex; }
+  /* Todas las tablas pasan a tarjetas verticales en móvil */
+  .exp-table-wrap { display: none !important; }
+  .exp-cards, .mob-cards { display: flex; }
 
-  /* Plano 100% táctil en móvil con hoja inferior plegable */
+  /* Plano 100% táctil en móvil con hoja inferior plegable y barras en wrap sin scroll horizontal */
   .plan-body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; position: relative; }
-  .plan-tools { flex-direction: row; overflow-x: auto; padding: 6px 8px; border-right: 0; border-bottom: 1px solid var(--border); }
-  .plan-tools button { width: 44px; height: 44px; }
-  .plan-tools kbd { display: none; }
-  .tsep { width: 1px; height: 26px; margin: 0 4px; }
+  .plan-tools { flex-direction: row; flex-wrap: wrap; justify-content: center; overflow: visible; padding: 5px 6px; gap: 2px; border-right: 0; border-bottom: 1px solid var(--border); }
+  .plan-tools button { width: 38px; height: 38px; }
+  .plan-tools kbd, .plan-tools .tsep { display: none; }
   .plan-panel {
     position: fixed; left: 0; right: 0; bottom: 58px; max-height: 68vh;
     border-left: 0; border-top: 1px solid var(--border); border-radius: 18px 18px 0 0;
@@ -841,7 +867,9 @@ button.save-ind.warn .ic { color: var(--warning); }
     background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow); max-width: calc(100% - 20px);
   }
   .plan-fab-bar.show { display: flex; }
-  .plan-top { flex-wrap: nowrap; overflow-x: auto; padding: 8px 10px; }
+  .plan-top { flex-wrap: wrap; overflow: visible; padding: 6px 8px; gap: 4px 6px; }
+  .pt-group { border-right: 0; padding-right: 0; margin-right: 0; flex-wrap: wrap; }
+  .pt-group select { max-width: 165px; }
   .pt-group span:not(.pt-ic):not(.scope-badge) { display: none; }
   .pt-group:last-child { margin-left: 0; }
   #psHint { display: none; }
