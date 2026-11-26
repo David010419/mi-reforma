@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795735354436,
+  "updatedAt": 1795735357355,
   "project": {
     "name": "Jijona",
     "address": "Av Joan Fuster 8",
@@ -95,19 +95,6 @@
       "amount": 320,
       "status": "Pagado",
       "invoice": "FAC-0891",
-      "remaining": null,
-      "notes": "",
-      "created": 1795722891112
-    },
-    {
-      "id": "mwxz1mjsi1u8cv",
-      "date": "2026-11-24",
-      "origin": "Disp. 1",
-      "category": "Albañilería",
-      "concept": "Reformas López · Señal inicio obra (30%)",
-      "amount": 2800,
-      "status": "Pagado",
-      "invoice": "FAC-2026-102",
       "remaining": null,
       "notes": "",
       "created": 1795722891112
