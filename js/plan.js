@@ -507,10 +507,14 @@ const Plan = (() => {
         out += `<polygon points="${pts}" fill="url(#tex-${r.floorTexture})" pointer-events="none"/>`;
       }
     });
-    // Muros: contorno + relleno (fusionados)
+    // Muros: sombra sutil + contorno arquitectónico fusionado + relleno/textura
     const solid = walls.filter((w) => w.status !== 'demoler');
-    out += solid.map((w) => `<line x1="${w.x1}" y1="${w.y1}" x2="${w.x2}" y2="${w.y2}" stroke="${th.wall}" stroke-width="${w.thick + px(2.5)}" stroke-linecap="square"/>`).join('');
-    out += solid.map((w) => `<line x1="${w.x1}" y1="${w.y1}" x2="${w.x2}" y2="${w.y2}" stroke="${w.status === 'nuevo' ? th.wallNew : th.wallFill}" stroke-width="${w.thick}" stroke-linecap="square"/>`).join('');
+    out += `<g filter="url(#softShadow2d)">` + solid.map((w) => `<line x1="${w.x1}" y1="${w.y1}" x2="${w.x2}" y2="${w.y2}" stroke="${th.wall}" stroke-width="${w.thick + px(2.6)}" stroke-linecap="square"/>`).join('') + `</g>`;
+    out += solid.map((w) => {
+      const fillC = w.status === 'nuevo' ? th.wallNew : (w.wallColor && w.wallColor !== '#e2e8f0' ? w.wallColor : th.wallFill);
+      return `<line x1="${w.x1}" y1="${w.y1}" x2="${w.x2}" y2="${w.y2}" stroke="${fillC}" stroke-width="${w.thick}" stroke-linecap="square"/>`
+        + (w.wallTexture && w.wallTexture !== 'liso' ? `<line x1="${w.x1}" y1="${w.y1}" x2="${w.x2}" y2="${w.y2}" stroke="url(#tex-${w.wallTexture})" stroke-width="${w.thick}" stroke-linecap="square" pointer-events="none"/>` : '');
+    }).join('');
     walls.filter((w) => w.status === 'demoler').forEach((w) => {
       const Lw = wlen(w); if (Lw < 0.01) return;
       const nx = (-(w.y2 - w.y1) / Lw) * (w.thick / 2), ny = ((w.x2 - w.x1) / Lw) * (w.thick / 2);
@@ -547,14 +551,14 @@ const Plan = (() => {
       if (sim2d.lights && f.kind === 'espejoLed' && Obra.isCircuitLive(Obra.inferCircuitId(f) || 'c1')) {
         extra += `<ellipse cx="0" cy="0" rx="${f.w * 0.7}" ry="${f.w * 0.45}" fill="url(#lightGlow2d)" pointer-events="none"/>`;
       }
-      out += `<g data-id="${f.id}" transform="translate(${f.x} ${f.y}) rotate(${f.angle || 0})">${furnShape(f, s, th)}${extra}</g>`;
+      out += `<g data-id="${f.id}" filter="url(#softShadow2d)" transform="translate(${f.x} ${f.y}) rotate(${f.angle || 0})">${furnShape(f, s, th)}${extra}</g>`;
     });
     // Etiquetas de habitaciones
     vis.filter((e) => e.type === 'room' && e.points.length >= 3).forEach((r) => {
       const c = centroid(r.points), area = polyArea(r.points) / 10000;
-      const halo = `paint-order="stroke" stroke="${th.bg}" stroke-width="${px(3.5)}" stroke-linejoin="round" stroke-opacity=".85"`;
-      out += `<g pointer-events="none" text-anchor="middle"><text x="${c.x}" y="${c.y - px(3)}" font-size="${px(13)}" font-weight="800" fill="${th.text}" ${halo}>${esc(r.name || '')}</text>
-        <text x="${c.x}" y="${c.y + px(12)}" font-size="${px(11)}" font-weight="600" fill="${th.text}" opacity=".8" ${halo}>${fmtNum(area, 2)} m²</text></g>`;
+      const halo = `paint-order="stroke" stroke="${th.bg}" stroke-width="${px(3.5)}" stroke-linejoin="round" stroke-opacity=".9"`;
+      out += `<g pointer-events="none" text-anchor="middle"><text x="${c.x}" y="${c.y - px(4)}" font-size="${px(13)}" font-weight="800" fill="${th.text}" ${halo}>${esc(r.name || '')}</text>
+        <text x="${c.x}" y="${c.y + px(11)}" font-size="${px(11)}" font-weight="700" fill="${th.text}" opacity=".82" ${halo}>${fmtNum(area, 2)} m²${r.floor ? ' · ' + esc(r.floor) : ''}</text></g>`;
     });
     // Conductos y tuberías
     vis.filter((e) => e.type === 'duct').forEach((d) => {
@@ -977,6 +981,7 @@ const Plan = (() => {
     svg.style.background = th.bg;
     world.setAttribute('transform', `translate(${view.x} ${view.y}) scale(${s})`);
     const texDefs = `
+      <filter id="softShadow2d" x="-15%" y="-15%" width="130%" height="130%"><feDropShadow dx="0" dy="${1.8 / s}" stdDeviation="${2.2 / s}" flood-color="#0f172a" flood-opacity="0.14"/></filter>
       <radialGradient id="lightGlow2d"><stop offset="0%" stop-color="#fde047" stop-opacity=".75"/><stop offset="45%" stop-color="#fbbf24" stop-opacity=".28"/><stop offset="100%" stop-color="#fbbf24" stop-opacity="0"/></radialGradient>
       <pattern id="tex-madera" width="40" height="14" patternUnits="userSpaceOnUse"><path d="M0 7H40 M15 0V7 M35 7V14" stroke="rgba(120,72,24,0.22)" stroke-width="1" fill="none"/></pattern>
       <pattern id="tex-azulejo" width="30" height="30" patternUnits="userSpaceOnUse"><path d="M30 0H0V30" stroke="rgba(15,23,42,0.2)" stroke-width="1" fill="none"/></pattern>
@@ -1261,13 +1266,43 @@ const Plan = (() => {
       ? { type: 'door', wallId: h.w.id, t: along / h.L, width, height: 210, kind: 'abatible', hinge: 'left', side: h.side, note: '' }
       : { type: 'window', wallId: h.w.id, t: along / h.L, width, height: 120, sill: 90, kind: 'corredera', note: '' };
   }
-  function resolveWallCollision(f) {
+  function segIntersect(ax, ay, bx, by, cx, cy, dx, dy) {
+    const rX = bx - ax, rY = by - ay, sX = dx - cx, sY = dy - cy;
+    const denom = rX * sY - rY * sX;
+    if (Math.abs(denom) < 1e-6) return null;
+    const t = ((cx - ax) * sY - (cy - ay) * sX) / denom;
+    const u = ((cx - ax) * rY - (cy - ay) * rX) / denom;
+    return (t >= 0 && t <= 1 && u >= 0 && u <= 1) ? { t, u, x: ax + t * rX, y: ay + t * rY } : null;
+  }
+
+  function resolveWallCollision(f, refPt = null, opts = {}) {
     if (!f || f.type !== 'furn' || f.kind === 'hornacina' || f.kind === 'norte') return;
     const walls = els().filter((e) => e.type === 'wall' && e.status !== 'demoler');
+    // 1. Evitar que el mueble cruce al otro lado de un muro respecto al punto de referencia (cámara o posición previa)
+    if (refPt && (Math.hypot(f.x - refPt.x, f.y - refPt.y) > 0.5)) {
+      let bestHit = null;
+      for (const w of walls) {
+        const hit = segIntersect(refPt.x, refPt.y, f.x, f.y, w.x1, w.y1, w.x2, w.y2);
+        if (hit && (!bestHit || hit.t < bestHit.t)) bestHit = { t: hit.t, x: hit.x, y: hit.y, w };
+      }
+      if (bestHit) {
+        const w = bestHit.w, L = wlen(w) || 1;
+        const ux = (w.x2 - w.x1) / L, uy = (w.y2 - w.y1) / L, nx = -uy, ny = ux;
+        const side = ((refPt.x - w.x1) * nx + (refPt.y - w.y1) * ny) >= 0 ? 1 : -1;
+        if (opts.alignToWall) {
+          // Orientar la trasera (-hh) apoyada contra el muro mirando hacia el interior
+          f.angle = ((Math.round((deg(Math.atan2(ny * side, nx * side)) - 90) / 90) * 90) % 360 + 360) % 360;
+        }
+        const backDist = (w.thick || 15) / 2 + Math.max(f.w || 40, f.h || 40) / 2 + 1;
+        f.x = r1(bestHit.x + nx * side * backDist);
+        f.y = r1(bestHit.y + ny * side * backDist);
+      }
+    }
+    // 2. Separar caja orientada (OBB) de todos los muros cercanos manteniendo siempre el lado interior
     const a = ((f.angle || 0) * Math.PI) / 180;
     const ca = Math.cos(a), sa = Math.sin(a);
     const hw = (f.w || 40) / 2, hh = (f.h || 40) / 2;
-    for (let pass = 0; pass < 2; pass++) {
+    for (let pass = 0; pass < 3; pass++) {
       for (const w of walls) {
         const L = wlen(w); if (L < 1) continue;
         const ux = (w.x2 - w.x1) / L, uy = (w.y2 - w.y1) / L;
@@ -1278,15 +1313,41 @@ const Plan = (() => {
         const projAlong = Math.abs(ux * ca + uy * sa) * hw + Math.abs(-ux * sa + uy * ca) * hh;
         if (along < -projAlong + 2 || along > L + projAlong - 2) continue;
         const projPerp = Math.abs(nx * ca + ny * sa) * hw + Math.abs(-nx * sa + ny * ca) * hh;
-        const minDist = (w.thick || 15) / 2 + projPerp + 0.5;
+        const minDist = (w.thick || 15) / 2 + projPerp + 0.6;
         if (Math.abs(perp) < minDist) {
-          const sign = perp >= 0 ? 1 : -1;
-          const push = minDist - Math.abs(perp);
-          f.x = r1(f.x + nx * sign * push);
-          f.y = r1(f.y + ny * sign * push);
+          const refPerp = refPt ? ((refPt.x - w.x1) * nx + (refPt.y - w.y1) * ny) : perp;
+          const sign = refPerp >= 0 ? 1 : -1;
+          f.x = r1(f.x + nx * (sign * minDist - perp));
+          f.y = r1(f.y + ny * (sign * minDist - perp));
         }
       }
     }
+  }
+
+  function resolveWalkCollision(nx, ny, ox, oy) {
+    const walls = els().filter((e) => e.type === 'wall' && e.status !== 'demoler');
+    const doors = els().filter((e) => e.type === 'door');
+    const R = 22;
+    let x = nx, y = ny;
+    for (const w of walls) {
+      const L = wlen(w); if (L < 1) continue;
+      const ux = (w.x2 - w.x1) / L, uy = (w.y2 - w.y1) / L;
+      const wx = -uy, wy = ux;
+      const along = (x - w.x1) * ux + (y - w.y1) * uy;
+      if (along < -R || along > L + R) continue;
+      // Permitir cruzar por huecos de puerta
+      const inDoor = doors.some((d) => d.wallId === w.id && Math.abs(along - d.t * L) < Math.max(18, d.width / 2 - 8));
+      if (inDoor) continue;
+      const perp = (x - w.x1) * wx + (y - w.y1) * wy;
+      const minD = (w.thick || 15) / 2 + R;
+      if (Math.abs(perp) < minD) {
+        const oPerp = (ox - w.x1) * wx + (oy - w.y1) * wy;
+        const sign = oPerp >= 0 ? 1 : -1;
+        x += wx * (sign * minD - perp);
+        y += wy * (sign * minD - perp);
+      }
+    }
+    return { x, y };
   }
 
   function wallFaceSnap(p) {
@@ -1638,10 +1699,12 @@ const Plan = (() => {
           if (f) { el.x = f.x; el.y = f.y; el.angle = f.angle; } else { el.x = o.x + dx; el.y = o.y + dy; }
           break;
         }
-        case 'furn':
+        case 'furn': {
+          const prevPt = { x: el.x, y: el.y };
           el.x = o.x + dx; el.y = o.y + dy;
-          if (!e.altKey) resolveWallCollision(el);
+          if (!e.altKey) resolveWallCollision(el, prevPt);
           break;
+        }
         default: el.x = o.x + dx; el.y = o.y + dy;
       }
       return;
@@ -2314,27 +2377,19 @@ const Plan = (() => {
       else if (t.id === 'pTheme') { S().settings.planTheme = t.value; Store.save(); renderPanel(); requestRender(); }
       else if (t.dataset.layer) { pui.layers[t.dataset.layer] = t.checked; pui.viewPreset = 'custom'; savePui(); syncTop(); requestRender(); }
     });
-    // Controles del editor 3D integrado (paseo 1ª persona, órbita, selección y arrastre directo de muebles)
+    // Controles del editor 3D integrado con Raycasting GPU exacto (Plan3D.pick + Plan3D.screenToFloor)
     const c3d = $('#plan3dCanvas', root), dpad3d = $('#p3dDpad', root);
     if (c3d) {
-      let d3 = false, lx3 = 0, ly3 = 0, mv3 = false, dragEl3 = null, dragPushed3 = false;
-      const hitAt3d = (e) => {
-        if (!inline3d._hitList) return null;
-        const rect = c3d.getBoundingClientRect();
-        const cx = (e.clientX - rect.left) * (c3d.width / rect.width);
-        const cy = (e.clientY - rect.top) * (c3d.height / rect.height);
-        let best = null, bd = Infinity;
-        inline3d._hitList.forEach((h) => {
-          const d = Math.hypot(cx - h.x, cy - h.y);
-          if (d < h.r && (!best || (h.prio || 1) < (best.prio || 1) || ((h.prio || 1) === (best.prio || 1) && d < bd))) { bd = d; best = h; }
-        });
-        return best;
-      };
+      let d3 = false, lx3 = 0, ly3 = 0, mv3 = false, dragEl3 = null, dragPushed3 = false, grabOff = { x: 0, y: 0 };
       c3d.addEventListener('pointerdown', (e) => {
         d3 = true; mv3 = false; dragPushed3 = false; lx3 = e.clientX; ly3 = e.clientY;
-        const hit = hitAt3d(e);
+        const hit = window.Plan3D ? Plan3D.pick(c3d, e.clientX, e.clientY) : null;
         const curSel = sel && byId(sel);
-        dragEl3 = (hit && curSel && hit.id === curSel.id && curSel.type === 'furn' && !curSel.locked) ? curSel : null;
+        if (hit && curSel && hit.id === curSel.id && curSel.type === 'furn' && !curSel.locked) {
+          dragEl3 = curSel;
+          const fp = Plan3D.screenToFloor(c3d, e.clientX, e.clientY, curSel.z0 || 0);
+          grabOff = fp ? { x: curSel.x - fp.x, y: curSel.y - fp.y } : { x: 0, y: 0 };
+        } else dragEl3 = null;
         c3d.setPointerCapture(e.pointerId);
       });
       c3d.addEventListener('pointermove', (e) => {
@@ -2343,29 +2398,24 @@ const Plan = (() => {
         if (Math.hypot(dx, dy) > 4) mv3 = true;
         if (dragEl3 && mv3) {
           if (!dragPushed3) { pushUndo(); dragPushed3 = true; }
-          if (inline3d.camMode === 'fp') {
-            const yr = (inline3d.fpYaw * Math.PI) / 180;
-            const fx = Math.cos(yr), fy = Math.sin(yr), rx = -fy, ry = fx;
-            const k = 1.1;
-            dragEl3.x = r1(dragEl3.x + (dx * rx - dy * fx) * k);
-            dragEl3.y = r1(dragEl3.y + (dx * ry - dy * fy) * k);
-          } else {
-            const yr = (inline3d.yaw * Math.PI) / 180;
-            const cY = Math.cos(yr), sY = Math.sin(yr);
-            const k = 1.25 / Math.max(0.5, inline3d.zoom || 1);
-            dragEl3.x = r1(dragEl3.x + (dx * cY + dy * sY) * k);
-            dragEl3.y = r1(dragEl3.y + (-dx * sY + dy * cY) * k);
+          const prevPt = { x: dragEl3.x, y: dragEl3.y };
+          const fp = window.Plan3D ? Plan3D.screenToFloor(c3d, e.clientX, e.clientY, dragEl3.z0 || 0) : null;
+          if (fp) {
+            const g = pui.snap ? pui.grid : 0;
+            let nx = fp.x + grabOff.x, ny = fp.y + grabOff.y;
+            if (g) { nx = Math.round(nx / g) * g; ny = Math.round(ny / g) * g; }
+            dragEl3.x = r1(nx); dragEl3.y = r1(ny);
           }
-          resolveWallCollision(dragEl3);
+          resolveWallCollision(dragEl3, prevPt);
           lx3 = e.clientX; ly3 = e.clientY; drawInline3D();
           return;
         }
         if (inline3d.camMode === 'fp') {
-          inline3d.fpYaw -= dx * 0.35;
-          inline3d.fpPitch = clamp(inline3d.fpPitch - dy * 0.25, -45, 45);
+          inline3d.fpYaw -= dx * 0.32;
+          inline3d.fpPitch = clamp(inline3d.fpPitch - dy * 0.24, -48, 48);
         } else {
-          inline3d.yaw += dx * 0.55;
-          inline3d.pitch = clamp(inline3d.pitch + dy * 0.4, 15, 85);
+          inline3d.yaw += dx * 0.5;
+          inline3d.pitch = clamp(inline3d.pitch + dy * 0.38, 14, 86);
         }
         lx3 = e.clientX; ly3 = e.clientY; drawInline3D();
       });
@@ -2374,17 +2424,17 @@ const Plan = (() => {
         if (dragEl3 && dragPushed3) { dragEl3 = null; commit(); return; }
         dragEl3 = null;
         if (!mv3 && inline3d.active) {
-          const best = hitAt3d(e);
-          sel = best ? best.id : null;
+          const hit = window.Plan3D ? Plan3D.pick(c3d, e.clientX, e.clientY) : null;
+          sel = hit ? hit.id : null;
           multiSel.clear();
           renderPanel(); updateSelBar(); drawInline3D();
         }
       });
       c3d.addEventListener('pointercancel', () => { d3 = false; dragEl3 = null; });
       c3d.addEventListener('wheel', (e) => {
-        if (!inline3d.active || inline3d.camMode !== 'orbit') return;
+        if (!inline3d.active) return;
         e.preventDefault();
-        inline3d.zoom = clamp((inline3d.zoom || 1) * (e.deltaY > 0 ? 0.92 : 1.08), 0.55, 2.2);
+        inline3d.zoom = clamp((inline3d.zoom || 1) * (e.deltaY > 0 ? 0.92 : 1.08), 0.5, 2.4);
         drawInline3D();
       }, { passive: false });
     }
@@ -2401,10 +2451,14 @@ const Plan = (() => {
       const walkStep = (dir, speed = 10) => {
         const yr = (inline3d.fpYaw * Math.PI) / 180;
         const fx = Math.cos(yr), fy = Math.sin(yr), rx = -fy, ry = fx;
-        if (dir === 'fwd') { inline3d.fpX += fx * speed; inline3d.fpY += fy * speed; }
-        else if (dir === 'back') { inline3d.fpX -= fx * speed; inline3d.fpY -= fy * speed; }
-        else if (dir === 'right') { inline3d.fpX += rx * speed; inline3d.fpY += ry * speed; }
-        else if (dir === 'left') { inline3d.fpX -= rx * speed; inline3d.fpY -= ry * speed; }
+        const ox = inline3d.fpX, oy = inline3d.fpY;
+        let nx = ox, ny = oy;
+        if (dir === 'fwd') { nx += fx * speed; ny += fy * speed; }
+        else if (dir === 'back') { nx -= fx * speed; ny -= fy * speed; }
+        else if (dir === 'right') { nx += rx * speed; ny += ry * speed; }
+        else if (dir === 'left') { nx -= rx * speed; ny -= ry * speed; }
+        const safe = resolveWalkCollision(nx, ny, ox, oy);
+        inline3d.fpX = safe.x; inline3d.fpY = safe.y;
         drawInline3D();
       };
       let hDir = null, hRaf = 0;
@@ -2492,17 +2546,19 @@ const Plan = (() => {
           const i = +b.dataset.i, d = FURN[i];
           if (inline3d.active && d) {
             pushUndo();
-            let px0, py0;
+            let px0, py0, refPt = null;
             if (inline3d.camMode === 'fp') {
               const yr = (inline3d.fpYaw * Math.PI) / 180;
+              refPt = { x: inline3d.fpX, y: inline3d.fpY };
               px0 = r1(inline3d.fpX + Math.cos(yr) * 145);
               py0 = r1(inline3d.fpY + Math.sin(yr) * 145);
             } else {
               const bb = bbox(els()) || { x1: 0, y1: 0, x2: 600, y2: 400 };
               px0 = r1((bb.x1 + bb.x2) / 2); py0 = r1((bb.y1 + bb.y2) / 2);
+              refPt = { x: px0, y: py0 };
             }
             const item = { id: uid(), type: 'furn', kind: d.kind, name: d.name, w: d.w, h: d.h, h3d: d.h3d, z0: d.z0, plinth: d.plinth, handleType: d.handleType, frontColor: d.frontColor, sections: d.sections ? clone(d.sections) : undefined, x: px0, y: py0, angle: 0 };
-            resolveWallCollision(item);
+            resolveWallCollision(item, refPt, { alignToWall: true });
             els().push(item);
             sel = item.id; multiSel.clear();
             commit(); updateSelBar(); drawInline3D();
@@ -2632,556 +2688,10 @@ const Plan = (() => {
   }
 
   function render3DCanvas(canvas, state3d, targetPlan = null) {
-    const ctx = canvas.getContext('2d');
-    const W = canvas.width, H = canvas.height;
-    const list = (targetPlan || plan()).elements;
-    const b = bbox(list) || { x1: 0, y1: 0, x2: 800, y2: 600 };
-    const cx = (b.x1 + b.x2) / 2, cy = (b.y1 + b.y2) / 2;
-    const span = Math.max(b.x2 - b.x1, b.y2 - b.y1, 200);
-    const scale = (Math.min(W, H) * 0.62) / span * state3d.zoom;
-    const isFP = state3d.camMode === 'fp';
-    const yaw = (state3d.yaw * Math.PI) / 180;
-    const pitch = (state3d.pitch * Math.PI) / 180;
-    const cY = Math.cos(yaw), sY = Math.sin(yaw), cP = Math.cos(pitch), sP = Math.sin(pitch);
-
-    // Parámetros de cámara en 1ª persona (perspectiva interior real con recorte near-plane)
-    const NEAR = 14;
-    const fpX = state3d.fpX ?? cx, fpY = state3d.fpY ?? cy, fpZ = state3d.eyeZ ?? 165;
-    const fpYr = ((state3d.fpYaw ?? 0) * Math.PI) / 180;
-    const fpPr = ((state3d.fpPitch ?? -4) * Math.PI) / 180;
-    const ffx0 = Math.cos(fpYr), ffy0 = Math.sin(fpYr);
-    const rX = -ffy0, rY = ffx0;
-    const fX = ffx0 * Math.cos(fpPr), fY = ffy0 * Math.cos(fpPr), fZ = Math.sin(fpPr);
-    const uX = -ffx0 * Math.sin(fpPr), uY = -ffy0 * Math.sin(fpPr), uZ = Math.cos(fpPr);
-    const focal = W * 0.56 * clamp(state3d.zoom || 1, 0.6, 1.8);
-
-    const toCam = (x, y, z) => {
-      const dx = x - fpX, dy = y - fpY, dz = z - fpZ;
-      return [dx * rX + dy * rY, dx * uX + dy * uY + dz * uZ, dx * fX + dy * fY + dz * fZ];
-    };
-    const clipNear = (camPts) => {
-      const out = [];
-      for (let i = 0; i < camPts.length; i++) {
-        const A = camPts[i], B = camPts[(i + 1) % camPts.length];
-        const aIn = A[2] >= NEAR, bIn = B[2] >= NEAR;
-        if (aIn && bIn) out.push(B);
-        else if (aIn && !bIn) {
-          const t = (NEAR - A[2]) / (B[2] - A[2]);
-          out.push([A[0] + t * (B[0] - A[0]), A[1] + t * (B[1] - A[1]), NEAR]);
-        } else if (!aIn && bIn) {
-          const t = (NEAR - A[2]) / (B[2] - A[2]);
-          out.push([A[0] + t * (B[0] - A[0]), A[1] + t * (B[1] - A[1]), NEAR]);
-          out.push(B);
-        }
-      }
-      return out;
-    };
-    const projCam = (c) => ({ x: W / 2 + (c[0] / c[2]) * focal, y: H / 2 - (c[1] / c[2]) * focal, d: -c[2], z: c[2] });
-
-    const proj = (x, y, z) => {
-      if (isFP) {
-        const c = toCam(x, y, z);
-        if (c[2] < NEAR) return null;
-        return projCam(c);
-      }
-      const dx = x - cx, dy = y - cy;
-      const rx = dx * cY - dy * sY;
-      const ry = dx * sY + dy * cY;
-      return {
-        x: W / 2 + rx * scale,
-        y: H * 0.56 + (ry * sP - z * cP) * scale,
-        d: ry * cP + z * sP,
-      };
-    };
-
-    // Fondo degradado (Día / Noche + horizonte en 1ª persona)
-    const night = !!state3d.nightMode;
-    if (isFP) {
-      const horizonY = clamp(H / 2 + Math.tan(fpPr) * focal, 0, H);
-      const skyG = ctx.createLinearGradient(0, 0, 0, Math.max(1, horizonY));
-      skyG.addColorStop(0, night ? '#0b1120' : '#dbeafe');
-      skyG.addColorStop(1, night ? '#1e293b' : '#f1f5f9');
-      ctx.fillStyle = skyG;
-      ctx.fillRect(0, 0, W, horizonY);
-      const flrG = ctx.createLinearGradient(0, horizonY, 0, H);
-      flrG.addColorStop(0, night ? '#1e293b' : '#e2e8f0');
-      flrG.addColorStop(1, night ? '#0f172a' : '#cbd5e1');
-      ctx.fillStyle = flrG;
-      ctx.fillRect(0, horizonY, W, H - horizonY);
-    } else {
-      const grad = ctx.createLinearGradient(0, 0, 0, H);
-      grad.addColorStop(0, night ? '#0f172a' : '#e8eef7');
-      grad.addColorStop(1, night ? '#1e293b' : '#f8fafc');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, W, H);
-    }
-
-    const faces = [];
-    const lightMul = night ? 0.62 : 1;
-    const addPoly = (pts3, fill, stroke = night ? 'rgba(255,255,255,0.12)' : 'rgba(15,23,42,0.22)', lw = 1, depthBias = 0) => {
-      if (isFP) {
-        const clipped = clipNear(pts3.map((p) => toCam(p[0], p[1], p[2])));
-        if (clipped.length < 3) return;
-        const p2 = clipped.map(projCam);
-        const mx = clipped.reduce((a, c) => a + c[0], 0) / clipped.length;
-        const my = clipped.reduce((a, c) => a + c[1], 0) / clipped.length;
-        const mz = clipped.reduce((a, c) => a + c[2], 0) / clipped.length;
-        const depth = -Math.hypot(mx, my, mz) + depthBias;
-        faces.push({ p2, fill, stroke, lw, depth });
-        return;
-      }
-      const p2 = pts3.map((p) => proj(p[0], p[1], p[2]));
-      const depth = p2.reduce((a, p) => a + p.d, 0) / p2.length + depthBias;
-      faces.push({ p2, fill, stroke, lw, depth });
-    };
-    const addBox = (corners2D, z0, z1, baseCol, alpha = 1, depthBias = 0, strokeOverride = null) => {
-      const top = corners2D.map(([x, y]) => [x, y, z1]);
-      const bot = corners2D.map(([x, y]) => [x, y, z0]);
-      const sides = [0.88, 0.76, 0.94, 0.82];
-      const stCol = strokeOverride || (night ? 'rgba(255,255,255,0.12)' : 'rgba(15,23,42,0.22)');
-      for (let i = 0; i < 4; i++) {
-        const j = (i + 1) % 4;
-        const c = shadeHex(baseCol, sides[i] * lightMul);
-        addPoly([bot[i], bot[j], top[j], top[i]], alpha < 1 ? c.replace('rgb(', 'rgba(').replace(')', `,${alpha})`) : c, stCol, 1, depthBias);
-      }
-      const tc = shadeHex(baseCol, 1.06 * lightMul);
-      addPoly(top, alpha < 1 ? tc.replace('rgb(', 'rgba(').replace(')', `,${alpha})`) : tc, stCol, 1, depthBias);
-    };
-    const addWallSeg = (w, s0, s1, z0, z1, ht, baseCol, alpha = 1) => {
-      const spanS = s1 - s0;
-      if (spanS <= 1 || z1 - z0 <= 1) return;
-      const chunks = Math.max(1, Math.ceil(spanS / 48));
-      const step = spanS / chunks;
-      for (let k = 0; k < chunks; k++) {
-        addBox(segRect(w, s0 + k * step, s0 + (k + 1) * step, ht), z0, z1, baseCol, alpha, -2.5, 'rgba(15,23,42,0.06)');
-      }
-    };
-
-    // 1. Suelos de habitaciones
-    list.filter((e) => e.type === 'room' && e.points.length >= 3).forEach((r) => {
-      let p2;
-      if (isFP) {
-        const clipped = clipNear(r.points.map(([x, y]) => toCam(x, y, 0)));
-        if (clipped.length < 3) return;
-        p2 = clipped.map(projCam);
-      } else {
-        p2 = r.points.map(([x, y]) => proj(x, y, 0));
-      }
-      ctx.beginPath();
-      p2.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
-      ctx.closePath();
-      ctx.fillStyle = r.color || '#fde68a';
-      ctx.globalAlpha = night ? 0.52 : 0.78;
-      ctx.fill();
-      ctx.globalAlpha = 1;
-      ctx.strokeStyle = 'rgba(15,23,42,0.18)';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-    });
-
-    // 2 y 3. Muros recortados alrededor de puertas, ventanas y garaje (huecos reales sin solapamiento)
-    state3d._hitList = [];
-    const hFactor = isFP ? 1 : state3d.wallCut;
-    const opsByWall = new Map();
-    list.filter((e) => e.type === 'door' || e.type === 'window').forEach((o) => {
-      if (!opsByWall.has(o.wallId)) opsByWall.set(o.wallId, []);
-      opsByWall.get(o.wallId).push(o);
-    });
-    const segRect = (w, s0, s1, halfThick) => {
-      const L = wlen(w), ux = (w.x2 - w.x1) / L, uy = (w.y2 - w.y1) / L, nx = -uy * halfThick, ny = ux * halfThick;
-      const ax = w.x1 + ux * s0, ay = w.y1 + uy * s0, bx = w.x1 + ux * s1, by = w.y1 + uy * s1;
-      return [[ax + nx, ay + ny], [bx + nx, by + ny], [bx - nx, by - ny], [ax - nx, ay - ny]];
-    };
-
-    list.filter((e) => e.type === 'wall').forEach((w) => {
-      if (w.status === 'demoler' && state3d.hideDemo) return;
-      const L = wlen(w); if (L < 1) return;
-      const wh = (w.height || 250) * hFactor;
-      const isSelWall = !!state3d.editable && state3d.sel3dId === w.id;
-      const col = isSelWall ? '#fdba74' : (w.status === 'nuevo' ? '#fdba74' : w.status === 'demoler' ? '#fde047' : (w.wallColor || '#e2e8f0'));
-      if (state3d.editable) {
-        const pm = proj((w.x1 + w.x2) / 2, (w.y1 + w.y2) / 2, wh / 2);
-        if (pm) state3d._hitList.push({ id: w.id, x: pm.x, y: pm.y, r: isFP ? clamp((Math.min(L, 120) * focal) / Math.max(50, pm.z), 20, 90) : 26, prio: 2 });
-      }
-      const alpha = w.status === 'demoler' ? 0.45 : 1;
-      const ht = w.thick / 2;
-      const ops = (opsByWall.get(w.id) || []).map((o) => {
-        const a = clamp(o.t * L - o.width / 2, 0, L);
-        const b = clamp(o.t * L + o.width / 2, a, L);
-        return { o, a, b };
-      }).sort((x, y) => x.a - y.a);
-
-      let cur = 0;
-      ops.forEach(({ o, a, b }) => {
-        if (a - cur > 1) addWallSeg(w, cur, a, 0, wh, ht, col, alpha);
-        const isWin = o.type === 'window';
-        const sill = isWin ? Math.min(wh, (o.sill || 90) * hFactor) : 0;
-        const zTop = Math.min(wh, (isWin ? (o.sill || 90) + (o.height || 120) : (o.height || 210)) * hFactor);
-        // Antepecho bajo ventana y dintel sobre puerta/ventana
-        if (sill > 1) addWallSeg(w, a, b, 0, sill, ht, col, alpha);
-        if (wh - zTop > 1) addWallSeg(w, a, b, zTop, wh, ht, col, alpha);
-        // Contenido del hueco real con animaciones interactivas
-        const aDoor = state3d.animDoors || 0, aGar = state3d.animGarage || 0, aWin = state3d.animWindows || 0, aShut = state3d.animShutters || 0;
-        const swingLeaf3D = (hingeS, leafW, side, openRatio, z0, z1, leafThick, leafCol, leafAlpha = 1) => {
-          const ux = (w.x2 - w.x1) / L, uy = (w.y2 - w.y1) / L, nx = -uy, ny = ux;
-          const hx = w.x1 + ux * hingeS, hy = w.y1 + uy * hingeS;
-          const dir = (hingeS === a ? 1 : -1);
-          const ang = openRatio * (Math.PI * 0.42) * side * dir;
-          const ca = Math.cos(ang), sa = Math.sin(ang);
-          const lx = (ux * ca - uy * sa) * dir, ly = (ux * sa + uy * ca) * dir;
-          const pnx = -ly * leafThick, pny = lx * leafThick;
-          const ex = hx + lx * leafW, ey = hy + ly * leafW;
-          addBox([[hx + pnx, hy + pny], [ex + pnx, ey + pny], [ex - pnx, ey - pny], [hx - pnx, hy - pny]], z0, z1, leafCol, leafAlpha);
-        };
-        if (b - a > 2 && zTop - sill > 2) {
-          if (o.kind === 'hueco') {
-            // Hueco abierto sin hoja
-          } else if (o.kind === 'garaje') {
-            // Puerta de garaje seccional: las lamas suben al animar (aGar 0..1)
-            const innerT = Math.max(3, ht * 0.55);
-            const slats = 4, totalH = zTop - sill, sh = totalH / slats;
-            const lift = aGar * totalH * 0.86;
-            for (let k = 0; k < slats; k++) {
-              const lz0 = sill + k * sh + 1.5 + lift, lz1 = sill + (k + 1) * sh - 1.5 + lift;
-              if (lz0 < zTop) addBox(segRect(w, a + 2, b - 2, innerT), lz0, Math.min(zTop, lz1), k % 2 ? '#64748b' : '#7c8aa0', 1);
-            }
-          } else if (isWin || o.kind === 'balconera' || o.kind === 'correderaDoble') {
-            const fT = Math.max(2.5, ht * 0.5), gT = Math.max(1.5, ht * 0.25);
-            addBox(segRect(w, a, a + 4, fT), sill, zTop, '#475569', 1);
-            addBox(segRect(w, b - 4, b, fT), sill, zTop, '#475569', 1);
-            const openR = isWin ? aWin : aDoor;
-            if ((o.kind === 'abatible' || o.kind === 'oscilobatiente') && openR > 0.02) {
-              swingLeaf3D(a + 4, Math.max(4, b - a - 8), o.side || 1, openR, sill + 2, zTop - 2, gT, '#38bdf8', 0.62);
-            } else if ((o.kind === 'abatible2' || o.kind === 'balconera') && openR > 0.02) {
-              const half = Math.max(4, (b - a - 8) / 2);
-              swingLeaf3D(a + 4, half, o.side || 1, openR, sill + 2, zTop - 2, gT, '#38bdf8', 0.62);
-              swingLeaf3D(b - 4, half, o.side || 1, openR, sill + 2, zTop - 2, gT, '#38bdf8', 0.62);
-            } else {
-              addBox(segRect(w, a + 4, b - 4, gT), sill + 2, zTop - 2, '#38bdf8', 0.55);
-            }
-            if (o.shutter === 'manual' || o.shutter === 'electric') {
-              const boxH = Math.min(20 * hFactor, (zTop - sill) * 0.2);
-              addBox(segRect(w, a, b, ht * 0.92), zTop - boxH, zTop, o.shutter === 'electric' ? '#f59e0b' : '#64748b', 0.95);
-              if (aShut > 0.02) {
-                const dropH = (zTop - boxH - sill) * aShut;
-                addBox(segRect(w, a + 2, b - 2, ht * 0.65), zTop - boxH - dropH, zTop - boxH, '#94a3b8', 0.95);
-              }
-            }
-          } else {
-            // Puerta interior / entrada / doble con apertura animada
-            const dT = Math.max(2.5, ht * 0.42);
-            const dCol = o.kind === 'blindada' ? '#7c2d12' : '#c08b5c';
-            addBox(segRect(w, a, a + 3.5, ht * 0.8), sill, zTop, '#78553a', 1);
-            addBox(segRect(w, b - 3.5, b, ht * 0.8), sill, zTop, '#78553a', 1);
-            if (o.kind === 'doble' && aDoor > 0.02) {
-              const half = Math.max(4, (b - a - 7) / 2);
-              swingLeaf3D(a + 3.5, half, o.side || 1, aDoor, sill, zTop - 2, dT, dCol, 1);
-              swingLeaf3D(b - 3.5, half, o.side || 1, aDoor, sill, zTop - 2, dT, dCol, 1);
-            } else if (o.kind !== 'corredera' && aDoor > 0.02) {
-              const hS = o.hinge === 'right' ? b - 3.5 : a + 3.5;
-              swingLeaf3D(hS, Math.max(4, b - a - 7), o.side || 1, aDoor, sill, zTop - 2, dT, dCol, 1);
-            } else {
-              addBox(segRect(w, a + 3.5, b - 3.5, dT), sill, zTop - 2, dCol, 1);
-            }
-          }
-        }
-        cur = Math.max(cur, b);
-      });
-      if (L - cur > 1) addWallSeg(w, cur, L, 0, wh, ht, col, alpha);
-    });
-
-    // 4. Mobiliario en volumen 3D (con hit-testing solo en modo Editar 3D)
-    if (state3d.showFurn) {
-      list.filter((e) => e.type === 'furn' && e.kind !== 'norte').forEach((f) => {
-        const hw = f.w / 2, hh = f.h / 2, a = f.angle || 0;
-        const fHScale = Math.max(0.45, hFactor);
-        const st = furn3DStyle(f.kind);
-        const fH = (f.h3d || st.h) * fHScale;
-        const fZ0 = (f.z0 ?? st.z0 ?? 0) * hFactor;
-        if (state3d.editable) {
-          const pCenter = proj(f.x, f.y, fZ0 + fH / 2);
-          if (pCenter) {
-            const rad = isFP
-              ? clamp((Math.max(hw, hh, fH / 2) * focal) / Math.max(40, pCenter.z), 22, 180)
-              : Math.max(20, Math.max(hw, hh) * scale * 0.9);
-            state3d._hitList.push({ id: f.id, x: pCenter.x, y: pCenter.y, r: rad, z: pCenter.z || 0, prio: 1 });
-          }
-        }
-        const isSel3d = !!state3d.editable && state3d.sel3dId === f.id;
-        if (f.kind === 'escalera') {
-          const steps = clamp(Math.round(f.w / 26), 5, 16);
-          const maxH = 250 * Math.max(0.55, hFactor);
-          const sw = f.w / steps;
-          for (let i = 0; i < steps; i++) {
-            const x0 = -hw + i * sw, x1 = x0 + sw;
-            const pts = [[x0, -hh], [x1, -hh], [x1, hh], [x0, hh]].map(([x, y]) => {
-              const p = rotPt(x, y, a); return [f.x + p.x, f.y + p.y];
-            });
-            addBox(pts, 0, ((i + 1) / steps) * maxH, isSel3d ? '#fb923c' : (i % 2 ? '#d6cfc4' : '#c9bfb0'), 1);
-          }
-          return;
-        }
-        const localBox = (lx0, ly0, lx1, ly1, z0, z1, col, al = 1) => {
-          const pts = [[lx0, ly0], [lx1, ly0], [lx1, ly1], [lx0, ly1]].map(([x, y]) => { const p = rotPt(x, y, a); return [f.x + p.x, f.y + p.y]; });
-          addBox(pts, z0, z1, col, al);
-        };
-        const aKit = state3d.animKitchen || 0;
-        if (Array.isArray(f.sections) && f.sections.length) {
-          // Módulo de cocina configurable con zócalo, perfil Gola/Uñero, cajones, cubertero y puertas
-          const frontCol = isSel3d ? '#fdba74' : (f.frontColor || '#f1ede6');
-          const plinth = (f.plinth ?? (fZ0 > 0 ? 0 : 10)) * fHScale;
-          if (plinth > 1) localBox(-hw + 2, -hh + 2, hw - 2, hh - 4, fZ0, fZ0 + plinth, '#475569', 1);
-          // Casco base
-          localBox(-hw, -hh, hw, hh - 2, fZ0 + plinth, fZ0 + fH, isSel3d ? '#fb923c' : '#cbd5e1', 1);
-          let curZ = fZ0 + plinth;
-          f.sections.forEach((s) => {
-            const sh = Math.max(4, num(s.h, 20) * fHScale);
-            const zA = curZ, zB = Math.min(fZ0 + fH, curZ + sh);
-            curZ = zB;
-            if (zB - zA < 2) return;
-            if (s.kind === 'hueco' || s.kind === 'horno') {
-              localBox(-hw + 3, -hh + 3, hw - 3, hh, zA + 1, zB - 1, s.kind === 'horno' ? '#1e293b' : '#94a3b8', 1);
-            } else if (['cajon', 'cacerolero', 'cubertero', 'cajonInt'].includes(s.kind)) {
-              const pull = (s.anim !== false ? aKit : 0) * Math.min(42, f.h * 0.72);
-              if (pull > 1) {
-                // Caja interior del cajón extraído
-                localBox(-hw + 4, hh - 2, hw - 4, hh + pull, zA + 2, zA + Math.min(zB - zA - 2, 16 * fHScale), '#d6cfc4', 1);
-                // Divisiones de cubertero visibles al abrir
-                if (s.cutlery || s.kind === 'cubertero') {
-                  const divs = Math.max(3, Math.round(f.w / 16));
-                  const stepX = (f.w - 10) / divs;
-                  for (let d = 1; d < divs; d++) {
-                    const gx = -hw + 5 + d * stepX;
-                    localBox(gx - 0.8, hh + 1, gx + 0.8, hh + pull - 2, zA + 3, zA + Math.min(zB - zA - 3, 10 * fHScale), '#94a3b8', 1);
-                  }
-                }
-              }
-              // Frente del cajón
-              localBox(-hw + 1, hh + pull - 2, hw - 1, hh + pull + 1.5, zA + 1, zB - 1, frontCol, 1);
-              // Perfil Gola / Uñero / Tirador
-              if (f.handleType === 'gola' || f.handleType === 'unero') {
-                localBox(-hw + 2, hh + pull, hw - 2, hh + pull + 2, zB - 3.5, zB - 1, '#64748b', 1);
-              } else if (f.handleType === 'tirador') {
-                localBox(-Math.min(12, hw * 0.4), hh + pull + 1.5, Math.min(12, hw * 0.4), hh + pull + 3.5, zB - 6, zB - 4, '#334155', 1);
-              }
-            } else {
-              // Puerta abatible / doble / elevable
-              const openR = s.anim !== false ? aKit : 0;
-              if (openR > 0.05 && s.kind === 'elevable') {
-                localBox(-hw + 1, hh, hw - 1, hh + (zB - zA) * 0.8 * openR, zB - 3, zB, frontCol, 1);
-              } else if (openR > 0.05) {
-                const ang = openR * 70, dw = Math.min(f.w - 2, s.kind === 'puerta2' ? hw - 1 : f.w - 2);
-                const p0 = rotPt(-hw + 1, hh, a), p1 = rotPt(-hw + 1 + Math.cos((ang * Math.PI) / 180) * dw, hh + Math.sin((ang * Math.PI) / 180) * dw, a);
-                const p2 = rotPt(-hw + 1 + Math.cos((ang * Math.PI) / 180) * dw, hh + Math.sin((ang * Math.PI) / 180) * dw + 2.5, a), p3 = rotPt(-hw + 1, hh + 2.5, a);
-                addBox([[f.x + p0.x, f.y + p0.y], [f.x + p1.x, f.y + p1.y], [f.x + p2.x, f.y + p2.y], [f.x + p3.x, f.y + p3.y]], zA + 1, zB - 1, frontCol, 1);
-              } else {
-                localBox(-hw + 1, hh - 1.5, hw - 1, hh + 1.5, zA + 1, zB - 1, frontCol, 1);
-              }
-            }
-          });
-          return;
-        }
-        if (st.glass) {
-          // Mamparas de ducha de cristal translúcido + perfilería metálica (con animación en abatible/corredera)
-          const aDoor = state3d.animDoors || 0;
-          const frameCol = isSel3d ? '#fb923c' : '#334155';
-          const glassCol = isSel3d ? '#fdba74' : (f.frontColor || st.c);
-          localBox(-hw, -hh, -hw + 2.5, hh, fZ0, fZ0 + fH, frameCol, 1);
-          localBox(hw - 2.5, -hh, hw, hh, fZ0, fZ0 + fH, frameCol, 1);
-          if (f.kind === 'mamparaCorredera') {
-            localBox(-hw + 2.5, -hh * 0.4, 2, hh * 0.4, fZ0 + 2, fZ0 + fH - 2, glassCol, 0.42);
-            const slide = aDoor * (hw - 4);
-            localBox(-slide, hh * 0.1, hw - 2.5 - slide, hh * 0.9, fZ0 + 2, fZ0 + fH - 2, glassCol, 0.48);
-          } else if (f.kind === 'mamparaAbatible' && aDoor > 0.03) {
-            const ang = aDoor * 75, dw = f.w - 5;
-            const p0 = rotPt(-hw + 2.5, 0, a), p1 = rotPt(-hw + 2.5 + Math.cos((ang * Math.PI) / 180) * dw, Math.sin((ang * Math.PI) / 180) * dw, a);
-            const p2 = rotPt(-hw + 2.5 + Math.cos((ang * Math.PI) / 180) * dw, Math.sin((ang * Math.PI) / 180) * dw + 2.5, a), p3 = rotPt(-hw + 2.5, 2.5, a);
-            addBox([[f.x + p0.x, f.y + p0.y], [f.x + p1.x, f.y + p1.y], [f.x + p2.x, f.y + p2.y], [f.x + p3.x, f.y + p3.y]], fZ0 + 2, fZ0 + fH - 2, glassCol, 0.45);
-          } else {
-            localBox(-hw + 2.5, -hh * 0.5, hw - 2.5, hh * 0.5, fZ0 + 2, fZ0 + fH - 2, glassCol, 0.42);
-          }
-          return;
-        }
-        const pts = [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]].map(([x, y]) => {
-          const p = rotPt(x, y, a); return [f.x + p.x, f.y + p.y];
-        });
-        addBox(pts, fZ0, fZ0 + fH, isSel3d ? '#fdba74' : (f.frontColor || st.c), f.kind === 'pergola' ? 0.45 : 1);
-        // Animación estándar de muebles de cocina sin secciones personalizadas
-        if (aKit > 0.02) {
-          if (f.kind === 'muebleCajon') {
-            const pull = 34 * aKit;
-            localBox(-hw + 4, hh, hw - 4, hh + pull, fZ0 + 6, fZ0 + fH * 0.42, '#d4c8b8', 1);
-            localBox(-hw + 4, hh, hw - 4, hh + pull, fZ0 + fH * 0.48, fZ0 + fH * 0.88, '#ded4c6', 1);
-          } else if (['muebleBajo', 'muebleAlto', 'horno', 'microondas', 'nevera', 'despensa', 'lavavajillas'].includes(f.kind)) {
-            const ang = aKit * 72, dw = Math.min(f.w - 4, 60);
-            const p0 = rotPt(-hw + 2, hh, a), p1 = rotPt(-hw + 2 + Math.cos((ang * Math.PI) / 180) * dw, hh + Math.sin((ang * Math.PI) / 180) * dw, a);
-            const p2 = rotPt(-hw + 2 + Math.cos((ang * Math.PI) / 180) * dw, hh + Math.sin((ang * Math.PI) / 180) * dw + 3, a), p3 = rotPt(-hw + 2, hh + 3, a);
-            addBox([[f.x + p0.x, f.y + p0.y], [f.x + p1.x, f.y + p1.y], [f.x + p2.x, f.y + p2.y], [f.x + p3.x, f.y + p3.y]], fZ0 + 3, fZ0 + fH - 3, '#c8b8a4', 1);
-          }
-        }
-      });
-    }
-
-    // 5. Conductos, tuberías e instalaciones en 3D (según capas elegidas)
-    const grpVisible3d = (g) => (g === 'clima' && state3d.showClima) || (g === 'elec' && state3d.showElec) || (g === 'fonta' && state3d.showFonta) || (g === 'domo' && state3d.showDomo);
-    list.filter((e) => e.type === 'duct').forEach((d) => {
-      const dk = DUCT_KINDS[d.kind] || DUCT_KINDS.impulsion;
-      if (!grpVisible3d(dk.group)) return;
-      const L = wlen(d); if (L < 1) return;
-      const w = Math.max(6, d.width || dk.w);
-      const nx = (-(d.y2 - d.y1) / L) * (w / 2), ny = ((d.x2 - d.x1) / L) * (w / 2);
-      const pts = [[d.x1 + nx, d.y1 + ny], [d.x2 + nx, d.y2 + ny], [d.x2 - nx, d.y2 - ny], [d.x1 - nx, d.y1 - ny]];
-      const z0 = Math.max(0, ((d.height ?? dk.h) - (w >= 14 ? 14 : 4)) * hFactor);
-      const z1 = Math.max(z0 + 5, (d.height ?? dk.h) * hFactor);
-      addBox(pts, z0, z1, dk.color, 0.88);
-    });
-    list.filter((e) => e.type === 'sym').forEach((y) => {
-      const d = SYMBOLS[y.kind] || SYMBOLS.enchufe;
-      if (!grpVisible3d(d.group)) return;
-      const col = SYM_GROUPS[d.group].color;
-      const sz = y.kind === 'maqInt' ? [80, 50, 26] : y.kind === 'maqExt' ? [85, 35, 65] : (y.kind === 'rejImp' || y.kind === 'rejRet') ? [45, 16, 14] : [16, 16, 16];
-      const hw = sz[0] / 2, hh = sz[1] / 2, a = y.angle || 0;
-      const pts = [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]].map(([x, yy]) => { const p = rotPt(x, yy, a); return [y.x + p.x, y.y + p.y]; });
-      const zTop = Math.max(sz[2], (y.height ?? d.h) * hFactor);
-      addBox(pts, Math.max(0, zTop - sz[2]), zTop, col, 0.92);
-    });
-
-    // Ordenar caras por profundidad (painter's algorithm)
-    faces.sort((a, b) => a.depth - b.depth);
-    faces.forEach((f) => {
-      ctx.beginPath();
-      f.p2.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
-      ctx.closePath();
-      ctx.fillStyle = f.fill;
-      ctx.fill();
-      ctx.strokeStyle = f.stroke;
-      ctx.lineWidth = f.lw;
-      ctx.stroke();
-    });
-
-    // Halos luminosos en Modo Noche (solo se encienden las luces cuyo circuito en el Cuadro General está ON)
-    if (night) {
-      const lightSources = [
-        ...list.filter((e) => e.type === 'sym' && ['luz', 'foco', 'tiraLed', 'aplique'].includes(e.kind)),
-        ...list.filter((e) => e.type === 'furn' && e.kind === 'espejoLed'),
-      ];
-      lightSources.forEach((y) => {
-        const live = Obra.isCircuitLive(Obra.inferCircuitId(y));
-        const zLight = y.type === 'furn' ? ((y.z0 ?? 120) + (y.h3d || 70) / 2) : (y.height || 250);
-        const p = proj(y.x, y.y, Math.max(40, zLight * hFactor));
-        if (!p) return;
-        if (live) {
-          const baseRad = y.kind === 'foco' || y.kind === 'espejoLed' ? 58 : 95;
-          const rad = isFP ? clamp((baseRad * 180) / Math.max(40, p.z), 18, 220) : baseRad * state3d.zoom;
-          const lg = ctx.createRadialGradient(p.x, p.y, 4, p.x, p.y, rad);
-          lg.addColorStop(0, 'rgba(255, 241, 168, 0.92)');
-          lg.addColorStop(0.35, 'rgba(251, 191, 36, 0.42)');
-          lg.addColorStop(1, 'rgba(251, 191, 36, 0)');
-          ctx.fillStyle = lg;
-          ctx.beginPath(); ctx.arc(p.x, p.y, rad, 0, Math.PI * 2); ctx.fill();
-        } else {
-          ctx.fillStyle = 'rgba(100,116,139,0.5)';
-          ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, Math.PI * 2); ctx.fill();
-        }
-      });
-    }
-
-    // Etiquetas de habitaciones (en vista maqueta; en 1ª persona solo si están a distancia media delante)
-    ctx.font = '700 13px Inter, sans-serif';
-    ctx.textAlign = 'center';
-    if (!isFP) {
-      list.filter((e) => e.type === 'room' && e.points.length >= 3).forEach((r) => {
-        if (!r.name) return;
-        const c = centroid(r.points);
-        const p = proj(c.x, c.y, 12);
-        if (!p) return;
-        ctx.lineWidth = 4;
-        ctx.strokeStyle = 'rgba(255,255,255,0.88)';
-        ctx.strokeText(r.name, p.x, p.y);
-        ctx.fillStyle = '#0f172a';
-        ctx.fillText(r.name, p.x, p.y);
-      });
-    }
-
-    // Anotaciones y pines en 3D (si está activado)
-    if (state3d.showNotes) {
-      ctx.font = '600 12px Inter, sans-serif';
-      list.filter((e) => e.type === 'text' || e.type === 'pin').forEach((e) => {
-        const txt = e.type === 'text' ? e.text : (e.label || (e.taskId ? (S().tasks.find((t) => t.id === e.taskId)?.title || 'Pin') : 'Incidencia'));
-        if (!txt) return;
-        const p = proj(e.x, e.y, e.type === 'pin' ? 140 * hFactor : 20);
-        if (!p) return;
-        const w = ctx.measureText(txt).width + 16;
-        ctx.fillStyle = e.type === 'pin' ? 'rgba(239,68,68,0.92)' : 'rgba(15,23,42,0.84)';
-        ctx.beginPath();
-        ctx.roundRect ? ctx.roundRect(p.x - w / 2, p.y - 12, w, 22, 6) : ctx.rect(p.x - w / 2, p.y - 12, w, 22);
-        ctx.fill();
-        ctx.fillStyle = '#fff';
-        ctx.fillText(txt, p.x, p.y + 3);
-      });
-    }
-
-    // Minimapa de orientación en esquina superior izquierda cuando estamos en Paseo 1ª persona
-    if (isFP) {
-      const mw = 136, mh = 104, mx0 = 14, my0 = 14, pad = 10;
-      const bw = Math.max(100, b.x2 - b.x1), bh = Math.max(100, b.y2 - b.y1);
-      const ms = Math.min((mw - pad * 2) / bw, (mh - pad * 2) / bh);
-      const ox = mx0 + (mw - bw * ms) / 2 - b.x1 * ms, oy = my0 + (mh - bh * ms) / 2 - b.y1 * ms;
-      ctx.fillStyle = 'rgba(255,255,255,0.9)';
-      ctx.strokeStyle = 'rgba(15,23,42,0.2)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.roundRect ? ctx.roundRect(mx0, my0, mw, mh, 10) : ctx.rect(mx0, my0, mw, mh);
-      ctx.fill(); ctx.stroke();
-      ctx.strokeStyle = '#334155'; ctx.lineWidth = 2;
-      list.filter((e) => e.type === 'wall' && !(e.status === 'demoler' && state3d.hideDemo)).forEach((w) => {
-        ctx.beginPath(); ctx.moveTo(ox + w.x1 * ms, oy + w.y1 * ms); ctx.lineTo(ox + w.x2 * ms, oy + w.y2 * ms); ctx.stroke();
-      });
-      const px0 = ox + fpX * ms, py0 = oy + fpY * ms;
-      ctx.fillStyle = 'rgba(234,88,12,0.22)';
-      ctx.beginPath();
-      ctx.moveTo(px0, py0);
-      ctx.arc(px0, py0, 22, fpYr - 0.55, fpYr + 0.55);
-      ctx.closePath(); ctx.fill();
-      ctx.fillStyle = '#ea580c';
-      ctx.beginPath(); ctx.arc(px0, py0, 4, 0, Math.PI * 2); ctx.fill();
-    }
-
-    // Leyenda en esquina inferior izquierda (si está activada)
-    if (state3d.showLegend) {
-      const items = [
-        ['#e2e8f0', 'Muro existente'],
-        ['#fdba74', 'Muro nuevo'],
-        ['#38bdf8', 'Ventanas / balconeras'],
-        ['#c08b5c', 'Puertas'],
-        ['#64748b', 'Puerta garaje'],
-      ];
-      if (!state3d.hideDemo) items.push(['#fde047', 'A demoler']);
-      if (state3d.showClima) items.push(['#06b6d4', 'AA / Conductos']);
-      if (state3d.showElec) items.push(['#f59e0b', 'Iluminación / Elec.']);
-      if (state3d.showFonta) items.push(['#0284c7', 'Fontanería / Agua']);
-      if (state3d.showDomo) items.push(['#8b5cf6', 'Domótica']);
-      const lh = 20, pad = 12, bw = 185, bh = items.length * lh + pad * 2 + 16;
-      const x0 = 14, y0 = H - bh - 14;
-      ctx.fillStyle = 'rgba(255,255,255,0.92)';
-      ctx.strokeStyle = 'rgba(15,23,42,0.16)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.roundRect ? ctx.roundRect(x0, y0, bw, bh, 10) : ctx.rect(x0, y0, bw, bh);
-      ctx.fill(); ctx.stroke();
-      ctx.textAlign = 'left';
-      ctx.font = '800 11px Inter, sans-serif';
-      ctx.fillStyle = '#0f172a';
-      ctx.fillText('LEYENDA', x0 + pad, y0 + pad + 9);
-      ctx.font = '600 11.5px Inter, sans-serif';
-      items.forEach(([col, lbl], i) => {
-        const yy = y0 + pad + 26 + i * lh;
-        ctx.fillStyle = col;
-        ctx.fillRect(x0 + pad, yy - 9, 12, 12);
-        ctx.strokeStyle = 'rgba(15,23,42,0.25)';
-        ctx.strokeRect(x0 + pad, yy - 9, 12, 12);
-        ctx.fillStyle = '#334155';
-        ctx.fillText(lbl, x0 + pad + 18, yy + 1);
+    if (window.Plan3D) {
+      Plan3D.render(canvas, state3d, targetPlan || plan(), {
+        wlen, clamp, polyArea, bbox, centroid, furn3DStyle, num,
+        SYMBOLS, SYM_GROUPS, DUCT_KINDS, Obra, S,
       });
     }
   }
@@ -3417,10 +2927,14 @@ Respeta exactamente la posición de muros, puertas, ventanas y muebles del plano
         const moveStep = (dir, speed = 14) => {
           const yr = (state3d.fpYaw * Math.PI) / 180;
           const fx = Math.cos(yr), fy = Math.sin(yr), rx = -fy, ry = fx;
-          if (dir === 'fwd') { state3d.fpX += fx * speed; state3d.fpY += fy * speed; }
-          else if (dir === 'back') { state3d.fpX -= fx * speed; state3d.fpY -= fy * speed; }
-          else if (dir === 'right') { state3d.fpX += rx * speed; state3d.fpY += ry * speed; }
-          else if (dir === 'left') { state3d.fpX -= rx * speed; state3d.fpY -= ry * speed; }
+          const ox = state3d.fpX, oy = state3d.fpY;
+          let nx = ox, ny = oy;
+          if (dir === 'fwd') { nx += fx * speed; ny += fy * speed; }
+          else if (dir === 'back') { nx -= fx * speed; ny -= fy * speed; }
+          else if (dir === 'right') { nx += rx * speed; ny += ry * speed; }
+          else if (dir === 'left') { nx -= rx * speed; ny -= ry * speed; }
+          const safe = resolveWalkCollision(nx, ny, ox, oy);
+          state3d.fpX = safe.x; state3d.fpY = safe.y;
           draw();
         };
         let holdDir = null, holdRaf = 0;
