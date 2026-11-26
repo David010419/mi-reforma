@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795723756020,
+  "updatedAt": 1795723761237,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -390,8 +390,12 @@
               740
             ],
             [
-              50,
+              45,
               740
+            ],
+            [
+              30,
+              225
             ]
           ],
           "color": "#fde68a",
