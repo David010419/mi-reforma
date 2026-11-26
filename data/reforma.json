@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795733420751,
+  "updatedAt": 1795733422384,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -515,18 +515,6 @@
       "scope": "interior",
       "level": "Planta baja",
       "elements": [
-        {
-          "id": "mwy5au2ikrfshx",
-          "type": "wall",
-          "x1": 110,
-          "y1": 15,
-          "x2": 110,
-          "y2": 5,
-          "thick": 15,
-          "status": "existente",
-          "height": 250,
-          "note": ""
-        },
         {
           "id": "mwy5ay4nroqiue",
           "type": "wall",
