@@ -31,6 +31,7 @@ const Obra = (() => {
             <button data-tab="contacts">${icon('phone', 16)}<span>Contactos</span></button>
             <button data-tab="materials">${icon('box', 16)}<span>Materiales</span></button>
             <button data-tab="quotes">${icon('scale', 16)}<span>Presupuestos</span></button>
+            <button data-tab="electric">${icon('bolt', 16)}<span>Cuadro Eléctrico</span></button>
           </div>
           <button class="btn primary" id="oNew">${icon('plus', 16)}<span id="oNewLbl">Nueva entrada</span></button>
         </div>
@@ -50,9 +51,14 @@ const Obra = (() => {
       else if (ui.tab === 'contacts') openContactModal(null);
       else if (ui.tab === 'materials') openMaterialModal(null);
       else if (ui.tab === 'quotes') openQuoteModal(null);
+      else if (ui.tab === 'electric') openCircuitModal(null);
     });
     content.addEventListener('input', (e) => {
       if (e.target.id === 'oSearch') { ui.q = e.target.value; renderBody(); }
+      if (e.target.dataset.ef) {
+        S().electrical[e.target.dataset.ef] = Math.max(0, num(e.target.value, 0));
+        Store.save(); renderBody();
+      }
     });
     content.addEventListener('change', (e) => {
       if (e.target.id === 'oPhase') { ui.phase = e.target.value; renderBody(); }
@@ -91,19 +97,34 @@ const Obra = (() => {
         const q = S().quotes.find((x) => x.id === id); if (!q) return;
         S().quotes.forEach((x) => { if (x.category === q.category) x.status = x.id === q.id ? 'Elegido' : 'Descartado'; });
         Store.save(); render(); toast(`Presupuesto de <b>${esc(q.provider)}</b> marcado como elegido`, 'success');
+      } else if (act === 'toggleIga') { S().electrical.igaOn = !S().electrical.igaOn; Store.save(); render(); }
+      else if (act === 'toggleDiff') { const d = S().electrical.differentials.find((x) => x.id === id); if (d) { d.on = !d.on; Store.save(); render(); } }
+      else if (act === 'toggleCir') { const c = S().electrical.circuits.find((x) => x.id === id); if (c) { c.on = !c.on; Store.save(); render(); } }
+      else if (act === 'addDiff') { openDiffModal(null); }
+      else if (act === 'editDiff') { openDiffModal(S().electrical.differentials.find((x) => x.id === id)); }
+      else if (act === 'delDiff') {
+        if (S().electrical.differentials.length <= 1) { toast('Debe quedar al menos un diferencial', 'warn'); return; }
+        if (!confirm('¿Eliminar este diferencial? Sus circuitos pasarán al primero.')) return;
+        const fallback = S().electrical.differentials.find((x) => x.id !== id).id;
+        S().electrical.circuits.forEach((c) => { if (c.diffId === id) c.diffId = fallback; });
+        S().electrical.differentials = S().electrical.differentials.filter((x) => x.id !== id);
+        Store.save(); render();
       }
+      else if (act === 'editCir') { openCircuitModal(S().electrical.circuits.find((x) => x.id === id)); }
+      else if (act === 'delCir') { if (confirm('¿Eliminar este magnetotérmico / circuito?')) { S().electrical.circuits = S().electrical.circuits.filter((x) => x.id !== id); Store.save(); render(); } }
     });
   }
 
   function render() {
     if (!root) return;
     $$('#oTabSeg button').forEach((b) => b.classList.toggle('active', b.dataset.tab === ui.tab));
-    const labels = { diary: 'Nueva foto / nota', contacts: 'Nuevo contacto', materials: 'Nuevo material', quotes: 'Nuevo presupuesto' };
+    const labels = { diary: 'Nueva foto / nota', contacts: 'Nuevo contacto', materials: 'Nuevo material', quotes: 'Nuevo presupuesto', electric: 'Nuevo circuito (PIA)' };
     const subs = {
       diary: `${S().diary.length} registros · Guarda fotos de rozas, tubos y avances antes de tapar`,
       contacts: `${S().contacts.length} profesionales · Llama o escribe por WhatsApp a un toque`,
       materials: `${S().materials.length} materiales · Total estimado ${fmtMoney2(S().materials.reduce((a, m) => a + num(m.qty) * num(m.unitPrice), 0))}`,
       quotes: `${S().quotes.length} presupuestos para comparar por partida`,
+      electric: `Cuadro General Eléctrico (CGE) · ${S().electrical.differentials.length} diferenciales · ${S().electrical.circuits.length} circuitos`,
     };
     $('#oNewLbl').textContent = labels[ui.tab];
     $('#oSub').textContent = subs[ui.tab];
@@ -114,6 +135,7 @@ const Obra = (() => {
     if (ui.tab === 'diary') renderDiary();
     else if (ui.tab === 'contacts') renderContacts();
     else if (ui.tab === 'materials') renderMaterials();
+    else if (ui.tab === 'electric') renderElectric();
     else renderQuotes();
   }
 
@@ -444,5 +466,192 @@ const Obra = (() => {
     });
   }
 
-  return { init, show: render, render };
+  /* ---------- 5. Cuadro General Eléctrico (CGE) y Consumos ---------- */
+  const DEFAULT_WATTS = {
+    luz: 18, foco: 9, tiraLed: 35, aplique: 12,
+    enchufe: 200, enchufe2: 350, enchufeEnc: 800, enchufeUsb: 60, tv: 120, red: 20, timbre: 10,
+    maqInt: 150, maqExt: 1800, aire: 1200, extractor: 45, radiador: 1200, compuerta: 15, mandoCentral: 8, termostatoZona: 5,
+    domotica: 25, persiana: 120, motorGaraje: 450, cargadorEV: 3700, camara: 12, sensorPres: 3, videoportero: 15, wifi: 18,
+    placa: 3500, horno: 2500, nevera: 180, lavadora: 2000, secadora: 2200, lavavajillas: 1800, campana: 220, microondas: 2600, vinoteca: 120,
+  };
+  function inferCircuitId(el) {
+    if (el.circuitId) return el.circuitId;
+    const k = el.kind || '';
+    if (['luz', 'foco', 'tiraLed', 'aplique'].includes(k)) return 'c1';
+    if (['enchufe', 'enchufe2', 'enchufeUsb', 'tv', 'red', 'timbre'].includes(k)) return 'c2';
+    if (['enchufeEnc'].includes(k)) return 'c5';
+    if (['placa', 'horno', 'microondas', 'campana'].includes(k)) return 'c3';
+    if (['lavadora', 'secadora', 'lavavajillas', 'calentador', 'nevera', 'vinoteca'].includes(k)) return 'c4';
+    if (['maqInt', 'maqExt', 'aire', 'compuerta', 'mandoCentral', 'termostatoZona', 'extractor', 'radiador'].includes(k)) return 'c8';
+    if (['cargadorEV'].includes(k)) return 'c13';
+    if (['domotica', 'persiana', 'motorGaraje', 'camara', 'sensorPres', 'videoportero', 'wifi'].includes(k)) return 'c12';
+    return null;
+  }
+  function isCircuitLive(circuitId) {
+    const E = S().electrical;
+    if (!E || !E.igaOn) return false;
+    const c = E.circuits.find((x) => x.id === circuitId);
+    if (!c || !c.on) return false;
+    const d = E.differentials.find((x) => x.id === c.diffId);
+    return !d || !!d.on;
+  }
+  function computeElectrical() {
+    const E = S().electrical;
+    const V = num(E.voltage, 230) || 230;
+    const byCir = new Map(E.circuits.map((c) => [c.id, { items: [], watts: 0 }]));
+    S().plans.forEach((p) => {
+      (p.elements || []).forEach((el) => {
+        if (el.type !== 'sym' && el.type !== 'furn') return;
+        const cid = inferCircuitId(el);
+        if (!cid || !byCir.has(cid)) return;
+        const w = el.watts !== undefined && el.watts !== '' ? num(el.watts, 0) : (DEFAULT_WATTS[el.kind] || 0);
+        if (w <= 0 && el.type === 'furn') return;
+        const name = el.name || (Plan.SYMBOLS[el.kind]?.label) || el.kind;
+        byCir.get(cid).items.push({ plan: p.name, name, watts: w, kind: el.kind });
+        byCir.get(cid).watts += w;
+      });
+    });
+    let totalInstalled = 0, activeWatts = 0;
+    E.circuits.forEach((c) => {
+      const info = byCir.get(c.id) || { items: [], watts: 0 };
+      totalInstalled += info.watts;
+      if (isCircuitLive(c.id)) activeWatts += info.watts;
+    });
+    const maxW = num(E.contractedKw, 5.75) * 1000;
+    return {
+      E, V, byCir, totalInstalled, activeWatts,
+      activeAmps: activeWatts / V,
+      maxW, maxAmps: maxW / V,
+      pctLoad: maxW > 0 ? (activeWatts / maxW) * 100 : 0,
+      costHour: (activeWatts / 1000) * num(E.kwhPrice, 0.16),
+    };
+  }
+
+  function renderElectric() {
+    const st = computeElectrical(), E = st.E;
+    const over = st.pctLoad > 100;
+    content.innerHTML = `
+      <div class="card cge-head">
+        <div class="cge-iga">
+          <button class="breaker big ${E.igaOn ? 'on' : 'off'}" data-oa="toggleIga">
+            <span>IGA GENERAL</span>
+            <b>${E.igaOn ? 'ON' : 'OFF'}</b>
+            <small>${fmtNum(st.maxAmps, 0)} A</small>
+          </button>
+          <div class="cge-params">
+            <label class="field"><span>Potencia contratada (kW)</span><input type="number" step="0.25" data-ef="contractedKw" value="${E.contractedKw}"></label>
+            <label class="field"><span>Precio kWh (€)</span><input type="number" step="0.01" data-ef="kwhPrice" value="${E.kwhPrice}"></label>
+            <button class="btn sm" data-oa="addDiff">${icon('plus', 14)} Nuevo Diferencial</button>
+          </div>
+        </div>
+        <div class="exp-kpis" style="margin-bottom:0;margin-top:14px">
+          <div class="card ekpi"><span>Consumo activo ahora</span><b class="${over ? 'danger-txt' : 'accent-txt'}">${fmtNum(st.activeWatts / 1000, 2)} kW</b><small>${Math.round(st.activeWatts)} W · ${fmtNum(st.activeAmps, 1)} A</small></div>
+          <div class="card ekpi"><span>Carga s/ contratada</span><b class="${over ? 'danger-txt' : st.pctLoad > 80 ? 'warn-txt' : 'ok-txt'}">${fmtNum(st.pctLoad, 1)}%</b><small>${over ? '⚠ Supera potencia (saltaría ICP)' : `Límite ${fmtNum(E.contractedKw, 2)} kW`}</small></div>
+          <div class="card ekpi"><span>Potencia instalada (planos)</span><b>${fmtNum(st.totalInstalled / 1000, 2)} kW</b><small>${Math.round(st.totalInstalled)} W totales conectados</small></div>
+          <div class="card ekpi"><span>Coste estimado encendido</span><b>${fmtMoney2(st.costHour)}/h</b><small>A ${fmtMoney2(E.kwhPrice)}/kWh</small></div>
+        </div>
+      </div>
+
+      <div class="cge-diffs">
+        ${E.differentials.map((d) => {
+          const cirs = E.circuits.filter((c) => c.diffId === d.id);
+          const diffWatts = cirs.reduce((a, c) => a + (isCircuitLive(c.id) ? (st.byCir.get(c.id)?.watts || 0) : 0), 0);
+          const diffLive = E.igaOn && d.on;
+          return `<section class="card cge-diff ${diffLive ? '' : 'off-state'}" data-id="${d.id}">
+            <header class="cge-diff-head">
+              <button class="breaker ${d.on ? 'on' : 'off'}" data-oa="toggleDiff"><b>${d.on ? 'ON' : 'OFF'}</b></button>
+              <div class="cge-diff-info">
+                <h3>${esc(d.name)}</h3>
+                <span class="muted small">Diferencial ${d.amps}A / ${d.ma}mA · Activo: <b>${Math.round(diffWatts)} W</b> (${fmtNum(diffWatts / st.V, 1)} A)</span>
+              </div>
+              <div class="cc-edit">
+                <button class="icon-btn sm" data-oa="editDiff" title="Editar diferencial">${icon('edit', 15)}</button>
+                <button class="icon-btn sm" data-oa="delDiff" title="Eliminar diferencial">${icon('trash', 15)}</button>
+              </div>
+            </header>
+            <div class="cge-pias">
+              ${cirs.map((c) => {
+                const info = st.byCir.get(c.id) || { items: [], watts: 0 };
+                const live = isCircuitLive(c.id);
+                const amps = info.watts / st.V;
+                const pct = c.amps > 0 ? (amps / c.amps) * 100 : 0;
+                const overload = pct > 100;
+                return `<article class="pia-card ${live ? 'live' : 'dead'}" data-id="${c.id}">
+                  <div class="pia-top">
+                    <span class="pia-code">${esc(c.code)}</span>
+                    <button class="breaker sm ${c.on ? 'on' : 'off'}" data-oa="toggleCir"><b>${c.on ? 'ON' : 'OFF'}</b></button>
+                  </div>
+                  <div class="pia-name">${esc(c.name)}</div>
+                  <div class="pia-specs">${c.amps}A · ${esc(c.cable || '2,5 mm²')} · ${info.items.length} pto${info.items.length === 1 ? '' : 's'}</div>
+                  <div class="progress sm"><i style="width:${Math.min(100, pct)}%;background:${overload ? '#ef4444' : pct > 80 ? '#f59e0b' : '#10b981'}"></i></div>
+                  <div class="pia-load"><b class="${overload ? 'danger-txt' : ''}">${Math.round(info.watts)} W</b><span>${fmtNum(amps, 1)} / ${c.amps} A</span></div>
+                  ${info.items.length ? `<div class="pia-items" title="${esc(info.items.map((x) => x.name + ' (' + x.watts + 'W)').join(', '))}">${info.items.slice(0, 3).map((x) => esc(x.name)).join(', ')}${info.items.length > 3 ? ` +${info.items.length - 3}` : ''}</div>` : '<div class="pia-items muted">Sin puntos asignados</div>'}
+                  <div class="pia-foot">
+                    <button class="icon-btn sm" data-oa="editCir" title="Editar">${icon('edit', 14)}</button>
+                    <button class="icon-btn sm" data-oa="delCir" title="Eliminar">${icon('trash', 14)}</button>
+                  </div>
+                </article>`;
+              }).join('') || '<p class="muted small">Sin magnetotérmicos en este diferencial.</p>'}
+            </div>
+          </section>`;
+        }).join('')}
+      </div>
+      <div class="callout" style="margin-top:14px">${icon('hint', 18)}
+        <div>Apagar el <b>IGA</b>, un <b>Diferencial</b> o un <b>Magnetotérmico</b> corta la luz de esos circuitos en la <b>Vista 3D Interactiva</b> (modo Noche). Puedes asignar circuito y vatios exactos a cada punto eléctrico desde el panel de propiedades del Plano.</div>
+      </div>`;
+  }
+
+  function openDiffModal(item) {
+    const isNew = !item;
+    const d = item ? clone(item) : { id: uid(), name: `ID ${S().electrical.differentials.length + 1} · Nuevo grupo`, amps: 40, ma: 30, on: true };
+    Modal.open({
+      title: isNew ? 'Nuevo Diferencial (ID)' : 'Editar Diferencial',
+      body: `<form id="dfForm" class="grid2">
+        <label class="field span2"><span>Nombre del diferencial</span><input name="name" value="${esc(d.name)}" required></label>
+        <label class="field"><span>Calibre (A)</span><input type="number" name="amps" value="${d.amps}"></label>
+        <label class="field"><span>Sensibilidad (mA)</span><input type="number" name="ma" value="${d.ma}"></label>
+      </form>`,
+      foot: `<button class="btn" data-modal-close>Cancelar</button><button class="btn primary" id="dfSave">${icon('check', 16)} Guardar</button>`,
+      onOpen(card) {
+        $('#dfSave', card).addEventListener('click', () => {
+          const form = $('#dfForm', card); if (!form.reportValidity()) return;
+          const fd = new FormData(form);
+          const data = { name: String(fd.get('name')).trim(), amps: num(fd.get('amps'), 40), ma: num(fd.get('ma'), 30) };
+          if (isNew) S().electrical.differentials.push(Object.assign(d, data)); else Object.assign(item, data);
+          Store.save(); Modal.close(); render();
+        });
+      },
+    });
+  }
+
+  function openCircuitModal(item) {
+    const isNew = !item;
+    const E = S().electrical;
+    const c = item ? clone(item) : { id: uid(), code: `C${E.circuits.length + 1}`, name: '', diffId: E.differentials[0]?.id || '', amps: 16, on: true, cable: '2,5 mm²', notes: '' };
+    Modal.open({
+      title: isNew ? 'Nuevo Magnetotérmico (PIA)' : 'Editar Magnetotérmico',
+      body: `<form id="crForm" class="grid2">
+        <label class="field"><span>Código</span><input name="code" value="${esc(c.code)}" required placeholder="Ej. C1, C6…"></label>
+        <label class="field"><span>Amperaje PIA (A)</span><select name="amps">${[10, 16, 20, 25, 32, 40].map((a) => `<option value="${a}" ${a === c.amps ? 'selected' : ''}>${a} A (${a * 230} W máx)</option>`).join('')}</select></label>
+        <label class="field span2"><span>Nombre del circuito</span><input name="name" value="${esc(c.name)}" required placeholder="Ej. Iluminación salón y terraza"></label>
+        <label class="field"><span>Diferencial asociado</span><select name="diffId">${E.differentials.map((d) => `<option value="${d.id}" ${d.id === c.diffId ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}</select></label>
+        <label class="field"><span>Sección de cable</span><input name="cable" value="${esc(c.cable)}" placeholder="1,5 mm², 2,5 mm², 4 mm²…"></label>
+        <label class="field span2"><span>Notas</span><textarea name="notes" rows="2">${esc(c.notes || '')}</textarea></label>
+      </form>`,
+      foot: `<button class="btn" data-modal-close>Cancelar</button><button class="btn primary" id="crSave">${icon('check', 16)} Guardar</button>`,
+      onOpen(card) {
+        $('#crSave', card).addEventListener('click', () => {
+          const form = $('#crForm', card); if (!form.reportValidity()) return;
+          const fd = new FormData(form);
+          const data = { code: String(fd.get('code')).trim(), name: String(fd.get('name')).trim(), diffId: fd.get('diffId'), amps: num(fd.get('amps'), 16), cable: String(fd.get('cable')).trim(), notes: String(fd.get('notes')).trim() };
+          if (isNew) E.circuits.push(Object.assign(c, data)); else Object.assign(item, data);
+          Store.save(); Modal.close(); render();
+        });
+      },
+    });
+  }
+
+  function openTab(tab) { ui.tab = tab; location.hash = '#obra'; setTimeout(() => render(), 30); }
+
+  return { init, show: render, render, openTab, isCircuitLive, inferCircuitId, DEFAULT_WATTS };
 })();

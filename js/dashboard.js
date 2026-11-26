@@ -216,7 +216,12 @@ const Settings = (() => {
           b.disabled = true;
           try {
             const r = await GitHubSync.test();
-            toast(`Conectado a <b>${esc(r.fullName)}</b>${r.push ? ' (lectura y escritura OK)' : ' (solo lectura: revisa el permiso Contents)'}`, r.push ? 'success' : 'warn');
+            toast(`Conectado a <b>${esc(r.fullName)}</b>${r.push ? ' (lectura y escritura OK)' : ' (solo lectura)'}`, r.push ? 'success' : 'warn');
+            const pulled = await GitHubSync.pull({ force: true, silent: true });
+            if (pulled) {
+              toast('Datos descargados automáticamente desde GitHub (evitando sobrescribir con el ejemplo)', 'success');
+              render();
+            }
           } catch (err) { toast('Error de conexión: ' + esc(err.message), 'error'); }
           b.disabled = false;
           break;

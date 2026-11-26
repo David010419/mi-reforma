@@ -255,6 +255,31 @@ function defaultLoan() {
   };
 }
 
+function defaultElectrical() {
+  const d1 = 'id-general', d2 = 'id-cocina', d3 = 'id-ext';
+  return {
+    contractedKw: 5.75,
+    voltage: 230,
+    kwhPrice: 0.16,
+    igaOn: true,
+    differentials: [
+      { id: d1, name: 'ID 1 · Vivienda General', amps: 40, ma: 30, on: true },
+      { id: d2, name: 'ID 2 · Cocina y Climatización', amps: 40, ma: 30, on: true },
+      { id: d3, name: 'ID 3 · Domótica, Exterior y Garaje', amps: 40, ma: 30, on: true },
+    ],
+    circuits: [
+      { id: 'c1', code: 'C1', name: 'Iluminación general', diffId: d1, amps: 10, on: true, cable: '1,5 mm²', notes: 'Puntos de luz, focos, tiras LED' },
+      { id: 'c2', code: 'C2', name: 'Tomas uso general', diffId: d1, amps: 16, on: true, cable: '2,5 mm²', notes: 'Enchufes salón y dormitorios' },
+      { id: 'c5', code: 'C5', name: 'Baños y auxiliares cocina', diffId: d1, amps: 16, on: true, cable: '2,5 mm²', notes: 'Enchufes baño y encimera' },
+      { id: 'c3', code: 'C3', name: 'Cocina y horno', diffId: d2, amps: 25, on: true, cable: '6 mm²', notes: 'Placa inducción y horno' },
+      { id: 'c4', code: 'C4', name: 'Lavadora, lavavajillas y termo', diffId: d2, amps: 20, on: true, cable: '4 mm²', notes: 'Electrodomésticos de agua' },
+      { id: 'c8', code: 'C8', name: 'Aire acondicionado (conductos)', diffId: d2, amps: 20, on: true, cable: '4 mm²', notes: 'Máquina interior/exterior AA' },
+      { id: 'c12', code: 'C12', name: 'Domótica, persianas y garaje', diffId: d3, amps: 16, on: true, cable: '2,5 mm²', notes: 'Hub, persianas eléctricas, motor garaje' },
+      { id: 'c13', code: 'C13', name: 'Cargador coche eléctrico (VE)', diffId: d3, amps: 32, on: true, cable: '6 mm²', notes: 'Punto de recarga garaje' },
+    ],
+  };
+}
+
 function emptyState() {
   const p = blankPlan('Planta baja', 'Planta baja', 'interior');
   return {
@@ -266,6 +291,7 @@ function emptyState() {
     tasks: [],
     expenses: [],
     loan: defaultLoan(),
+    electrical: defaultElectrical(),
     diary: [],
     contacts: [],
     materials: [],
@@ -606,6 +632,10 @@ const Store = {
     d.loan = Object.assign({}, defaultLoan(), d.loan || {});
     if (!Array.isArray(d.loan.dispositions) || !d.loan.dispositions.length) d.loan.dispositions = defaultLoan().dispositions;
     d.loan.dispositions = d.loan.dispositions.map((x, i) => Object.assign({ id: uid(), name: `Disp. ${i + 1}`, date: '', milestone: '', amount: 0 }, x, { amount: num(x.amount, 0) }));
+    const defE = defaultElectrical();
+    d.electrical = Object.assign({}, defE, d.electrical || {});
+    if (!Array.isArray(d.electrical.differentials) || !d.electrical.differentials.length) d.electrical.differentials = defE.differentials;
+    if (!Array.isArray(d.electrical.circuits) || !d.electrical.circuits.length) d.electrical.circuits = defE.circuits;
     ['diary', 'contacts', 'materials', 'quotes'].forEach((k) => { if (!Array.isArray(d[k])) d[k] = []; });
     if (!Array.isArray(d.plans) || !d.plans.length) d.plans = base.plans;
     d.plans.forEach((p) => {

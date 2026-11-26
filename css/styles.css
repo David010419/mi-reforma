@@ -747,7 +747,44 @@ button.save-ind.warn .ic { color: var(--warning); }
 .r3d-controls { display: grid; grid-template-columns: 1fr 1fr auto; gap: 14px; align-items: center; margin: 12px 0; }
 .r3d-controls input[type="range"] { width: 100%; accent-color: var(--accent); }
 .r3d-layers { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 10px 12px; margin-bottom: 12px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--border); font-size: 13px; }
+.r3d-anim-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 10px 0 4px; padding: 8px 10px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--border); }
+.r3d-anim-bar .chip { display: inline-flex; align-items: center; gap: 5px; }
 .r3d-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+/* ---------- Cuadro General Eléctrico (CGE) ---------- */
+.cge-head { padding: 18px 20px; margin-bottom: 16px; }
+.cge-iga { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.cge-params { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; flex: 1; }
+.cge-params .field { max-width: 190px; }
+.breaker {
+  display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  min-width: 56px; padding: 7px 10px; border-radius: 9px; border: 2px solid var(--border-strong);
+  font-weight: 800; transition: all .15s;
+}
+.breaker.big { min-width: 112px; padding: 10px 14px; border-radius: 12px; }
+.breaker.big span { font-size: 10px; letter-spacing: .04em; opacity: .85; }
+.breaker.big b { font-size: 18px; }
+.breaker.big small { font-size: 11px; opacity: .8; }
+.breaker.sm { min-width: 44px; padding: 3px 8px; font-size: 11.5px; border-radius: 7px; }
+.breaker.on { background: color-mix(in srgb, var(--success) 16%, var(--surface)); border-color: var(--success); color: var(--success); }
+.breaker.off { background: color-mix(in srgb, var(--danger) 12%, var(--surface)); border-color: var(--danger); color: var(--danger); }
+.cge-diffs { display: flex; flex-direction: column; gap: 14px; }
+.cge-diff { padding: 16px 18px; transition: opacity .2s; }
+.cge-diff.off-state { opacity: .68; }
+.cge-diff-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.cge-diff-info { flex: 1; min-width: 180px; }
+.cge-diff-info h3 { font-size: 15.5px; }
+.cge-pias { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
+.pia-card { padding: 12px 13px; border-radius: 11px; background: var(--surface-2); border: 1.5px solid var(--border); display: flex; flex-direction: column; gap: 6px; }
+.pia-card.live { border-color: color-mix(in srgb, var(--success) 38%, var(--border)); }
+.pia-card.dead { opacity: .62; }
+.pia-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.pia-code { font-weight: 800; font-size: 14px; padding: 2px 8px; border-radius: 6px; background: var(--surface-3); }
+.pia-name { font-weight: 700; font-size: 13.5px; line-height: 1.25; }
+.pia-specs { font-size: 11.5px; color: var(--muted); }
+.pia-load { display: flex; justify-content: space-between; font-size: 12px; font-variant-numeric: tabular-nums; }
+.pia-items { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pia-foot { display: flex; justify-content: flex-end; gap: 2px; margin-top: auto; }
 .ai-key-box { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; padding: 12px; border-radius: 11px; background: var(--surface-2); border: 1px solid var(--border); }
 .ai-result img { box-shadow: var(--shadow); }
 .rep-sec { margin-bottom: 14px; padding: 12px 14px; border-radius: 11px; background: var(--surface-2); border: 1px solid var(--border); }
