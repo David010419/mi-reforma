@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795735163522,
+  "updatedAt": 1795735166016,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -30,6 +30,26 @@
     "Mobiliario"
   ],
   "tasks": [
+    {
+      "id": "mwy6cpr7mco973",
+      "title": "Nueva tarea",
+      "desc": "",
+      "status": "pendiente",
+      "priority": "media",
+      "category": "General",
+      "zone": "",
+      "start": "",
+      "due": "",
+      "costEst": 0,
+      "costReal": 0,
+      "provider": "",
+      "tags": [],
+      "subtasks": [],
+      "comments": [],
+      "links": [],
+      "created": 1795735165795,
+      "updated": 1795735165795
+    },
     {
       "id": "mwy6cgv92khx09",
       "title": "Nueva tarea",
