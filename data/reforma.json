@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795723735556,
+  "updatedAt": 1795723737992,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -379,7 +379,7 @@
           "points": [
             [
               30,
-              -90
+              -126.7
             ],
             [
               490,
