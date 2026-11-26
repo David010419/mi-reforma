@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795723108512,
+  "updatedAt": 1795723123659,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -500,7 +500,14 @@
       "scope": "interior",
       "level": "Planta 1",
       "elements": []
+    },
+    {
+      "id": "mwxz6ltacn9h7y",
+      "name": "Buardilla",
+      "scope": "interior",
+      "level": "Planta 2",
+      "elements": []
     }
   ],
-  "activePlan": "mwxz6a4ifut0hq"
+  "activePlan": "mwxz6ltacn9h7y"
 }
