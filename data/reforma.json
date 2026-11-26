@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795730270528,
+  "updatedAt": 1795730272554,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -505,6 +505,13 @@
               "h": 20,
               "anim": true,
               "cutlery": true
+            },
+            {
+              "id": "mwy3ftxo6iyaz8",
+              "kind": "cajon",
+              "h": 20,
+              "anim": true,
+              "cutlery": false
             }
           ]
         }
