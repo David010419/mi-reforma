@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795727708037,
+  "updatedAt": 1795727711248,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -264,24 +264,7 @@
     ]
   },
   "diary": [],
-  "contacts": [
-    {
-      "id": "mwxz1mjswyj16z",
-      "name": "Reformas López",
-      "role": "Albañilería",
-      "phone": "+34 600 123 456",
-      "email": "lopez@ejemplo.com",
-      "notes": "Encargado de obra principal"
-    },
-    {
-      "id": "mwxz1mjs70d0v0",
-      "name": "Carlos (Electricista)",
-      "role": "Electricidad",
-      "phone": "+34 611 222 333",
-      "email": "",
-      "notes": "Lleva boletín CIE"
-    }
-  ],
+  "contacts": [],
   "materials": [],
   "quotes": [],
   "plans": [
