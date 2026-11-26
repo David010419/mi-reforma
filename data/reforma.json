@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795722988896,
+  "updatedAt": 1795722991812,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -751,8 +751,8 @@
           "name": "Mesa",
           "w": 160,
           "h": 90,
-          "x": 340,
-          "y": 230,
+          "x": 225,
+          "y": 160,
           "angle": 0,
           "note": ""
         },
