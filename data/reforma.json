@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795724225545,
+  "updatedAt": 1795724240152,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -113,7 +113,7 @@
         "name": "Disp. 3",
         "date": "2026-10-22",
         "milestone": "Tercera Disposición ",
-        "amount": 0
+        "amount": 26000
       },
       {
         "id": "mwxz1mjsqrz5au",
