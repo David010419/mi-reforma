@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795724215142,
+  "updatedAt": 1795724218528,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -99,7 +99,7 @@
         "name": "Disp. 1",
         "date": "2026-11-14",
         "milestone": "Primera disposición · Inicio de obra",
-        "amount": 0
+        "amount": 30000
       },
       {
         "id": "mwxz1mjsn6tpdu",
