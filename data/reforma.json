@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795723562246,
+  "updatedAt": 1795723574217,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -358,6 +358,18 @@
           "kind": "abatible",
           "hinge": "left",
           "side": -1,
+          "note": ""
+        },
+        {
+          "id": "mwxzg9gp1a2cdn",
+          "type": "furn",
+          "kind": "escalera",
+          "name": "Escalera",
+          "w": 280,
+          "h": 100,
+          "x": 235,
+          "y": 350,
+          "angle": 0,
           "note": ""
         }
       ],
