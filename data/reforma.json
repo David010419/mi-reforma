@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795735201922,
+  "updatedAt": 1795735211751,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -33,7 +33,7 @@
   "tasks": [
     {
       "id": "mwy6d5sijyar2f",
-      "title": "Nueva tarea",
+      "title": "Baño ga",
       "desc": "",
       "status": "pendiente",
       "priority": "media",
@@ -49,7 +49,7 @@
       "comments": [],
       "links": [],
       "created": 1795735186578,
-      "updated": 1795735201702
+      "updated": 1795735211530
     },
     {
       "id": "mwy6b6ciar1znv",
