@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795735121121,
+  "updatedAt": 1795735123390,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -35,7 +35,7 @@
       "title": "Cambiar puerta garaje",
       "desc": "",
       "status": "pendiente",
-      "priority": "alta",
+      "priority": "media",
       "category": "General",
       "zone": "",
       "start": "",
@@ -48,7 +48,7 @@
       "comments": [],
       "links": [],
       "created": 1795735093986,
-      "updated": 1795735120900
+      "updated": 1795735123169
     }
   ],
   "expenses": [
