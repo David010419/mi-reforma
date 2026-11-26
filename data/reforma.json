@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795723420469,
+  "updatedAt": 1795723425290,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -30,48 +30,6 @@
     "Mobiliario"
   ],
   "tasks": [
-    {
-      "id": "mwxz1mjszc4dki",
-      "title": "Solicitar licencia de obra menor",
-      "desc": "",
-      "status": "pendiente",
-      "priority": "alta",
-      "category": "Trámites",
-      "zone": "",
-      "start": "",
-      "due": "2026-12-03",
-      "costEst": 250,
-      "costReal": 0,
-      "provider": "",
-      "tags": [],
-      "subtasks": [
-        {
-          "id": "mwxz1mjsdy1nsz",
-          "text": "Descargar formulario del ayuntamiento",
-          "done": true
-        },
-        {
-          "id": "mwxz1mjsgkhz65",
-          "text": "Presupuesto firmado por el contratista",
-          "done": false
-        },
-        {
-          "id": "mwxz1mjsbzzqrc",
-          "text": "Pagar tasa ICIO",
-          "done": false
-        }
-      ],
-      "comments": [
-        {
-          "id": "mwxz1mjs4c7qzu",
-          "text": "En el ayuntamiento me dicen que tarda unas 2-3 semanas.",
-          "date": 1795550091112
-        }
-      ],
-      "links": [],
-      "created": 1795722891112,
-      "updated": 1795723419556
-    },
     {
       "id": "mwxz1mjs4tp4oy",
       "title": "Demoler tabique entre cocina y salón",
