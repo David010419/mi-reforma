@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795735230051,
+  "updatedAt": 1795735240896,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -69,7 +69,7 @@
       "comments": [],
       "links": [],
       "created": 1795735093986,
-      "updated": 1795735132076
+      "updated": 1795735240675
     }
   ],
   "expenses": [
