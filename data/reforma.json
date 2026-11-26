@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795735357355,
+  "updatedAt": 1795735360673,
   "project": {
     "name": "Jijona",
     "address": "Av Joan Fuster 8",
@@ -82,19 +82,6 @@
       "amount": 245.5,
       "status": "Pagado",
       "invoice": "LIC-2026-014",
-      "remaining": null,
-      "notes": "",
-      "created": 1795722891112
-    },
-    {
-      "id": "mwxz1mjslbbdmu",
-      "date": "2026-11-21",
-      "origin": "Disp. 1",
-      "category": "Demolición",
-      "concept": "Contenedores Norte · Contenedor escombros 6m³",
-      "amount": 320,
-      "status": "Pagado",
-      "invoice": "FAC-0891",
       "remaining": null,
       "notes": "",
       "created": 1795722891112
