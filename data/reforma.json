@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795723726000,
+  "updatedAt": 1795723731745,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -375,7 +375,7 @@
         {
           "id": "mwxzjikydj4bwd",
           "type": "room",
-          "name": "Habitación 1",
+          "name": "Garaje",
           "points": [
             [
               -61,
