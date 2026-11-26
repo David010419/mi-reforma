@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795723434933,
+  "updatedAt": 1795723438039,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -65,42 +65,6 @@
       "provider": "",
       "tags": [],
       "subtasks": [],
-      "comments": [],
-      "links": [],
-      "created": 1795722891112,
-      "updated": 1795722891112
-    },
-    {
-      "id": "mwxz1mjsibn4t6",
-      "title": "Medir ventanas para presupuesto de carpintería",
-      "desc": "",
-      "status": "hecho",
-      "priority": "media",
-      "category": "Carpintería",
-      "zone": "",
-      "start": "",
-      "due": "",
-      "costEst": 0,
-      "costReal": 0,
-      "provider": "",
-      "tags": [],
-      "subtasks": [
-        {
-          "id": "mwxz1mjs67er0z",
-          "text": "Ventana salón",
-          "done": true
-        },
-        {
-          "id": "mwxz1mjs6duuj9",
-          "text": "Ventana dormitorio",
-          "done": true
-        },
-        {
-          "id": "mwxz1mjs1va3w5",
-          "text": "Ventana baño",
-          "done": true
-        }
-      ],
       "comments": [],
       "links": [],
       "created": 1795722891112,
