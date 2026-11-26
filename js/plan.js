@@ -1261,6 +1261,34 @@ const Plan = (() => {
       ? { type: 'door', wallId: h.w.id, t: along / h.L, width, height: 210, kind: 'abatible', hinge: 'left', side: h.side, note: '' }
       : { type: 'window', wallId: h.w.id, t: along / h.L, width, height: 120, sill: 90, kind: 'corredera', note: '' };
   }
+  function resolveWallCollision(f) {
+    if (!f || f.type !== 'furn' || f.kind === 'hornacina' || f.kind === 'norte') return;
+    const walls = els().filter((e) => e.type === 'wall' && e.status !== 'demoler');
+    const a = ((f.angle || 0) * Math.PI) / 180;
+    const ca = Math.cos(a), sa = Math.sin(a);
+    const hw = (f.w || 40) / 2, hh = (f.h || 40) / 2;
+    for (let pass = 0; pass < 2; pass++) {
+      for (const w of walls) {
+        const L = wlen(w); if (L < 1) continue;
+        const ux = (w.x2 - w.x1) / L, uy = (w.y2 - w.y1) / L;
+        const nx = -uy, ny = ux;
+        const dx = f.x - w.x1, dy = f.y - w.y1;
+        const along = dx * ux + dy * uy;
+        const perp = dx * nx + dy * ny;
+        const projAlong = Math.abs(ux * ca + uy * sa) * hw + Math.abs(-ux * sa + uy * ca) * hh;
+        if (along < -projAlong + 2 || along > L + projAlong - 2) continue;
+        const projPerp = Math.abs(nx * ca + ny * sa) * hw + Math.abs(-nx * sa + ny * ca) * hh;
+        const minDist = (w.thick || 15) / 2 + projPerp + 0.5;
+        if (Math.abs(perp) < minDist) {
+          const sign = perp >= 0 ? 1 : -1;
+          const push = minDist - Math.abs(perp);
+          f.x = r1(f.x + nx * sign * push);
+          f.y = r1(f.y + ny * sign * push);
+        }
+      }
+    }
+  }
+
   function wallFaceSnap(p) {
     let best = null, bd = Infinity;
     els().forEach((w) => {
@@ -1466,6 +1494,7 @@ const Plan = (() => {
           const q = snap(p), d = placing.def;
           const item = { id: uid(), type: 'furn', kind: d.kind, name: d.name, w: d.w, h: d.h, h3d: d.h3d || 0, z0: d.z0 || 0, x: q.x, y: q.y, angle: placing.angle || 0, note: '' };
           if (d.sections) { item.sections = clone(d.sections).map((s) => Object.assign(s, { id: uid() })); item.plinth = d.plinth ?? 10; item.handleType = d.handleType || 'gola'; item.frontColor = d.frontColor || '#f1ede6'; }
+          resolveWallCollision(item);
           els().push(item);
         } else {
           const q = symPlacement(p);
@@ -1609,6 +1638,10 @@ const Plan = (() => {
           if (f) { el.x = f.x; el.y = f.y; el.angle = f.angle; } else { el.x = o.x + dx; el.y = o.y + dy; }
           break;
         }
+        case 'furn':
+          el.x = o.x + dx; el.y = o.y + dy;
+          if (!e.altKey) resolveWallCollision(el);
+          break;
         default: el.x = o.x + dx; el.y = o.y + dy;
       }
       return;
@@ -2323,6 +2356,7 @@ const Plan = (() => {
             dragEl3.x = r1(dragEl3.x + (dx * cY + dy * sY) * k);
             dragEl3.y = r1(dragEl3.y + (-dx * sY + dy * cY) * k);
           }
+          resolveWallCollision(dragEl3);
           lx3 = e.clientX; ly3 = e.clientY; drawInline3D();
           return;
         }
@@ -2468,6 +2502,7 @@ const Plan = (() => {
               px0 = r1((bb.x1 + bb.x2) / 2); py0 = r1((bb.y1 + bb.y2) / 2);
             }
             const item = { id: uid(), type: 'furn', kind: d.kind, name: d.name, w: d.w, h: d.h, h3d: d.h3d, z0: d.z0, plinth: d.plinth, handleType: d.handleType, frontColor: d.frontColor, sections: d.sections ? clone(d.sections) : undefined, x: px0, y: py0, angle: 0 };
+            resolveWallCollision(item);
             els().push(item);
             sel = item.id; multiSel.clear();
             commit(); updateSelBar(); drawInline3D();
@@ -2683,30 +2718,43 @@ const Plan = (() => {
 
     const faces = [];
     const lightMul = night ? 0.62 : 1;
-    const addPoly = (pts3, fill, stroke = night ? 'rgba(255,255,255,0.12)' : 'rgba(15,23,42,0.22)', lw = 1) => {
+    const addPoly = (pts3, fill, stroke = night ? 'rgba(255,255,255,0.12)' : 'rgba(15,23,42,0.22)', lw = 1, depthBias = 0) => {
       if (isFP) {
         const clipped = clipNear(pts3.map((p) => toCam(p[0], p[1], p[2])));
         if (clipped.length < 3) return;
         const p2 = clipped.map(projCam);
-        const depth = p2.reduce((a, p) => a + p.d, 0) / p2.length;
+        const mx = clipped.reduce((a, c) => a + c[0], 0) / clipped.length;
+        const my = clipped.reduce((a, c) => a + c[1], 0) / clipped.length;
+        const mz = clipped.reduce((a, c) => a + c[2], 0) / clipped.length;
+        const depth = -Math.hypot(mx, my, mz) + depthBias;
         faces.push({ p2, fill, stroke, lw, depth });
         return;
       }
       const p2 = pts3.map((p) => proj(p[0], p[1], p[2]));
-      const depth = p2.reduce((a, p) => a + p.d, 0) / p2.length;
+      const depth = p2.reduce((a, p) => a + p.d, 0) / p2.length + depthBias;
       faces.push({ p2, fill, stroke, lw, depth });
     };
-    const addBox = (corners2D, z0, z1, baseCol, alpha = 1) => {
+    const addBox = (corners2D, z0, z1, baseCol, alpha = 1, depthBias = 0, strokeOverride = null) => {
       const top = corners2D.map(([x, y]) => [x, y, z1]);
       const bot = corners2D.map(([x, y]) => [x, y, z0]);
       const sides = [0.88, 0.76, 0.94, 0.82];
+      const stCol = strokeOverride || (night ? 'rgba(255,255,255,0.12)' : 'rgba(15,23,42,0.22)');
       for (let i = 0; i < 4; i++) {
         const j = (i + 1) % 4;
         const c = shadeHex(baseCol, sides[i] * lightMul);
-        addPoly([bot[i], bot[j], top[j], top[i]], alpha < 1 ? c.replace('rgb(', 'rgba(').replace(')', `,${alpha})`) : c);
+        addPoly([bot[i], bot[j], top[j], top[i]], alpha < 1 ? c.replace('rgb(', 'rgba(').replace(')', `,${alpha})`) : c, stCol, 1, depthBias);
       }
       const tc = shadeHex(baseCol, 1.06 * lightMul);
-      addPoly(top, alpha < 1 ? tc.replace('rgb(', 'rgba(').replace(')', `,${alpha})`) : tc);
+      addPoly(top, alpha < 1 ? tc.replace('rgb(', 'rgba(').replace(')', `,${alpha})`) : tc, stCol, 1, depthBias);
+    };
+    const addWallSeg = (w, s0, s1, z0, z1, ht, baseCol, alpha = 1) => {
+      const spanS = s1 - s0;
+      if (spanS <= 1 || z1 - z0 <= 1) return;
+      const chunks = Math.max(1, Math.ceil(spanS / 48));
+      const step = spanS / chunks;
+      for (let k = 0; k < chunks; k++) {
+        addBox(segRect(w, s0 + k * step, s0 + (k + 1) * step, ht), z0, z1, baseCol, alpha, -2.5, 'rgba(15,23,42,0.06)');
+      }
     };
 
     // 1. Suelos de habitaciones
@@ -2765,13 +2813,13 @@ const Plan = (() => {
 
       let cur = 0;
       ops.forEach(({ o, a, b }) => {
-        if (a - cur > 1) addBox(segRect(w, cur, a, ht), 0, wh, col, alpha);
+        if (a - cur > 1) addWallSeg(w, cur, a, 0, wh, ht, col, alpha);
         const isWin = o.type === 'window';
         const sill = isWin ? Math.min(wh, (o.sill || 90) * hFactor) : 0;
         const zTop = Math.min(wh, (isWin ? (o.sill || 90) + (o.height || 120) : (o.height || 210)) * hFactor);
         // Antepecho bajo ventana y dintel sobre puerta/ventana
-        if (sill > 1) addBox(segRect(w, a, b, ht), 0, sill, col, alpha);
-        if (wh - zTop > 1) addBox(segRect(w, a, b, ht), zTop, wh, col, alpha);
+        if (sill > 1) addWallSeg(w, a, b, 0, sill, ht, col, alpha);
+        if (wh - zTop > 1) addWallSeg(w, a, b, zTop, wh, ht, col, alpha);
         // Contenido del hueco real con animaciones interactivas
         const aDoor = state3d.animDoors || 0, aGar = state3d.animGarage || 0, aWin = state3d.animWindows || 0, aShut = state3d.animShutters || 0;
         const swingLeaf3D = (hingeS, leafW, side, openRatio, z0, z1, leafThick, leafCol, leafAlpha = 1) => {
@@ -2839,7 +2887,7 @@ const Plan = (() => {
         }
         cur = Math.max(cur, b);
       });
-      if (L - cur > 1) addBox(segRect(w, cur, L, ht), 0, wh, col, alpha);
+      if (L - cur > 1) addWallSeg(w, cur, L, 0, wh, ht, col, alpha);
     });
 
     // 4. Mobiliario en volumen 3D (con hit-testing solo en modo Editar 3D)
