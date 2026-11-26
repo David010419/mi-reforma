@@ -198,6 +198,9 @@ const ICONS = {
   gantt: '<path d="M3 6h10M7 12h12M5 18h8"/><circle cx="3" cy="6" r="1" fill="currentColor"/><circle cx="7" cy="12" r="1" fill="currentColor"/><circle cx="5" cy="18" r="1" fill="currentColor"/>',
   compare: '<rect x="3" y="4" width="18" height="16" rx="2"/><line x1="12" y1="2" x2="12" y2="22"/>',
   bank: '<path d="M3 10h18M5 10v8M9 10v8M15 10v8M19 10v8M2 18h20M12 3l9 5H3l9-5z"/>',
+  lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  unlock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.4-2"/>',
+  walk: '<circle cx="13" cy="4.5" r="2"/><path d="M9 21l2-6 3 2v4M11 15l1.5-5L16 12l3-1M9.5 11l3-1.5"/>',
 };
 function icon(name, size = 18, cls = '') {
   return `<svg class="ic ${cls}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ''}</svg>`;

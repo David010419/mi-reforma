@@ -760,6 +760,11 @@ button.save-ind.warn .ic { color: var(--warning); }
 .r3d-layers { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 10px 12px; margin-bottom: 12px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--border); font-size: 13px; }
 .r3d-anim-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 10px 0 4px; padding: 8px 10px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--border); }
 .r3d-anim-bar .chip { display: inline-flex; align-items: center; gap: 5px; }
+.r3d-edit-bar { margin: 8px 0 4px; padding: 10px 12px; border-radius: 10px; background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border)); display: flex; flex-direction: column; gap: 8px; }
+.r3de-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.r3de-presets { display: flex; gap: 5px; flex-wrap: wrap; }
+.r3de-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 900px) { .r3de-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 .active-lock { background: color-mix(in srgb, var(--warning) 18%, transparent) !important; }
 .mod-secs { display: flex; flex-direction: column; gap: 8px; }
 .mod-sec { padding: 8px 9px; border-radius: 9px; background: var(--surface-2); border: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px; }

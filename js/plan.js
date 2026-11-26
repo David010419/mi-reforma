@@ -125,7 +125,7 @@ const Plan = (() => {
     corredera: 'Corredera', abatible: 'Abatible (1 hoja)', abatible2: 'Abatible (2 hojas)',
     oscilobatiente: 'Oscilobatiente', balconera: 'Balconera acristalada', fija: 'Fija',
   };
-  const SHUTTER_KINDS = { none: 'Sin persiana', manual: 'Persiana manual', electric: 'Persiana eléctrica ⚡' };
+  const SHUTTER_KINDS = { none: 'Sin persiana', manual: 'Persiana manual', electric: 'Persiana eléctrica' };
   const HANDLE_KINDS = { gola: 'Perfil Gola', unero: 'Uñero fresado', push: 'Sistema Push (sin tirador)', tirador: 'Tirador exterior', abierto: 'Hueco abierto (sin frente)' };
   const SECTION_KINDS = {
     cajon: 'Cajón estándar', cacerolero: 'Cajón cacerolero', cubertero: 'Cajón con cubertero',
@@ -430,7 +430,7 @@ const Plan = (() => {
         if (aOpen < 0.5) for (let i = 1; i < segs; i++) { const xx = -hw + (o.width / segs) * i; inner += `<line x1="${xx}" y1="${-ht}" x2="${xx}" y2="${ht}" stroke="${c}" stroke-width="${px(1)}"/>`; }
         inner += `<line x1="${-hw}" y1="${sd * (ht + 12)}" x2="${hw}" y2="${sd * (ht + 12)}" stroke="${c}" stroke-width="${px(1)}" stroke-dasharray="${px(5)} ${px(3)}"/>
           <circle cx="0" cy="${sd * (ht + 12)}" r="${px(7)}" fill="${aOpen > 0.5 ? '#10b981' : '#f59e0b'}" stroke="${th.bg}" stroke-width="${px(1.2)}"/>
-          <text x="0" y="${sd * (ht + 12)}" text-anchor="middle" dominant-baseline="central" font-size="${px(8)}" font-weight="800" fill="#fff">⚡</text>`;
+          <text x="0" y="${sd * (ht + 12)}" text-anchor="middle" dominant-baseline="central" font-size="${px(8)}" font-weight="800" fill="#fff">M</text>`;
       } else if (o.kind === 'blindada') {
         const hx = o.hinge === 'right' ? hw : -hw;
         const dir = hx < 0 ? 1 : -1, ang = (Math.PI / 2) * (0.15 + aOpen * 0.85);
@@ -460,7 +460,7 @@ const Plan = (() => {
       if (o.shutter === 'manual' || o.shutter === 'electric') {
         const sy = -sd * (ht + px(4));
         inner += `<rect x="${-hw}" y="${sy - px(2)}" width="${o.width}" height="${px(4)}" fill="${o.shutter === 'electric' ? '#f59e0b' : c}" opacity=".85"/>`;
-        if (o.shutter === 'electric') inner += `<circle cx="${hw - px(6)}" cy="${sy}" r="${px(6)}" fill="#f59e0b" stroke="${th.bg}" stroke-width="${px(1)}"/><text x="${hw - px(6)}" y="${sy}" text-anchor="middle" dominant-baseline="central" font-size="${px(7.5)}" fill="#fff">⚡</text>`;
+        if (o.shutter === 'electric') inner += `<circle cx="${hw - px(6)}" cy="${sy}" r="${px(6)}" fill="#f59e0b" stroke="${th.bg}" stroke-width="${px(1)}"/><text x="${hw - px(6)}" y="${sy}" text-anchor="middle" dominant-baseline="central" font-size="${px(7.5)}" font-weight="800" fill="#fff">E</text>`;
       }
     }
     inner += `<rect x="${-hw}" y="${-ht - px(5)}" width="${o.width}" height="${g.thick + px(10)}" fill="transparent"/>`;
@@ -672,14 +672,15 @@ const Plan = (() => {
           <details class="dropdown">
             <summary class="tgl" id="pSimBtn" title="Animar puertas, ventanas, persianas, cocina y luces directamente en el plano 2D">${icon('bolt', 15)}<span>Simular 2D</span></summary>
             <div class="dd-menu" id="pSimMenu">
-              <button data-pa="sim2dDoors">🚪 Abrir / cerrar puertas y garaje</button>
-              <button data-pa="sim2dWindows">🪟 Abrir / cerrar ventanas</button>
-              <button data-pa="sim2dShutters">⚡ Bajar / subir persianas</button>
-              <button data-pa="sim2dKitchen">🍳 Abrir cajones y cocina</button>
-              <button data-pa="sim2dLights">💡 Encender / apagar luces (Cuadro CGE)</button>
+              <button data-pa="sim2dDoors">${icon('door', 15)} Abrir / cerrar puertas y garaje</button>
+              <button data-pa="sim2dWindows">${icon('window', 15)} Abrir / cerrar ventanas</button>
+              <button data-pa="sim2dShutters">${icon('sliders', 15)} Bajar / subir persianas</button>
+              <button data-pa="sim2dKitchen">${icon('layers', 15)} Abrir cajones y cocina</button>
+              <button data-pa="sim2dLights">${icon('hint', 15)} Encender / apagar luces (Cuadro CGE)</button>
             </div>
           </details>
-          <button class="btn sm" data-pa="render3d" title="Ver en 3D interactivo, animar y generar render">${icon('box', 15)}<span>Vista 3D</span></button>
+          <button class="btn sm" data-pa="edit3d" title="Entrar en 3D en primera persona para tocar, editar y animar muebles">${icon('walk', 15)}<span>Editar 3D</span></button>
+          <button class="btn sm" data-pa="render3d" title="Render 3D: visualizar, pasear, ver animaciones y generar informes">${icon('box', 15)}<span>Render 3D</span></button>
           <button class="btn sm" data-pa="exportPdf" title="Generar Memoria Técnica de Planos en PDF">${icon('receipt', 15)}<span>Informe PDF</span></button>
           <button class="tgl" id="pDeskPanelBtn" data-pa="toggleDeskPanel" title="Ocultar / mostrar panel derecho (más espacio en iPad)">${icon('sliders', 15)}<span>Panel</span></button>
           <select id="pTheme" title="Estilo del plano">${Object.entries(THEMES).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('')}</select>
@@ -766,7 +767,7 @@ const Plan = (() => {
     }
     if (multiSel.size > 1) {
       bar.innerHTML = `<span class="small" style="font-weight:700;padding:0 6px">${multiSel.size} sel.</span>
-        <button class="btn sm" data-pa="lockSel">🔒</button>
+        <button class="btn sm" data-pa="lockSel" title="Bloquear / desbloquear">${icon('lock', 15)}</button>
         <button class="btn sm" data-pa="dupSel">${icon('copy', 15)}</button>
         <button class="btn sm danger" data-pa="delSel">${icon('trash', 15)}</button>
         <button class="btn sm" data-pa="clearSel">${icon('x', 15)}</button>`;
@@ -777,7 +778,7 @@ const Plan = (() => {
     const canRot = el.type === 'furn' || el.type === 'sym' || el.type === 'door';
     bar.innerHTML = `
       <button class="btn sm primary" data-pa="openPanel">${icon('sliders', 15)} Editar</button>
-      <button class="btn sm" data-pa="lockSel" title="${el.locked ? 'Desbloquear' : 'Bloquear'}">${el.locked ? '🔓' : '🔒'}</button>
+      <button class="btn sm" data-pa="lockSel" title="${el.locked ? 'Desbloquear' : 'Bloquear'}">${icon(el.locked ? 'unlock' : 'lock', 15)}</button>
       ${canRot && !el.locked ? `<button class="btn sm" data-pa="rotSel">${icon('rotate', 15)}</button>` : ''}
       <button class="btn sm" data-pa="dupSel">${icon('copy', 15)}</button>
       ${!el.locked ? `<button class="btn sm danger" data-pa="delSel">${icon('trash', 15)}</button>` : ''}`;
@@ -914,7 +915,7 @@ const Plan = (() => {
     if (el && multiSel.size <= 1) {
       if (el.locked) {
         const lb = bbox([el]);
-        if (lb) o += label((lb.x1 + lb.x2) / 2, lb.y1 - px(14), '🔒 Bloqueado');
+        if (lb) o += label((lb.x1 + lb.x2) / 2, lb.y1 - px(14), 'Bloqueado');
       }
       switch (el.type) {
         case 'wall':
@@ -1570,7 +1571,7 @@ const Plan = (() => {
     const target = forceState !== undefined ? forceState : !list.every((x) => x.locked);
     list.forEach((x) => { x.locked = target; });
     commit();
-    toast(target ? `🔒 ${list.length === 1 ? 'Elemento bloqueado' : list.length + ' elementos bloqueados'}` : `🔓 ${list.length === 1 ? 'Elemento desbloqueado' : list.length + ' elementos desbloqueados'}`, 'info');
+    toast(target ? (list.length === 1 ? 'Elemento bloqueado' : `${list.length} elementos bloqueados`) : (list.length === 1 ? 'Elemento desbloqueado' : `${list.length} elementos desbloqueados`), 'info');
   }
   function deleteSel() {
     const list = selectedList(); if (!list.length) return;
@@ -1772,8 +1773,8 @@ const Plan = (() => {
         <div class="btn-col">
           <button class="btn sm" data-a="dup">${icon('copy', 14)} Duplicar todos</button>
           <button class="btn sm" data-a="rotate">${icon('rotate', 14)} Girar muebles / puertas 90°</button>
-          <button class="btn sm" data-a="lockAll">🔒 Bloquear todos</button>
-          ${lockedN ? `<button class="btn sm" data-a="unlockAllSel">🔓 Desbloquear seleccionados (${lockedN})</button>` : ''}
+          <button class="btn sm" data-a="lockAll">${icon('lock', 14)} Bloquear todos</button>
+          ${lockedN ? `<button class="btn sm" data-a="unlockAllSel">${icon('unlock', 14)} Desbloquear seleccionados (${lockedN})</button>` : ''}
           <button class="btn sm danger" data-a="del">${icon('trash', 14)} Eliminar no bloqueados</button>
         </div>
       </div>`;
@@ -1781,7 +1782,7 @@ const Plan = (() => {
 
   function propsFor(el) {
     const head = (ic, title, sub = '') => `<div class="psec phead"><div class="phead-ic">${icon(ic, 18)}</div><div><h4>${title}</h4>${sub ? `<small>${sub}</small>` : ''}</div>
-      <button class="icon-btn sm ${el.locked ? 'active-lock' : ''}" data-a="toggleLock" title="${el.locked ? 'Desbloquear elemento' : 'Bloquear elemento para no moverlo por accidente'}">${el.locked ? '🔒' : '🔓'}</button>
+      <button class="icon-btn sm ${el.locked ? 'active-lock' : ''}" data-a="toggleLock" title="${el.locked ? 'Desbloquear elemento' : 'Bloquear elemento para no moverlo por accidente'}">${icon(el.locked ? 'lock' : 'unlock', 15)}</button>
       <button class="icon-btn sm" data-a="deselect" title="Cerrar (Esc)">${icon('x', 16)}</button></div>`;
     switch (el.type) {
       case 'wall': {
@@ -1954,7 +1955,7 @@ const Plan = (() => {
           <label class="pf"><span>Planta / zona</span><input type="text" data-pl="level" list="planLevelList" value="${esc(plan().level || '')}" placeholder="Ej. Planta 1"><datalist id="planLevelList">${PLAN_LEVELS.map((l) => `<option value="${esc(l)}">`).join('')}</datalist></label>
         </div>
         <div class="pstats"><div><b>${fmtNum(st.area)} m²</b><span>Superficie útil</span></div><div><b>${st.rooms.length}</b><span>Estancias</span></div></div>
-        ${(() => { const n = els().filter((x) => x.locked).length; return n ? `<div class="pinfos" style="margin-top:4px"><div class="pinfo"><span>🔒 Elementos bloqueados</span><button class="link-btn" data-a="unlockAll">Desbloquear todos (${n})</button></div></div>` : ''; })()}
+        ${(() => { const n = els().filter((x) => x.locked).length; return n ? `<div class="pinfos" style="margin-top:4px"><div class="pinfo"><span>${icon('lock', 13)} Elementos bloqueados</span><button class="link-btn" data-a="unlockAll">Desbloquear todos (${n})</button></div></div>` : ''; })()}
       </div>
       <div class="psec"><h4>${icon('roomrect', 16)} Estancias</h4>
         ${st.rooms.length ? `<div class="rooms">${st.rooms.map((r) => `<button class="room-row" data-a="selectEl" data-id="${r.id}"><i style="--c:${r.color}"></i><span>${esc(r.name || 'Sin nombre')}</span><b>${fmtNum(r.area)} m²</b><small>${fmtNum(r.perim)} m</small></button>`).join('')}</div>` : '<p class="phint">Dibuja estancias con las herramientas de muro o habitación.</p>'}
@@ -2054,7 +2055,8 @@ const Plan = (() => {
         case 'dupPlan': openPlanModal(true); break;
         case 'bgModal': openBgModal(); break;
         case 'compareModal': openCompareModal(); break;
-        case 'render3d': openRender3DModal(); break;
+        case 'edit3d': openRender3DModal(true); break;
+        case 'render3d': openRender3DModal(false); break;
         case 'delPlan': {
           if (!confirm(`¿Eliminar el plano «${plan().name}» y todo su contenido?`)) break;
           if (S().plans.length === 1) { pushUndo(); plan().elements = []; commit(); break; }
@@ -2536,7 +2538,8 @@ const Plan = (() => {
       if (L - cur > 1) addBox(segRect(w, cur, L, ht), 0, wh, col, alpha);
     });
 
-    // 4. Mobiliario en volumen 3D (solo visualización y animaciones)
+    // 4. Mobiliario en volumen 3D (con hit-testing solo en modo Editar 3D)
+    state3d._hitList = [];
     if (state3d.showFurn) {
       list.filter((e) => e.type === 'furn' && e.kind !== 'norte').forEach((f) => {
         const hw = f.w / 2, hh = f.h / 2, a = f.angle || 0;
@@ -2544,7 +2547,16 @@ const Plan = (() => {
         const st = furn3DStyle(f.kind);
         const fH = (f.h3d || st.h) * fHScale;
         const fZ0 = (f.z0 ?? st.z0 ?? 0) * hFactor;
-        const isSel3d = false;
+        if (state3d.editable) {
+          const pCenter = proj(f.x, f.y, fZ0 + fH / 2);
+          if (pCenter) {
+            const rad = isFP
+              ? clamp((Math.max(hw, hh, fH / 2) * focal) / Math.max(40, pCenter.z), 22, 180)
+              : Math.max(20, Math.max(hw, hh) * scale * 0.9);
+            state3d._hitList.push({ id: f.id, x: pCenter.x, y: pCenter.y, r: rad, z: pCenter.z || 0 });
+          }
+        }
+        const isSel3d = !!state3d.editable && state3d.sel3dId === f.id;
         if (f.kind === 'escalera') {
           const steps = clamp(Math.round(f.w / 26), 5, 16);
           const maxH = 250 * Math.max(0.55, hFactor);
@@ -2852,14 +2864,16 @@ Respeta exactamente la posición de muros, puertas, ventanas y muebles del plano
     }, pui.layers3d || {});
   }
 
-  function openRender3DModal() {
+  function openRender3DModal(editable = false) {
     const savedL = getSaved3DLayers();
     const list0 = plan().elements;
     const b0 = bbox(list0) || { x1: 0, y1: 0, x2: 800, y2: 600 };
     const roomsList = list0.filter((e) => e.type === 'room' && e.points.length >= 3);
     const startPt = roomsList.length ? centroid(roomsList[0].points) : { x: (b0.x1 + b0.x2) / 2, y: (b0.y1 + b0.y2) / 2 };
     const state3d = Object.assign({
-      camMode: 'orbit',
+      editable: !!editable,
+      sel3dId: null,
+      camMode: editable ? 'fp' : 'orbit',
       yaw: -35, pitch: 42, zoom: 1, wallCut: 0.78, hideDemo: true,
       fpX: startPt.x, fpY: startPt.y, fpYaw: 0, fpPitch: -3, eyeZ: 165,
       animDoors: 0, animGarage: 0, animWindows: 0, animShutters: 0, animKitchen: 0, nightMode: false,
@@ -2867,44 +2881,47 @@ Respeta exactamente la posición de muros, puertas, ventanas y muebles del plano
     const GEM_KEY = 'mi-reforma:gemini:key';
     const st = stats(plan());
     Modal.open({
-      title: `Vista 3D, Paseo Interior y Render · ${esc(plan().name)}`,
+      title: editable ? `Editar en 3D · ${esc(plan().name)}` : `Render 3D · ${esc(plan().name)}`,
       wide: true,
       body: `
-        <div class="seg" id="r3dSeg" style="margin-bottom:14px">
-          <button class="active" data-rt="v3d">${icon('box', 15)}<span>Vista 3D y Paseo interior</span></button>
+        ${editable ? '' : `<div class="seg" id="r3dSeg" style="margin-bottom:14px">
+          <button class="active" data-rt="v3d">${icon('box', 15)}<span>Render 3D interactivo</span></button>
           <button data-rt="ai">${icon('image', 15)}<span>Render fotorrealista IA</span></button>
-        </div>
+        </div>`}
         <div id="r3dPane">
           <div class="r3d-cam-bar">
             <div class="seg sm" id="r3dCamSeg">
-              <button class="active" data-cam="orbit">🧊 Maqueta 3D (Órbita)</button>
-              <button data-cam="fp">🚶 Paseo interior (1ª persona)</button>
+              <button class="${state3d.camMode === 'fp' ? 'active' : ''}" data-cam="fp">${icon('walk', 14)}<span>Primera persona</span></button>
+              <button class="${state3d.camMode === 'orbit' ? 'active' : ''}" data-cam="orbit">${icon('box', 14)}<span>Maqueta 3D</span></button>
             </div>
-            <div id="r3dFpJumpWrap" style="display:none;align-items:center;gap:8px;flex-wrap:wrap">
+            <div id="r3dFpJumpWrap" style="display:${state3d.camMode === 'fp' ? 'flex' : 'none'};align-items:center;gap:8px;flex-wrap:wrap">
               ${roomsList.length ? `<label class="field inline-f"><span>Ir a:</span><select id="r3dFpRoom">${roomsList.map((r, i) => `<option value="${i}">${esc(r.name || 'Estancia ' + (i + 1))}</option>`).join('')}</select></label>` : ''}
               <label class="field inline-f"><span>Altura ojos</span><input type="range" id="r3dEyeZ" min="100" max="200" step="5" value="165" style="width:90px"><em id="r3dEyeLbl" class="small muted">165 cm</em></label>
             </div>
           </div>
           <div class="r3d-canvas-wrap">
             <canvas id="r3dCanvas" width="960" height="560"></canvas>
-            <div class="r3d-dpad" id="r3dDpad" style="display:none" aria-label="Controles de desplazamiento">
-              <button type="button" class="dp-btn dp-up" data-move="fwd" title="Avanzar (W / ↑)">▲</button>
-              <button type="button" class="dp-btn dp-left" data-move="left" title="Izquierda (A / ←)">◀</button>
-              <button type="button" class="dp-btn dp-down" data-move="back" title="Retroceder (S / ↓)">▼</button>
-              <button type="button" class="dp-btn dp-right" data-move="right" title="Derecha (D / →)">▶</button>
+            <div class="r3d-dpad" id="r3dDpad" style="display:${state3d.camMode === 'fp' ? 'grid' : 'none'}" aria-label="Controles de desplazamiento">
+              <button type="button" class="dp-btn dp-up" data-move="fwd" title="Avanzar (W / Flecha arriba)">▲</button>
+              <button type="button" class="dp-btn dp-left" data-move="left" title="Izquierda (A / Flecha izquierda)">◀</button>
+              <button type="button" class="dp-btn dp-down" data-move="back" title="Retroceder (S / Flecha abajo)">▼</button>
+              <button type="button" class="dp-btn dp-right" data-move="right" title="Derecha (D / Flecha derecha)">▶</button>
             </div>
-            <div class="r3d-hint" id="r3dHint">Arrastra para rotar 360° e inclinar · Solo visualización</div>
+            <div class="r3d-hint" id="r3dHint">${editable
+              ? 'Toca cualquier mueble para editarlo · Arrastra para mirar · Flechas o WASD para caminar'
+              : 'Arrastra para rotar 360° e inclinar · Solo visualización'}</div>
           </div>
           <div class="r3d-anim-bar">
-            <button class="chip" data-anim="animDoors">Puertas</button>
-            <button class="chip" data-anim="animGarage">Puerta garaje</button>
-            <button class="chip" data-anim="animWindows">Ventanas</button>
-            <button class="chip" data-anim="animShutters">Persianas</button>
-            <button class="chip" data-anim="animKitchen">Cocina</button>
+            <button class="chip" data-anim="animDoors">${icon('door', 13)} Puertas</button>
+            <button class="chip" data-anim="animGarage">${icon('home', 13)} Garaje</button>
+            <button class="chip" data-anim="animWindows">${icon('window', 13)} Ventanas</button>
+            <button class="chip" data-anim="animShutters">${icon('sliders', 13)} Persianas</button>
+            <button class="chip" data-anim="animKitchen">${icon('layers', 13)} Cocina</button>
             <button class="chip" id="r3dNightBtn">${icon('moon', 13)} Noche / Luces</button>
             <button class="btn sm ghost" id="r3dOpenCge">${icon('bolt', 13)} Cuadro Eléctrico</button>
           </div>
-          <div class="r3d-controls" id="r3dOrbitCtrls">
+          ${editable ? `<div id="r3dEditBar" class="r3d-edit-bar"></div>` : ''}
+          <div class="r3d-controls" id="r3dOrbitCtrls" style="display:${state3d.camMode === 'fp' ? 'none' : ''}">
             <label class="field"><span>Altura de muros</span><input type="range" id="r3dCut" min="0.2" max="1" step="0.05" value="0.78"></label>
             <label class="field"><span>Zoom</span><input type="range" id="r3dZoom" min="0.6" max="1.8" step="0.05" value="1"></label>
             <label class="chk"><input type="checkbox" id="r3dHideDemo" checked> Ocultar demoler</label>
@@ -2919,13 +2936,14 @@ Respeta exactamente la posición de muros, puertas, ventanas y muebles del plano
             <label class="chk"><input type="checkbox" data-3dl="showNotes" ${state3d.showNotes ? 'checked' : ''}> Anotaciones</label>
           </div>
           <div class="r3d-actions">
-            <button class="btn sm" id="r3dReset">${icon('rotate', 14)} Reiniciar vista</button>
+            <button class="btn sm" id="r3dReset">${icon('rotate', 14)} Reiniciar cámara</button>
+            ${editable ? '' : `
             <button class="btn sm" id="r3dSaveDiary">${icon('camera', 14)} Guardar en Diario</button>
             <button class="btn sm" id="r3dPdf">${icon('receipt', 14)} Memoria Técnica (PDF)</button>
-            <button class="btn sm primary" id="r3dDownload">${icon('download', 14)} Descargar PNG</button>
+            <button class="btn sm primary" id="r3dDownload">${icon('download', 14)} Descargar PNG</button>`}
           </div>
         </div>
-        <div id="rAiPane" style="display:none">
+        ${editable ? '' : `<div id="rAiPane" style="display:none">
           <div class="grid2" style="margin-bottom:12px">
             <label class="field"><span>Estilo visual</span><select id="aiStyle">
               <option>Moderno cálido (madera clara, tonos neutros, luz natural)</option>
@@ -2953,14 +2971,66 @@ Respeta exactamente la posición de muros, puertas, ventanas y muebles del plano
             <button class="btn" id="aiGenBtn">${icon('image', 15)} Generar render aquí</button>
           </div>
           <div id="aiResult" class="ai-result"></div>
-        </div>`,
+        </div>`}`,
       foot: `<button class="btn" data-modal-close>Cerrar</button>`,
       onOpen(card) {
         const canvas = $('#r3dCanvas', card);
         const draw = () => render3DCanvas(canvas, state3d);
         draw();
 
-        // Cambio entre Maqueta 3D (Órbita) y Paseo interior (1ª persona)
+        // Barra de edición 3D (solo activa en el modo "Editar 3D")
+        const editBar = $('#r3dEditBar', card);
+        const renderEdit3dBar = () => {
+          if (!editable || !editBar) return;
+          const el = state3d.sel3dId ? byId(state3d.sel3dId) : null;
+          if (!el) {
+            editBar.innerHTML = `<span class="muted small">Toca cualquier mueble o módulo en el 3D para seleccionarlo y editar su posición, altura Z, medidas o color.</span>`;
+            return;
+          }
+          const stf = furn3DStyle(el.kind);
+          editBar.innerHTML = `<div class="r3de-head"><b>${esc(el.name || 'Mueble')}</b>${el.locked ? `<span class="muted small">${icon('lock', 12)} Bloqueado</span>` : ''}
+              <div class="r3de-presets">
+                <button class="chip" data-e3z="0">Suelo (0)</button>
+                <button class="chip" data-e3z="90">Encimera (90)</button>
+                <button class="chip" data-e3z="145">Colgado (145)</button>
+                <button class="chip" data-e3rot="1">${icon('rotate', 12)} 90°</button>
+                ${!el.locked ? `<button class="chip danger-txt" data-e3del="1">${icon('trash', 12)} Borrar</button>` : ''}
+              </div>
+            </div>
+            <div class="r3de-grid">
+              <label class="pf"><span>X (cm)</span><input type="number" step="5" data-e3f="x" value="${Math.round(el.x)}"></label>
+              <label class="pf"><span>Y (cm)</span><input type="number" step="5" data-e3f="y" value="${Math.round(el.y)}"></label>
+              <label class="pf"><span>Altura Z</span><input type="number" step="5" data-e3f="z0" value="${Math.round(el.z0 ?? stf.z0 ?? 0)}"></label>
+              <label class="pf"><span>Ancho</span><input type="number" step="5" data-e3f="w" value="${Math.round(el.w)}"></label>
+              <label class="pf"><span>Fondo</span><input type="number" step="5" data-e3f="h" value="${Math.round(el.h)}"></label>
+              <label class="pf"><span>Alto 3D</span><input type="number" step="5" data-e3f="h3d" value="${Math.round(el.h3d || stf.h)}"></label>
+              <label class="pf"><span>Color</span><input type="color" data-e3f="frontColor" value="${el.frontColor || stf.c || '#f1ede6'}"></label>
+            </div>`;
+        };
+        if (editable && editBar) {
+          renderEdit3dBar();
+          editBar.addEventListener('input', (e) => {
+            const k = e.target.dataset.e3f; if (!k || !state3d.sel3dId) return;
+            const el = byId(state3d.sel3dId); if (!el || el.locked) return;
+            el[k] = k === 'frontColor' ? e.target.value : num(e.target.value, el[k] || 0);
+            Store.save(); draw(); requestRender();
+          });
+          editBar.addEventListener('click', (e) => {
+            const el = state3d.sel3dId ? byId(state3d.sel3dId) : null; if (!el || el.locked) return;
+            const zb = e.target.closest('[data-e3z]');
+            if (zb) { el.z0 = +zb.dataset.e3z; Store.save(); renderEdit3dBar(); draw(); requestRender(); return; }
+            if (e.target.closest('[data-e3rot]')) { el.angle = ((el.angle || 0) + 90) % 360; Store.save(); draw(); requestRender(); return; }
+            if (e.target.closest('[data-e3del]')) {
+              pushUndo();
+              plan().elements = els().filter((x) => x.id !== el.id);
+              state3d.sel3dId = null;
+              Store.save(); renderEdit3dBar(); draw(); requestRender();
+              toast('Elemento eliminado', 'info');
+            }
+          });
+        }
+
+        // Cambio entre Primera persona y Maqueta 3D (Órbita)
         const dpad = $('#r3dDpad', card);
         const fpJump = $('#r3dFpJumpWrap', card);
         const orbitCtrls = $('#r3dOrbitCtrls', card);
@@ -2971,8 +3041,8 @@ Respeta exactamente la posición de muros, puertas, ventanas y muebles del plano
           fpJump.style.display = isFP ? 'flex' : 'none';
           orbitCtrls.style.display = isFP ? 'none' : '';
           hintEl.textContent = isFP
-            ? 'Arrastra para mirar alrededor · Usa las flechas o WASD para caminar'
-            : 'Arrastra para rotar 360° e inclinar · Solo visualización';
+            ? (editable ? 'Toca un mueble para editarlo · Arrastra para mirar · Flechas o WASD para caminar' : 'Arrastra para mirar alrededor · Usa las flechas o WASD para caminar')
+            : (editable ? 'Toca un mueble para editarlo · Arrastra para rotar 360° e inclinar' : 'Arrastra para rotar 360° e inclinar · Solo visualización');
           draw();
         };
         $('#r3dCamSeg', card).addEventListener('click', (e) => {
@@ -3028,12 +3098,13 @@ Respeta exactamente la posición de muros, puertas, ventanas y muebles del plano
         };
         window.addEventListener('keydown', onKeyWalk);
 
-        // Rotación táctil / ratón (Órbita o Mirar alrededor en 1ª persona, sin edición)
-        let dragging = false, lx = 0, ly = 0;
-        canvas.addEventListener('pointerdown', (e) => { dragging = true; lx = e.clientX; ly = e.clientY; canvas.setPointerCapture(e.pointerId); });
+        // Rotación táctil / ratón (+ toque para seleccionar mueble solo en modo Editar 3D)
+        let dragging = false, lx = 0, ly = 0, moved = false;
+        canvas.addEventListener('pointerdown', (e) => { dragging = true; moved = false; lx = e.clientX; ly = e.clientY; canvas.setPointerCapture(e.pointerId); });
         canvas.addEventListener('pointermove', (e) => {
           if (!dragging) return;
           const dx = e.clientX - lx, dy = e.clientY - ly;
+          if (Math.hypot(dx, dy) > 3) moved = true;
           if (state3d.camMode === 'fp') {
             state3d.fpYaw -= dx * 0.35;
             state3d.fpPitch = clamp(state3d.fpPitch - dy * 0.25, -45, 45);
@@ -3043,7 +3114,21 @@ Respeta exactamente la posición de muros, puertas, ventanas y muebles del plano
           }
           lx = e.clientX; ly = e.clientY; draw();
         });
-        canvas.addEventListener('pointerup', () => { dragging = false; });
+        canvas.addEventListener('pointerup', (e) => {
+          dragging = false;
+          if (!moved && editable && state3d._hitList) {
+            const rect = canvas.getBoundingClientRect();
+            const cx = (e.clientX - rect.left) * (canvas.width / rect.width);
+            const cy = (e.clientY - rect.top) * (canvas.height / rect.height);
+            let best = null, bd = Infinity;
+            state3d._hitList.forEach((h) => {
+              const d = Math.hypot(cx - h.x, cy - h.y);
+              if (d < h.r && d < bd) { bd = d; best = h; }
+            });
+            state3d.sel3dId = best ? best.id : null;
+            renderEdit3dBar(); draw();
+          }
+        });
         canvas.addEventListener('pointercancel', () => { dragging = false; });
 
         $('#r3dCut', card).addEventListener('input', (e) => { state3d.wallCut = num(e.target.value, 0.78); draw(); });
@@ -3085,15 +3170,18 @@ Respeta exactamente la posición de muros, puertas, ventanas y muebles del plano
           $('#r3dCut', card).value = 0.78; $('#r3dZoom', card).value = 1; $('#r3dEyeZ', card).value = 165; $('#r3dEyeLbl', card).textContent = '165 cm';
           draw();
         });
-        $('#r3dDownload', card).addEventListener('click', () => {
-          canvas.toBlob((blob) => { download(`vista-3d-${plan().name.replace(/\s+/g, '_')}.png`, blob); toast('Vista 3D descargada', 'success'); }, 'image/png');
-        });
-        $('#r3dSaveDiary', card).addEventListener('click', () => {
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
-          S().diary.unshift({ id: uid(), date: localISO(), phase: 'Propuesta 3D', zone: plan().name, title: `Vista 3D · ${plan().name}`, notes: 'Captura 3D generada desde el editor de planos.', photo: dataUrl, created: Date.now() });
-          Store.save(); toast('Guardada en Obra → Diario y fotos', 'success');
-        });
-        $('#r3dPdf', card).addEventListener('click', () => { Modal.close(); openReportModal(); });
+        if (!editable) {
+          $('#r3dDownload', card).addEventListener('click', () => {
+            canvas.toBlob((blob) => { download(`render-3d-${plan().name.replace(/\s+/g, '_')}.png`, blob); toast('Render 3D descargado', 'success'); }, 'image/png');
+          });
+          $('#r3dSaveDiary', card).addEventListener('click', () => {
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+            S().diary.unshift({ id: uid(), date: localISO(), phase: 'Render 3D', zone: plan().name, title: `Render 3D · ${plan().name}`, notes: 'Captura 3D generada desde el editor de planos.', photo: dataUrl, created: Date.now() });
+            Store.save(); toast('Guardada en Obra → Diario y fotos', 'success');
+          });
+          $('#r3dPdf', card).addEventListener('click', () => { Modal.close(); openReportModal(); });
+        }
+        if (editable) return;
 
         // Tabs 3D / IA
         const refreshPrompt = () => {

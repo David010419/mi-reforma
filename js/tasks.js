@@ -164,7 +164,7 @@ const Tasks = (() => {
     const host = a.closest('[data-id]');
     const t = host && byId(host.dataset.id);
     switch (act) {
-      case 'toggle': if (t) { t.status = isDone(t) ? 'pendiente' : 'hecho'; t.updated = Date.now(); Store.save(); render(); if (isDone(t)) toast('¡Tarea completada! 🎉', 'success'); } break;
+      case 'toggle': if (t) { t.status = isDone(t) ? 'pendiente' : 'hecho'; t.updated = Date.now(); Store.save(); render(); if (isDone(t)) toast('Tarea completada', 'success'); } break;
       case 'open': if (t) open(t.id); break;
       case 'expand': if (t) { ui.expanded[t.id] = !ui.expanded[t.id]; saveUI(); render(); } break;
       case 'collapse': { const g = a.dataset.key; ui.collapsed[g] = !ui.collapsed[g]; saveUI(); render(); break; }

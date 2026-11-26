@@ -368,7 +368,7 @@ const Obra = (() => {
           else if (type === 'skirting') item = { name: `Rodapié ${x.r.name}`, zone: x.r.name, qty: r1(x.r.perim * 1.1), unit: 'm', notes: 'Perímetro +10% merma' };
           else item = { name: `Pintura / revestimiento ${x.r.name}`, zone: x.r.name, qty: r1(x.r.perim * (x.r.ceiling / 100)), unit: 'm²', notes: `Altura techo ${x.r.ceiling} cm` };
           S().materials.unshift(Object.assign({ id: uid(), unitPrice: 0, store: '', ref: '', status: 'Elegido' }, item));
-          Store.save(); render(); b.disabled = true; b.textContent = '✓ Añadido';
+          Store.save(); render(); b.disabled = true; b.innerHTML = `${icon('check', 13)} Añadido`;
           toast(`Añadido: <b>${esc(item.name)}</b>`, 'success');
         });
       },
@@ -546,7 +546,7 @@ const Obra = (() => {
         </div>
         <div class="exp-kpis" style="margin-bottom:0;margin-top:14px">
           <div class="card ekpi"><span>Consumo activo ahora</span><b class="${over ? 'danger-txt' : 'accent-txt'}">${fmtNum(st.activeWatts / 1000, 2)} kW</b><small>${Math.round(st.activeWatts)} W · ${fmtNum(st.activeAmps, 1)} A</small></div>
-          <div class="card ekpi"><span>Carga s/ contratada</span><b class="${over ? 'danger-txt' : st.pctLoad > 80 ? 'warn-txt' : 'ok-txt'}">${fmtNum(st.pctLoad, 1)}%</b><small>${over ? '⚠ Supera potencia (saltaría ICP)' : `Límite ${fmtNum(E.contractedKw, 2)} kW`}</small></div>
+          <div class="card ekpi"><span>Carga s/ contratada</span><b class="${over ? 'danger-txt' : st.pctLoad > 80 ? 'warn-txt' : 'ok-txt'}">${fmtNum(st.pctLoad, 1)}%</b><small>${over ? `${icon('alert', 12)} Supera potencia (saltaría ICP)` : `Límite ${fmtNum(E.contractedKw, 2)} kW`}</small></div>
           <div class="card ekpi"><span>Potencia instalada (planos)</span><b>${fmtNum(st.totalInstalled / 1000, 2)} kW</b><small>${Math.round(st.totalInstalled)} W totales conectados</small></div>
           <div class="card ekpi"><span>Coste estimado encendido</span><b>${fmtMoney2(st.costHour)}/h</b><small>A ${fmtMoney2(E.kwhPrice)}/kWh</small></div>
         </div>
