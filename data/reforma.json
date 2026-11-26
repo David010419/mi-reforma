@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795733405009,
+  "updatedAt": 1795733412236,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -564,18 +564,6 @@
           "note": ""
         },
         {
-          "id": "mwy5axmpq92m2c",
-          "type": "wall",
-          "x1": 110,
-          "y1": -25,
-          "x2": 110,
-          "y2": 25,
-          "thick": 15,
-          "status": "existente",
-          "height": 250,
-          "note": ""
-        },
-        {
           "id": "mwy5ay4nroqiue",
           "type": "wall",
           "x1": 110,
@@ -592,6 +580,18 @@
           "type": "wall",
           "x1": 110,
           "y1": 30,
+          "x2": 110,
+          "y2": 10,
+          "thick": 15,
+          "status": "existente",
+          "height": 250,
+          "note": ""
+        },
+        {
+          "id": "mwy5b4j24bk8yt",
+          "type": "wall",
+          "x1": 110,
+          "y1": 10,
           "x2": 110,
           "y2": -10,
           "thick": 15,
