@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795726161855,
+  "updatedAt": 1795726536164,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -366,44 +366,44 @@
           "name": "Garaje",
           "points": [
             [
-              -61,
-              -290
+              -66,
+              -215
             ],
             [
-              490,
-              -290
+              485,
+              -215
             ],
             [
-              490,
-              740
-            ],
-            [
-              40,
-              740
-            ],
-            [
-              -61,
-              740
-            ],
-            [
-              -61,
-              470
+              485,
+              815
             ],
             [
               35,
-              470
+              815
+            ],
+            [
+              -66,
+              815
+            ],
+            [
+              -66,
+              545
             ],
             [
               30,
-              225
+              545
             ],
             [
-              30,
-              -126.7
+              25,
+              300
             ],
             [
-              -55,
-              -126.7
+              25,
+              -51.7
+            ],
+            [
+              -60,
+              -51.7
             ]
           ],
           "color": "#fde68a",
@@ -446,54 +446,6 @@
           "y1": 5,
           "x2": 220,
           "y2": 5,
-          "width": 26,
-          "height": 245,
-          "note": ""
-        },
-        {
-          "id": "mwy0lj2bbvt0da",
-          "type": "duct",
-          "kind": "impulsion",
-          "x1": 220,
-          "y1": 5,
-          "x2": 220,
-          "y2": 455,
-          "width": 26,
-          "height": 245,
-          "note": ""
-        },
-        {
-          "id": "mwy0ll2opx95mi",
-          "type": "duct",
-          "kind": "impulsion",
-          "x1": 220,
-          "y1": 455,
-          "x2": 375,
-          "y2": 455,
-          "width": 26,
-          "height": 245,
-          "note": ""
-        },
-        {
-          "id": "mwy0llj5vfzhn1",
-          "type": "duct",
-          "kind": "impulsion",
-          "x1": 375,
-          "y1": 455,
-          "x2": 375,
-          "y2": 190,
-          "width": 26,
-          "height": 245,
-          "note": ""
-        },
-        {
-          "id": "mwy0lo896uw1s4",
-          "type": "duct",
-          "kind": "impulsion",
-          "x1": 440,
-          "y1": 185,
-          "x2": 440,
-          "y2": 125,
           "width": 26,
           "height": 245,
           "note": ""
