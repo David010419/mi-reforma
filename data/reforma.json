@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795733537419,
+  "updatedAt": 1795735094207,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -29,7 +29,28 @@
     "Exterior",
     "Mobiliario"
   ],
-  "tasks": [],
+  "tasks": [
+    {
+      "id": "mwy6b6ciar1znv",
+      "title": "Nueva tarea",
+      "desc": "",
+      "status": "pendiente",
+      "priority": "media",
+      "category": "General",
+      "zone": "",
+      "start": "",
+      "due": "",
+      "costEst": 0,
+      "costReal": 0,
+      "provider": "",
+      "tags": [],
+      "subtasks": [],
+      "comments": [],
+      "links": [],
+      "created": 1795735093986,
+      "updated": 1795735093986
+    }
+  ],
   "expenses": [
     {
       "id": "mwxz1mjs6rwt90",
@@ -547,5 +568,5 @@
       "bgImage": null
     }
   ],
-  "activePlan": "mwxz5jjmz8oikc"
+  "activePlan": "mwxz5yhe8xdri6"
 }
