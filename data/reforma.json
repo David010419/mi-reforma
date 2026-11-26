@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795727702180,
+  "updatedAt": 1795727706127,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -282,32 +282,7 @@
       "notes": "Lleva boletín CIE"
     }
   ],
-  "materials": [
-    {
-      "id": "mwxz1mjsc53ao7",
-      "name": "Porcelánico 60×60 gris",
-      "zone": "Salón-cocina",
-      "qty": 29.5,
-      "unit": "m²",
-      "unitPrice": 28,
-      "store": "Leroy Merlin",
-      "ref": "REF-6060",
-      "status": "Elegido",
-      "notes": "Incluye +10% merma"
-    },
-    {
-      "id": "mwxz1mjs1i2v0b",
-      "name": "Tarima flotante roble AC5",
-      "zone": "Dormitorio",
-      "qty": 12.1,
-      "unit": "m²",
-      "unitPrice": 24,
-      "store": "Obramat",
-      "ref": "AC5-ROB",
-      "status": "Pedido",
-      "notes": ""
-    }
-  ],
+  "materials": [],
   "quotes": [],
   "plans": [
     {
