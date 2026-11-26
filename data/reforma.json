@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795723428653,
+  "updatedAt": 1795723432176,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -30,50 +30,6 @@
     "Mobiliario"
   ],
   "tasks": [
-    {
-      "id": "mwxz1mjspfv8cs",
-      "title": "Nueva instalación eléctrica",
-      "desc": "",
-      "status": "pendiente",
-      "priority": "alta",
-      "category": "Electricidad",
-      "zone": "",
-      "start": "",
-      "due": "2026-12-31",
-      "costEst": 3500,
-      "costReal": 0,
-      "provider": "",
-      "tags": [
-        "boletín"
-      ],
-      "subtasks": [
-        {
-          "id": "mwxz1mjsh1jjbd",
-          "text": "Definir puntos de luz y enchufes en el plano",
-          "done": true
-        },
-        {
-          "id": "mwxz1mjsdaka14",
-          "text": "Cuadro nuevo con diferenciales por zonas",
-          "done": false
-        },
-        {
-          "id": "mwxz1mjsqgo1uy",
-          "text": "Boletín eléctrico (CIE)",
-          "done": false
-        }
-      ],
-      "comments": [
-        {
-          "id": "mwxz1mjsupzf39",
-          "text": "El electricista recomienda 2 circuitos para cocina.",
-          "date": 1795722891112
-        }
-      ],
-      "links": [],
-      "created": 1795722891112,
-      "updated": 1795722891112
-    },
     {
       "id": "mwxz1mjs2qwk57",
       "title": "Cambiar tomas de agua y desagües del baño",
