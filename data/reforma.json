@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795723407797,
+  "updatedAt": 1795723412421,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -30,50 +30,6 @@
     "Mobiliario"
   ],
   "tasks": [
-    {
-      "id": "mwxz1mjs0bwvlb",
-      "title": "Pedir 3 presupuestos de reforma integral",
-      "desc": "",
-      "status": "pendiente",
-      "priority": "urgente",
-      "category": "General",
-      "zone": "",
-      "start": "",
-      "due": "2026-11-29",
-      "costEst": 0,
-      "costReal": 0,
-      "provider": "",
-      "tags": [
-        "presupuesto"
-      ],
-      "subtasks": [
-        {
-          "id": "mwxz1mjsfms4nd",
-          "text": "Empresa A – Reformas López",
-          "done": true
-        },
-        {
-          "id": "mwxz1mjs2mx2c3",
-          "text": "Empresa B – Construcciones Sur",
-          "done": false
-        },
-        {
-          "id": "mwxz1mjsodfryd",
-          "text": "Empresa C – autónomo recomendado",
-          "done": false
-        }
-      ],
-      "comments": [
-        {
-          "id": "mwxz1mjsklrfgr",
-          "text": "La empresa A viene el jueves a medir.",
-          "date": 1795636491112
-        }
-      ],
-      "links": [],
-      "created": 1795722891112,
-      "updated": 1795723407573
-    },
     {
       "id": "mwxz1mjszc4dki",
       "title": "Solicitar licencia de obra menor",
