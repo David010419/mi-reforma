@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795735360673,
+  "updatedAt": 1795735363424,
   "project": {
     "name": "Jijona",
     "address": "Av Joan Fuster 8",
@@ -72,21 +72,7 @@
       "updated": 1795735240675
     }
   ],
-  "expenses": [
-    {
-      "id": "mwxz1mjs6rwt90",
-      "date": "2026-11-17",
-      "origin": "Disp. 1",
-      "category": "Trámites",
-      "concept": "Ayuntamiento · Tasa licencia obra menor",
-      "amount": 245.5,
-      "status": "Pagado",
-      "invoice": "LIC-2026-014",
-      "remaining": null,
-      "notes": "",
-      "created": 1795722891112
-    }
-  ],
+  "expenses": [],
   "loan": {
     "capital": 130000,
     "rateCarencia": 3.75,
