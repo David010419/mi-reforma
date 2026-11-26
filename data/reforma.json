@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795735467067,
+  "updatedAt": 1795735474719,
   "project": {
     "name": "Jijona",
     "address": "Av Joan Fuster 8",
@@ -500,9 +500,9 @@
           "type": "duct",
           "kind": "desague",
           "x1": 470,
-          "y1": 345,
+          "y1": 335,
           "x2": 470,
-          "y2": -25,
+          "y2": -35,
           "width": 10,
           "height": 5,
           "note": ""
