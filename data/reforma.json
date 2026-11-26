@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795727713164,
+  "updatedAt": 1795727717626,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -156,7 +156,7 @@
     "contractedKw": 5.75,
     "voltage": 230,
     "kwhPrice": 0.16,
-    "igaOn": true,
+    "igaOn": false,
     "differentials": [
       {
         "id": "id-general",
