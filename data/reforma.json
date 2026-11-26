@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795723017143,
+  "updatedAt": 1795723024152,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -487,30 +487,6 @@
       "scope": "interior",
       "elements": [
         {
-          "id": "mwxz1mjs1gosdu",
-          "type": "wall",
-          "x1": 0,
-          "y1": 0,
-          "x2": 800,
-          "y2": 0,
-          "thick": 20,
-          "status": "existente",
-          "height": 260,
-          "note": ""
-        },
-        {
-          "id": "mwxz1mjs6461gi",
-          "type": "wall",
-          "x1": 800,
-          "y1": 0,
-          "x2": 800,
-          "y2": 600,
-          "thick": 20,
-          "status": "existente",
-          "height": 260,
-          "note": ""
-        },
-        {
           "id": "mwxz1mjsem5yie",
           "type": "wall",
           "x1": 800,
@@ -610,33 +586,6 @@
           "note": ""
         },
         {
-          "id": "mwxz1mjsjljxez",
-          "type": "room",
-          "name": "Dormitorio",
-          "points": [
-            [
-              455,
-              10
-            ],
-            [
-              790,
-              10
-            ],
-            [
-              790,
-              325
-            ],
-            [
-              455,
-              325
-            ]
-          ],
-          "color": "#bfdbfe",
-          "floor": "Tarima flotante roble AC5",
-          "ceiling": 260,
-          "note": ""
-        },
-        {
           "id": "mwxz1mjsthly5c",
           "type": "room",
           "name": "Baño",
@@ -697,39 +646,6 @@
           "kind": "abatible",
           "hinge": "right",
           "side": 1,
-          "note": ""
-        },
-        {
-          "id": "mwxz1mjsew6hci",
-          "type": "window",
-          "wallId": "mwxz1mjs1gosdu",
-          "t": 0.28,
-          "width": 140,
-          "height": 120,
-          "sill": 90,
-          "kind": "corredera",
-          "note": ""
-        },
-        {
-          "id": "mwxz1mjsh9t5si",
-          "type": "window",
-          "wallId": "mwxz1mjs1gosdu",
-          "t": 0.78,
-          "width": 120,
-          "height": 120,
-          "sill": 90,
-          "kind": "oscilobatiente",
-          "note": ""
-        },
-        {
-          "id": "mwxz1mjs29q3r1",
-          "type": "window",
-          "wallId": "mwxz1mjs6461gi",
-          "t": 0.78,
-          "width": 60,
-          "height": 60,
-          "sill": 140,
-          "kind": "abatible",
           "note": ""
         },
         {
