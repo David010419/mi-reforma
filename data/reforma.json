@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795735181923,
+  "updatedAt": 1795735186798,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -31,7 +31,7 @@
   ],
   "tasks": [
     {
-      "id": "mwy6ccv1wr099m",
+      "id": "mwy6d5sijyar2f",
       "title": "Nueva tarea",
       "desc": "",
       "status": "pendiente",
@@ -47,8 +47,8 @@
       "subtasks": [],
       "comments": [],
       "links": [],
-      "created": 1795735149085,
-      "updated": 1795735149085
+      "created": 1795735186578,
+      "updated": 1795735186578
     },
     {
       "id": "mwy6b6ciar1znv",
