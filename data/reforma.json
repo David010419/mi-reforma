@@ -1,12 +1,12 @@
 {
   "version": 3,
-  "updatedAt": 1795735240896,
+  "updatedAt": 1795735284525,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
     "start": "2026-11-16",
     "end": "2027-02-14",
-    "budget": 30000
+    "budget": 130000
   },
   "settings": {
     "theme": "auto",
