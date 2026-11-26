@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795723690616,
+  "updatedAt": 1795723700908,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -370,6 +370,81 @@
           "x": -15,
           "y": 240,
           "angle": 90,
+          "note": ""
+        },
+        {
+          "id": "mwxziz7z3h2rij",
+          "type": "wall",
+          "x1": 180,
+          "y1": -145,
+          "x2": 360,
+          "y2": -145,
+          "thick": 15,
+          "status": "existente",
+          "height": 250,
+          "note": ""
+        },
+        {
+          "id": "mwxziz7zjuve95",
+          "type": "wall",
+          "x1": 360,
+          "y1": -145,
+          "x2": 360,
+          "y2": 10,
+          "thick": 15,
+          "status": "existente",
+          "height": 250,
+          "note": ""
+        },
+        {
+          "id": "mwxziz7zvtwe9g",
+          "type": "wall",
+          "x1": 360,
+          "y1": 10,
+          "x2": 180,
+          "y2": 10,
+          "thick": 15,
+          "status": "existente",
+          "height": 250,
+          "note": ""
+        },
+        {
+          "id": "mwxziz7zuldyit",
+          "type": "wall",
+          "x1": 180,
+          "y1": 10,
+          "x2": 180,
+          "y2": -145,
+          "thick": 15,
+          "status": "existente",
+          "height": 250,
+          "note": ""
+        },
+        {
+          "id": "mwxziz7z40uvf6",
+          "type": "room",
+          "name": "Habitación 1",
+          "points": [
+            [
+              187.5,
+              -137.5
+            ],
+            [
+              352.5,
+              -137.5
+            ],
+            [
+              352.5,
+              2.5
+            ],
+            [
+              187.5,
+              2.5
+            ]
+          ],
+          "color": "#fde68a",
+          "floor": "",
+          "ceiling": 250,
           "note": ""
         }
       ],
