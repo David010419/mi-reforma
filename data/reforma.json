@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795723417041,
+  "updatedAt": 1795723420469,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -34,7 +34,7 @@
       "id": "mwxz1mjszc4dki",
       "title": "Solicitar licencia de obra menor",
       "desc": "",
-      "status": "hecho",
+      "status": "pendiente",
       "priority": "alta",
       "category": "Trámites",
       "zone": "",
@@ -70,13 +70,13 @@
       ],
       "links": [],
       "created": 1795722891112,
-      "updated": 1795723416821
+      "updated": 1795723419556
     },
     {
       "id": "mwxz1mjs4tp4oy",
       "title": "Demoler tabique entre cocina y salón",
       "desc": "Comprobar antes que no es muro de carga.",
-      "status": "hecho",
+      "status": "pendiente",
       "priority": "alta",
       "category": "Demolición",
       "zone": "Salón-cocina",
@@ -101,7 +101,7 @@
       "comments": [],
       "links": [],
       "created": 1795722891112,
-      "updated": 1795723418225
+      "updated": 1795723420248
     },
     {
       "id": "mwxz1mjspfv8cs",
