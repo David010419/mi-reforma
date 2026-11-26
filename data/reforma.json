@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795723673102,
+  "updatedAt": 1795723678953,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -352,7 +352,7 @@
           "id": "mwxzg084kg1so7",
           "type": "door",
           "wallId": "mwxze28bnklxh2",
-          "t": 0.27223230490018147,
+          "t": 0.308529945553539,
           "width": 300,
           "height": 210,
           "kind": "abatible",
