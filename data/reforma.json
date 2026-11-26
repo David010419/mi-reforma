@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795735123390,
+  "updatedAt": 1795735132296,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -37,7 +37,7 @@
       "status": "pendiente",
       "priority": "media",
       "category": "General",
-      "zone": "",
+      "zone": "Garaje",
       "start": "",
       "due": "",
       "costEst": 0,
@@ -48,7 +48,7 @@
       "comments": [],
       "links": [],
       "created": 1795735093986,
-      "updated": 1795735123169
+      "updated": 1795735132076
     }
   ],
   "expenses": [
