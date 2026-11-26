@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795726149779,
+  "updatedAt": 1795726152369,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -504,6 +504,36 @@
           "kind": "enchufe",
           "x": 295,
           "y": -95,
+          "angle": 0,
+          "height": 30,
+          "note": ""
+        },
+        {
+          "id": "mwy0zi1pbnvgt9",
+          "type": "sym",
+          "kind": "enchufe",
+          "x": 360,
+          "y": -135,
+          "angle": 0,
+          "height": 30,
+          "note": ""
+        },
+        {
+          "id": "mwy0zifne7t2hn",
+          "type": "sym",
+          "kind": "enchufe",
+          "x": 195,
+          "y": -130,
+          "angle": 0,
+          "height": 30,
+          "note": ""
+        },
+        {
+          "id": "mwy0zis0fmh1g0",
+          "type": "sym",
+          "kind": "enchufe",
+          "x": 185,
+          "y": -60,
           "angle": 0,
           "height": 30,
           "note": ""
