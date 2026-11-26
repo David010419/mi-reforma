@@ -48,26 +48,46 @@ const Plan = (() => {
     aire: { label: 'Aire acondicionado', group: 'clima', g: 'AA', h: 220, wall: true },
     extractor: { label: 'Extracción / ventilación', group: 'clima', g: 'V', h: 240, wall: false },
     detector: { label: 'Detector humo', group: 'clima', g: 'DH', h: 260, wall: false },
+    persiana: { label: 'Interruptor persiana eléc.', group: 'elec', g: 'PE', h: 110, wall: true },
+    motorGaraje: { label: 'Motor puerta garaje', group: 'elec', g: 'MG', h: 240, wall: false },
+    cargadorEV: { label: 'Cargador coche eléctrico', group: 'elec', g: 'EV', h: 120, wall: true },
+    domotica: { label: 'Hub / cuadro domótica', group: 'elec', g: 'DM', h: 150, wall: true },
+    camara: { label: 'Cámara seguridad', group: 'elec', g: 'CM', h: 240, wall: true },
   };
   const FURN = [
-    { kind: 'cama', name: 'Cama 150', w: 150, h: 200 }, { kind: 'cama', name: 'Cama 135', w: 135, h: 190 }, { kind: 'cama', name: 'Cama 90', w: 90, h: 190 },
-    { kind: 'mesita', name: 'Mesita', w: 45, h: 40 }, { kind: 'armario', name: 'Armario', w: 180, h: 60 }, { kind: 'escritorio', name: 'Escritorio', w: 120, h: 60 },
-    { kind: 'sofa', name: 'Sofá 3 plazas', w: 210, h: 90 }, { kind: 'sofa', name: 'Sillón', w: 85, h: 85 }, { kind: 'tv', name: 'Mueble TV', w: 180, h: 40 },
-    { kind: 'mesa', name: 'Mesa comedor', w: 160, h: 90 }, { kind: 'mesaRedonda', name: 'Mesa redonda', w: 110, h: 110 }, { kind: 'silla', name: 'Silla', w: 45, h: 45 },
+    { kind: 'cama', name: 'Cama 180', w: 180, h: 200 }, { kind: 'cama', name: 'Cama 150', w: 150, h: 200 }, { kind: 'cama', name: 'Cama 135', w: 135, h: 190 }, { kind: 'cama', name: 'Cama 90', w: 90, h: 190 },
+    { kind: 'cuna', name: 'Cuna', w: 70, h: 130 }, { kind: 'mesita', name: 'Mesita', w: 45, h: 40 }, { kind: 'comoda', name: 'Cómoda', w: 110, h: 48 },
+    { kind: 'armario', name: 'Armario', w: 180, h: 60 }, { kind: 'vestidor', name: 'Vestidor', w: 240, h: 60 }, { kind: 'escritorio', name: 'Escritorio', w: 120, h: 60 }, { kind: 'sillaOficina', name: 'Silla oficina', w: 60, h: 60 },
+    { kind: 'sofa', name: 'Sofá 3 plazas', w: 210, h: 90 }, { kind: 'sofaL', name: 'Sofá chaise longue', w: 270, h: 165 }, { kind: 'sofa', name: 'Sillón', w: 85, h: 85 },
+    { kind: 'mesaCentro', name: 'Mesa centro', w: 110, h: 60 }, { kind: 'alfombra', name: 'Alfombra', w: 240, h: 170 }, { kind: 'tv', name: 'Mueble TV', w: 180, h: 40 },
+    { kind: 'estanteria', name: 'Estantería', w: 140, h: 35 }, { kind: 'chimenea', name: 'Chimenea', w: 110, h: 55 },
+    { kind: 'mesa', name: 'Mesa comedor', w: 160, h: 90 }, { kind: 'mesaRedonda', name: 'Mesa redonda', w: 110, h: 110 }, { kind: 'silla', name: 'Silla', w: 45, h: 45 }, { kind: 'taburete', name: 'Taburete', w: 40, h: 40 },
     { kind: 'encimera', name: 'Encimera', w: 240, h: 60 }, { kind: 'fregadero', name: 'Fregadero', w: 80, h: 60 }, { kind: 'placa', name: 'Placa cocción', w: 60, h: 60 },
-    { kind: 'nevera', name: 'Frigorífico', w: 70, h: 65 }, { kind: 'lavadora', name: 'Lavadora', w: 60, h: 60 }, { kind: 'isla', name: 'Isla cocina', w: 180, h: 90 },
-    { kind: 'inodoro', name: 'Inodoro', w: 40, h: 65 }, { kind: 'lavabo', name: 'Lavabo', w: 60, h: 45 }, { kind: 'ducha', name: 'Plato ducha', w: 120, h: 80 },
-    { kind: 'banera', name: 'Bañera', w: 170, h: 75 }, { kind: 'bide', name: 'Bidé', w: 38, h: 55 }, { kind: 'generico', name: 'Mueble', w: 100, h: 50 },
+    { kind: 'nevera', name: 'Frigorífico', w: 70, h: 65 }, { kind: 'horno', name: 'Columna horno', w: 60, h: 60 }, { kind: 'lavavajillas', name: 'Lavavajillas', w: 60, h: 60 },
+    { kind: 'lavadora', name: 'Lavadora', w: 60, h: 60 }, { kind: 'secadora', name: 'Secadora', w: 60, h: 60 }, { kind: 'isla', name: 'Isla cocina', w: 180, h: 90 },
+    { kind: 'inodoro', name: 'Inodoro', w: 40, h: 65 }, { kind: 'lavabo', name: 'Lavabo', w: 60, h: 45 }, { kind: 'lavabo2', name: 'Lavabo doble', w: 120, h: 48 },
+    { kind: 'ducha', name: 'Plato ducha', w: 120, h: 80 }, { kind: 'banera', name: 'Bañera', w: 170, h: 75 }, { kind: 'bide', name: 'Bidé', w: 38, h: 55 },
+    { kind: 'toallero', name: 'Toallero', w: 60, h: 12 }, { kind: 'generico', name: 'Mueble', w: 100, h: 50 },
     { kind: 'escalera', name: 'Escalera', w: 280, h: 100 }, { kind: 'pilar', name: 'Pilar', w: 35, h: 35 },
     { kind: 'bajante', name: 'Bajante', w: 20, h: 20 }, { kind: 'norte', name: 'Norte (N)', w: 70, h: 70 },
     { kind: 'piscina', name: 'Piscina', w: 600, h: 300, ext: true }, { kind: 'pergola', name: 'Pérgola', w: 400, h: 300, ext: true },
-    { kind: 'coche', name: 'Coche / plaza', w: 450, h: 200, ext: true }, { kind: 'arbol', name: 'Árbol / planta', w: 140, h: 140, ext: true },
+    { kind: 'coche', name: 'Coche / plaza', w: 450, h: 200, ext: true }, { kind: 'moto', name: 'Moto', w: 210, h: 85, ext: true }, { kind: 'bici', name: 'Bicicleta', w: 180, h: 60, ext: true },
+    { kind: 'arbol', name: 'Árbol / planta', w: 140, h: 140, ext: true }, { kind: 'huerto', name: 'Huerto / jardinera', w: 200, h: 80, ext: true },
     { kind: 'barbacoa', name: 'Barbacoa', w: 140, h: 70, ext: true }, { kind: 'tumbona', name: 'Tumbona', w: 195, h: 70, ext: true },
+    { kind: 'duchaExt', name: 'Ducha exterior', w: 90, h: 90, ext: true }, { kind: 'tendedero', name: 'Tendedero', w: 180, h: 70, ext: true },
     { kind: 'trastero', name: 'Caseta / trastero', w: 240, h: 200, ext: true },
   ];
   const WALL_STATUS = { existente: 'Existente', nuevo: 'Nuevo (a construir)', demoler: 'A demoler' };
-  const DOOR_KINDS = { abatible: 'Abatible', corredera: 'Corredera', doble: 'Doble hoja', hueco: 'Hueco sin puerta' };
-  const WIN_KINDS = { corredera: 'Corredera', abatible: 'Abatible', oscilobatiente: 'Oscilobatiente', fija: 'Fija' };
+  const DOOR_KINDS = {
+    abatible: 'Abatible', corredera: 'Corredera', doble: 'Doble hoja',
+    balconera: 'Balconera abatible (2 hojas)', correderaDoble: 'Balconera corredera doble',
+    garaje: 'Puerta de garaje eléctrica', blindada: 'Puerta entrada / acorazada', hueco: 'Hueco sin puerta',
+  };
+  const WIN_KINDS = {
+    corredera: 'Corredera', abatible: 'Abatible (1 hoja)', abatible2: 'Abatible (2 hojas)',
+    oscilobatiente: 'Oscilobatiente', balconera: 'Balconera acristalada', fija: 'Fija',
+  };
+  const SHUTTER_KINDS = { none: 'Sin persiana', manual: 'Persiana manual', electric: 'Persiana eléctrica ⚡' };
   const TOOLS = [
     { id: 'select', icon: 'pointer', label: 'Seleccionar y mover', key: 'V' },
     { id: 'pan', icon: 'move', label: 'Desplazar vista', key: 'H' },
@@ -168,6 +188,13 @@ const Plan = (() => {
     let o = '';
     switch (f.kind) {
       case 'mesaRedonda': o += `<ellipse rx="${w / 2}" ry="${h / 2}" ${base}/><ellipse rx="${w / 2 - 6}" ry="${h / 2 - 6}" ${st}/>`; break;
+      case 'taburete': o += `<circle r="${Math.min(w, h) / 2}" ${base}/><circle r="${Math.min(w, h) * 0.28}" ${st}/>`; break;
+      case 'sofaL': {
+        const d1 = Math.min(90, h * 0.55), d2 = Math.min(95, w * 0.36);
+        o += `<path d="M${x0} ${y0} H${-x0} V${-y0} H${-x0 - d2} V${y0 + d1} H${x0} Z" ${base}/>`;
+        o += `<path d="M${x0} ${y0 + 18} H${-x0} M${-x0 - d2} ${y0 + 18} V${-y0}" ${st}/>`;
+        break;
+      }
       case 'bajante': o += `<circle r="${Math.min(w, h) / 2}" fill="#0ea5e9" fill-opacity=".28" stroke="#0284c7" stroke-width="${sw * 1.4}"/><path d="M${-w * 0.3} ${-h * 0.3} L${w * 0.3} ${h * 0.3} M${w * 0.3} ${-h * 0.3} L${-w * 0.3} ${h * 0.3}" stroke="#0284c7" stroke-width="${sw}"/>`; break;
       case 'norte': { const rr = Math.min(w, h) / 2; o += `<circle r="${rr * 0.85}" ${base}/><polygon points="0,${-rr * 0.85} ${rr * 0.32},${rr * 0.25} 0,0 ${-rr * 0.32},${rr * 0.25}" fill="${th.wall}"/><text y="${-rr * 0.96}" text-anchor="middle" font-size="${px(11)}" font-weight="800" fill="${th.text}">N</text>`; break; }
       case 'arbol': o += `<ellipse rx="${w / 2}" ry="${h / 2}" fill="#bbf7d0" fill-opacity=".45" stroke="#16a34a" stroke-width="${sw}"/><ellipse rx="${w * 0.34}" ry="${h * 0.34}" fill="none" stroke="#16a34a" stroke-width="${sw}" stroke-dasharray="${px(4)} ${px(3)}"/><circle r="${Math.min(w, h) * 0.08}" fill="#16a34a"/>`; break;
@@ -230,6 +257,20 @@ const Plan = (() => {
         break;
       }
       case 'pilar': o += R(x0, y0, w, h, 0, `fill="${th.wall}" stroke="${th.wall}" stroke-width="${sw}"`) + `<path d="M${x0} ${y0} L${-x0} ${-y0} M${-x0} ${y0} L${x0} ${-y0}" stroke="${th.bg}" stroke-width="${sw}"/>`; break;
+      case 'alfombra': o += R(x0 + 8, y0 + 8, w - 16, h - 16, 2, `${st} stroke-dasharray="${px(5)} ${px(3)}" stroke-opacity=".6"`); break;
+      case 'mesaCentro': o += R(x0 + 6, y0 + 6, w - 12, h - 12, 4, `${st} stroke-opacity=".5"`); break;
+      case 'estanteria': case 'comoda': case 'vestidor': { const n = Math.max(2, Math.round(w / 45)); for (let i = 1; i < n; i++) { const xx = x0 + (w / n) * i; o += `<line x1="${xx}" y1="${y0}" x2="${xx}" y2="${-y0}" ${st} stroke-opacity=".6"/>`; } break; }
+      case 'chimenea': o += R(x0 + 12, y0 + 8, w - 24, h - 18, 3, `fill="#f97316" fill-opacity=".22" stroke="#ea580c" stroke-width="${sw}"`); break;
+      case 'cuna': o += R(x0 + 6, y0 + 6, w - 12, h - 12, 6, st) + `<line x1="${x0 + 6}" y1="${y0 + 26}" x2="${-x0 - 6}" y2="${y0 + 26}" ${st}/>`; break;
+      case 'sillaOficina': o += `<circle r="${Math.min(w, h) * 0.35}" ${st}/>` + R(x0 + 6, y0 + 2, w - 12, h * 0.2, 4, st); break;
+      case 'lavavajillas': case 'secadora': o += `<circle r="${Math.min(w, h) * 0.25}" ${st}/><line x1="${x0 + 6}" y1="${y0 + 8}" x2="${-x0 - 6}" y2="${y0 + 8}" ${st}/>`; break;
+      case 'horno': o += R(x0 + 8, y0 + 10, w - 16, h - 20, 3, st) + `<line x1="${x0 + 10}" y1="${-y0 - 6}" x2="${-x0 - 10}" y2="${-y0 - 6}" ${st} stroke-width="${sw * 1.5}"/>`; break;
+      case 'lavabo2': o += `<ellipse cx="${-w * 0.25}" cy="2" rx="${w * 0.19}" ry="${h * 0.3}" ${st}/><ellipse cx="${w * 0.25}" cy="2" rx="${w * 0.19}" ry="${h * 0.3}" ${st}/>`; break;
+      case 'toallero': o += `<line x1="${x0 + 6}" y1="0" x2="${-x0 - 6}" y2="0" stroke="#ef4444" stroke-width="${sw * 1.6}"/>`; break;
+      case 'moto': case 'bici': o += `<ellipse cx="${-w * 0.3}" cy="0" rx="${w * 0.14}" ry="${h * 0.16}" ${st}/><ellipse cx="${w * 0.3}" cy="0" rx="${w * 0.14}" ry="${h * 0.16}" ${st}/><line x1="${-w * 0.3}" y1="0" x2="${w * 0.3}" y2="0" ${st} stroke-width="${sw * 1.5}"/>`; break;
+      case 'huerto': o += R(x0 + 6, y0 + 6, w - 12, h - 12, 4, `fill="#86efac" fill-opacity=".35" stroke="#16a34a" stroke-width="${sw}"`); break;
+      case 'duchaExt': o += `<path d="M${x0} ${y0} L${-x0} ${-y0} M${-x0} ${y0} L${x0} ${-y0}" stroke="#0284c7" stroke-width="${sw}" stroke-opacity=".5"/><circle r="5" stroke="#0284c7" stroke-width="${sw}" fill="none"/>`; break;
+      case 'tendedero': for (let i = 1; i <= 4; i++) { const yy = y0 + (h / 5) * i; o += `<line x1="${x0 + 6}" y1="${yy}" x2="${-x0 - 6}" y2="${yy}" ${st} stroke-opacity=".65"/>`; } break;
     }
     if (!opts.noLabel && f.name && Math.min(w, h) * s > 22 && w * s > 46) {
       const a = f.angle || 0;
@@ -289,8 +330,25 @@ const Plan = (() => {
       if (o.kind === 'corredera') {
         const yy = sd > 0 ? ht + px(1) : -ht - px(1) - 4;
         inner += `<rect x="${o.hinge === 'right' ? -hw + o.width * 0.15 : -hw - o.width * 0.15}" y="${yy}" width="${o.width}" height="4" fill="${th.furnFill}" stroke="${c}" stroke-width="${px(1.5)}"/>`;
+      } else if (o.kind === 'correderaDoble') {
+        inner += `<rect x="${-hw}" y="${-ht}" width="${o.width}" height="${g.thick}" fill="${th.glass}" stroke="${c}" stroke-width="${px(1.3)}"/>
+          <line x1="${-hw}" y1="${-ht / 3}" x2="${px(6)}" y2="${-ht / 3}" stroke="${c}" stroke-width="${px(1.5)}"/>
+          <line x1="${-px(6)}" y1="${ht / 3}" x2="${hw}" y2="${ht / 3}" stroke="${c}" stroke-width="${px(1.5)}"/>`;
       } else if (o.kind === 'doble') {
         inner += leaf(-hw, 0, hw) + leaf(hw, 0, hw);
+      } else if (o.kind === 'balconera') {
+        inner += `<rect x="${-hw}" y="${-ht}" width="${o.width}" height="${g.thick}" fill="${th.glass}" stroke="${c}" stroke-width="${px(1.2)}"/>` + leaf(-hw, 0, hw) + leaf(hw, 0, hw);
+      } else if (o.kind === 'garaje') {
+        inner += `<rect x="${-hw}" y="${-ht}" width="${o.width}" height="${g.thick}" fill="${th.furnFill}" stroke="${c}" stroke-width="${px(1.8)}"/>`;
+        const segs = Math.max(4, Math.round(o.width / 45));
+        for (let i = 1; i < segs; i++) { const xx = -hw + (o.width / segs) * i; inner += `<line x1="${xx}" y1="${-ht}" x2="${xx}" y2="${ht}" stroke="${c}" stroke-width="${px(1)}"/>`; }
+        inner += `<line x1="${-hw}" y1="${sd * (ht + 12)}" x2="${hw}" y2="${sd * (ht + 12)}" stroke="${c}" stroke-width="${px(1)}" stroke-dasharray="${px(5)} ${px(3)}"/>
+          <circle cx="0" cy="${sd * (ht + 12)}" r="${px(7)}" fill="#f59e0b" stroke="${th.bg}" stroke-width="${px(1.2)}"/>
+          <text x="0" y="${sd * (ht + 12)}" text-anchor="middle" dominant-baseline="central" font-size="${px(8)}" font-weight="800" fill="#fff">⚡</text>`;
+      } else if (o.kind === 'blindada') {
+        const hx = o.hinge === 'right' ? hw : -hw;
+        inner += `<path d="M${hx} ${y0} L${hx} ${y0 + sd * o.width}" stroke="${c}" stroke-width="${px(4)}"/>
+          <path d="M${hx} ${y0 + sd * o.width} A${o.width} ${o.width} 0 0 ${((hx > -hx) !== (sd < 0)) ? 1 : 0} ${-hx} ${y0}" fill="none" stroke="${c}" stroke-width="${px(1.1)}" stroke-dasharray="${px(4)} ${px(3)}"/>`;
       } else if (o.kind !== 'hueco') {
         const hx = o.hinge === 'right' ? hw : -hw;
         inner += leaf(hx, -hx, o.width);
@@ -298,7 +356,22 @@ const Plan = (() => {
     } else {
       inner += `<rect x="${-hw}" y="${-ht}" width="${o.width}" height="${g.thick}" fill="${th.glass}" stroke="${c}" stroke-width="${px(1.3)}"/>
         <line x1="${-hw}" y1="0" x2="${hw}" y2="0" stroke="${c}" stroke-width="${px(1)}"/>`;
-      if (o.kind === 'corredera') inner += `<line x1="${-hw}" y1="${-ht / 3}" x2="${px(4)}" y2="${-ht / 3}" stroke="${c}" stroke-width="${px(1)}"/><line x1="${-px(4)}" y1="${ht / 3}" x2="${hw}" y2="${ht / 3}" stroke="${c}" stroke-width="${px(1)}"/>`;
+      const sd = o.side || 1, y0 = sd * ht;
+      if (o.kind === 'corredera') {
+        inner += `<line x1="${-hw}" y1="${-ht / 3}" x2="${px(4)}" y2="${-ht / 3}" stroke="${c}" stroke-width="${px(1)}"/><line x1="${-px(4)}" y1="${ht / 3}" x2="${hw}" y2="${ht / 3}" stroke="${c}" stroke-width="${px(1)}"/>`;
+      } else if (o.kind === 'abatible' || o.kind === 'oscilobatiente') {
+        const swing = Math.min(o.width * 0.55, 65);
+        inner += `<path d="M${-hw} ${y0} L${-hw} ${y0 + sd * swing} A${swing} ${swing} 0 0 ${sd > 0 ? 0 : 1} ${-hw + swing} ${y0}" fill="none" stroke="${c}" stroke-width="${px(1)}" stroke-dasharray="${px(3)} ${px(2.5)}"/>`;
+      } else if (o.kind === 'abatible2' || o.kind === 'balconera') {
+        const swing = Math.min(hw * 0.85, 65);
+        inner += `<path d="M${-hw} ${y0} L${-hw} ${y0 + sd * swing} A${swing} ${swing} 0 0 ${sd > 0 ? 0 : 1} ${-hw + swing} ${y0}" fill="none" stroke="${c}" stroke-width="${px(1)}" stroke-dasharray="${px(3)} ${px(2.5)}"/>
+          <path d="M${hw} ${y0} L${hw} ${y0 + sd * swing} A${swing} ${swing} 0 0 ${sd > 0 ? 1 : 0} ${hw - swing} ${y0}" fill="none" stroke="${c}" stroke-width="${px(1)}" stroke-dasharray="${px(3)} ${px(2.5)}"/>`;
+      }
+      if (o.shutter === 'manual' || o.shutter === 'electric') {
+        const sy = -sd * (ht + px(4));
+        inner += `<rect x="${-hw}" y="${sy - px(2)}" width="${o.width}" height="${px(4)}" fill="${o.shutter === 'electric' ? '#f59e0b' : c}" opacity=".85"/>`;
+        if (o.shutter === 'electric') inner += `<circle cx="${hw - px(6)}" cy="${sy}" r="${px(6)}" fill="#f59e0b" stroke="${th.bg}" stroke-width="${px(1)}"/><text x="${hw - px(6)}" y="${sy}" text-anchor="middle" dominant-baseline="central" font-size="${px(7.5)}" fill="#fff">⚡</text>`;
+      }
     }
     inner += `<rect x="${-hw}" y="${-ht - px(5)}" width="${o.width}" height="${g.thick + px(10)}" fill="transparent"/>`;
     return inner;
@@ -456,6 +529,7 @@ const Plan = (() => {
         <div class="pt-group">
           <button class="tgl" id="pBgBtn" data-pa="bgModal" title="Imagen de fondo para calcar un plano real">${icon('image', 15)}<span>Calcar</span></button>
           <button class="tgl" id="pCmpBtn" data-pa="compareModal" title="Comparar con otro plano (Antes / Después)">${icon('compare', 15)}<span>Comparar</span></button>
+          <button class="btn sm" data-pa="render3d" title="Ver en 3D interactivo y generar render fotorrealista">${icon('box', 15)}<span>Vista 3D / Render</span></button>
           <select id="pTheme" title="Estilo del plano">${Object.entries(THEMES).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('')}</select>
           <details class="dropdown right">
             <summary class="btn sm primary">${icon('download', 15)}<span>Exportar</span></summary>
@@ -1346,12 +1420,14 @@ const Plan = (() => {
         const isDoor = el.type === 'door';
         return head(isDoor ? 'door' : 'window', isDoor ? 'Puerta' : 'Ventana', (isDoor ? DOOR_KINDS : WIN_KINDS)[el.kind] || '') + `<div class="psec"><div class="pgrid">
           ${F.sel('Tipo', 'kind', el.kind, isDoor ? DOOR_KINDS : WIN_KINDS, true)}
+          ${isDoor ? '' : F.sel('Persiana', 'shutter', el.shutter || 'none', SHUTTER_KINDS, true)}
           ${F.num('Ancho', 'width', el.width)}${F.num('Alto', 'height', el.height)}
           ${isDoor ? '' : F.num('Antepecho (desde suelo)', 'sill', el.sill || 0)}
           ${F.num('Distancia al inicio', 'pos', pos)}
         </div>
         <div class="pinfos">${F.info('Distancia al final del muro', fmtLenU(L - pos - el.width))}${F.info('Longitud del muro', fmtLenU(L))}${isDoor ? '' : F.info('Altura del dintel', fmtLenU((el.sill || 0) + (el.height || 0)))}${F.info('Superficie del hueco', fmtNum((el.width * (el.height || 0)) / 10000) + ' m²')}</div>
-        ${isDoor ? `<div class="pactions"><button class="btn sm" data-a="hinge">${icon('flip', 14)} Cambiar bisagra</button><button class="btn sm" data-a="flip">${icon('rotate', 14)} Abrir hacia el otro lado</button></div>` : ''}
+        ${isDoor ? `<div class="pactions"><button class="btn sm" data-a="hinge">${icon('flip', 14)} Cambiar bisagra</button><button class="btn sm" data-a="flip">${icon('rotate', 14)} Abrir hacia el otro lado</button></div>`
+          : `<div class="pactions"><button class="btn sm" data-a="flip">${icon('rotate', 14)} Invertir lado apertura / persiana</button></div>`}
         ${F.area('Notas', 'note', el.note, 'Modelo, color, manilla, persiana…')}</div>
         ${actions(B.dup, B.del)}`;
       }
@@ -1510,6 +1586,7 @@ const Plan = (() => {
         case 'dupPlan': openPlanModal(true); break;
         case 'bgModal': openBgModal(); break;
         case 'compareModal': openCompareModal(); break;
+        case 'render3d': openRender3DModal(); break;
         case 'delPlan': {
           if (!confirm(`¿Eliminar el plano «${plan().name}» y todo su contenido?`)) break;
           if (S().plans.length === 1) { pushUndo(); plan().elements = []; commit(); break; }
@@ -1625,6 +1702,348 @@ const Plan = (() => {
       if (tl) setTool(tl.id);
     });
     document.addEventListener('keyup', (e) => { if (e.key === ' ') { spaceDown = false; svg.classList.remove('space'); } });
+  }
+
+  /* ---------- Vista 3D interactiva + Render fotorrealista con IA ---------- */
+  function furn3DStyle(kind) {
+    switch (kind) {
+      case 'armario': case 'vestidor': case 'nevera': case 'horno': case 'trastero': return { h: 205, c: '#d6cfc4' };
+      case 'estanteria': return { h: 185, c: '#c8b8a2' };
+      case 'pilar': return { h: 250, c: '#94a3b8' };
+      case 'encimera': case 'fregadero': case 'placa': case 'isla': case 'lavadora': case 'secadora': case 'lavavajillas': case 'barbacoa': return { h: 90, c: '#e2ddd5' };
+      case 'mesa': case 'mesaRedonda': case 'escritorio': case 'comoda': return { h: 76, c: '#c9a67d' };
+      case 'sofa': case 'sofaL': return { h: 78, c: '#94a3b8' };
+      case 'cama': return { h: 56, c: '#cbd5e1' };
+      case 'cuna': return { h: 85, c: '#e2e8f0' };
+      case 'silla': case 'sillaOficina': case 'taburete': case 'mesita': case 'tv': return { h: 52, c: '#b8a898' };
+      case 'mesaCentro': case 'tumbona': return { h: 40, c: '#c9a67d' };
+      case 'inodoro': case 'lavabo': case 'lavabo2': case 'bide': return { h: 75, c: '#f1f5f9' };
+      case 'ducha': case 'duchaExt': case 'banera': return { h: 42, c: '#bae6fd' };
+      case 'piscina': return { h: 6, c: '#38bdf8' };
+      case 'alfombra': return { h: 2, c: '#e2d9c8' };
+      case 'pergola': return { h: 235, c: '#a67c52' };
+      case 'coche': return { h: 145, c: '#64748b' };
+      case 'moto': case 'bici': return { h: 105, c: '#475569' };
+      case 'arbol': return { h: 250, c: '#4ade80' };
+      case 'huerto': return { h: 45, c: '#86efac' };
+      case 'escalera': return { h: 140, c: '#cbd5e1' };
+      default: return { h: 75, c: '#cbd5e1' };
+    }
+  }
+
+  function shadeHex(hex, f) {
+    const m = String(hex || '#cccccc').replace('#', '');
+    if (m.length !== 6) return hex;
+    const r = clamp(Math.round(parseInt(m.slice(0, 2), 16) * f), 0, 255);
+    const g = clamp(Math.round(parseInt(m.slice(2, 4), 16) * f), 0, 255);
+    const b = clamp(Math.round(parseInt(m.slice(4, 6), 16) * f), 0, 255);
+    return `rgb(${r},${g},${b})`;
+  }
+
+  function render3DCanvas(canvas, state3d) {
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    const list = els();
+    const b = bbox(list) || { x1: 0, y1: 0, x2: 800, y2: 600 };
+    const cx = (b.x1 + b.x2) / 2, cy = (b.y1 + b.y2) / 2;
+    const span = Math.max(b.x2 - b.x1, b.y2 - b.y1, 200);
+    const scale = (Math.min(W, H) * 0.62) / span * state3d.zoom;
+    const yaw = (state3d.yaw * Math.PI) / 180;
+    const pitch = (state3d.pitch * Math.PI) / 180;
+    const cY = Math.cos(yaw), sY = Math.sin(yaw), cP = Math.cos(pitch), sP = Math.sin(pitch);
+
+    const proj = (x, y, z) => {
+      const dx = x - cx, dy = y - cy;
+      const rx = dx * cY - dy * sY;
+      const ry = dx * sY + dy * cY;
+      return {
+        x: W / 2 + rx * scale,
+        y: H * 0.56 + (ry * sP - z * cP) * scale,
+        d: ry * cP + z * sP,
+      };
+    };
+
+    // Fondo degradado suave tipo estudio arquitectónico
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, '#e8eef7');
+    grad.addColorStop(1, '#f8fafc');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    const faces = [];
+    const addPoly = (pts3, fill, stroke = 'rgba(15,23,42,0.22)', lw = 1) => {
+      const p2 = pts3.map((p) => proj(p[0], p[1], p[2]));
+      const depth = p2.reduce((a, p) => a + p.d, 0) / p2.length;
+      faces.push({ p2, fill, stroke, lw, depth });
+    };
+    const addBox = (corners2D, z0, z1, baseCol, alpha = 1) => {
+      const top = corners2D.map(([x, y]) => [x, y, z1]);
+      const bot = corners2D.map(([x, y]) => [x, y, z0]);
+      const sides = [0.88, 0.76, 0.94, 0.82];
+      for (let i = 0; i < 4; i++) {
+        const j = (i + 1) % 4;
+        const c = shadeHex(baseCol, sides[i]);
+        addPoly([bot[i], bot[j], top[j], top[i]], alpha < 1 ? c.replace('rgb(', 'rgba(').replace(')', `,${alpha})`) : c);
+      }
+      const tc = shadeHex(baseCol, 1.06);
+      addPoly(top, alpha < 1 ? tc.replace('rgb(', 'rgba(').replace(')', `,${alpha})`) : tc);
+    };
+
+    // 1. Suelos de habitaciones
+    list.filter((e) => e.type === 'room' && e.points.length >= 3).forEach((r) => {
+      const p2 = r.points.map(([x, y]) => proj(x, y, 0));
+      ctx.beginPath();
+      p2.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+      ctx.closePath();
+      ctx.fillStyle = r.color || '#fde68a';
+      ctx.globalAlpha = 0.78;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = 'rgba(15,23,42,0.18)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    });
+
+    // 2. Muros extruidos
+    const hFactor = state3d.wallCut;
+    const wallMap = new Map();
+    list.filter((e) => e.type === 'wall').forEach((w) => {
+      wallMap.set(w.id, w);
+      if (w.status === 'demoler' && state3d.hideDemo) return;
+      const L = wlen(w); if (L < 1) return;
+      const nx = (-(w.y2 - w.y1) / L) * (w.thick / 2), ny = ((w.x2 - w.x1) / L) * (w.thick / 2);
+      const c2 = [[w.x1 + nx, w.y1 + ny], [w.x2 + nx, w.y2 + ny], [w.x2 - nx, w.y2 - ny], [w.x1 - nx, w.y1 - ny]];
+      const h = (w.height || 250) * hFactor;
+      const col = w.status === 'nuevo' ? '#fdba74' : w.status === 'demoler' ? '#fde047' : '#e2e8f0';
+      addBox(c2, 0, h, col, w.status === 'demoler' ? 0.45 : 1);
+    });
+
+    // 3. Puertas y ventanas en los muros
+    list.filter((e) => e.type === 'door' || e.type === 'window').forEach((o) => {
+      const w = wallMap.get(o.wallId); if (!w) return;
+      if (w.status === 'demoler' && state3d.hideDemo) return;
+      const g = openingGeom(o, w);
+      const rad = (g.a * Math.PI) / 180, ux = Math.cos(rad), uy = Math.sin(rad), nx = -uy, ny = ux;
+      const hw = o.width / 2, ht = w.thick / 2 + 1.5;
+      const c2 = [
+        [g.x - ux * hw + nx * ht, g.y - uy * hw + ny * ht],
+        [g.x + ux * hw + nx * ht, g.y + uy * hw + ny * ht],
+        [g.x + ux * hw - nx * ht, g.y + uy * hw - ny * ht],
+        [g.x - ux * hw - nx * ht, g.y - uy * hw - ny * ht],
+      ];
+      const z0 = o.type === 'window' ? (o.sill || 90) * hFactor : 0;
+      const z1 = Math.min((w.height || 250), (o.type === 'window' ? (o.sill || 90) + (o.height || 120) : (o.height || 210))) * hFactor;
+      const col = o.type === 'window' || o.kind === 'balconera' || o.kind === 'correderaDoble' ? '#7dd3fc' : o.kind === 'garaje' ? '#94a3b8' : '#b48a64';
+      addBox(c2, z0, z1, col, o.type === 'window' ? 0.8 : 1);
+    });
+
+    // 4. Mobiliario en volumen 3D
+    list.filter((e) => e.type === 'furn' && e.kind !== 'norte').forEach((f) => {
+      const st = furn3DStyle(f.kind);
+      const hw = f.w / 2, hh = f.h / 2, a = f.angle || 0;
+      const pts = [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]].map(([x, y]) => {
+        const p = rotPt(x, y, a); return [f.x + p.x, f.y + p.y];
+      });
+      addBox(pts, 0, st.h * Math.max(0.45, hFactor), st.c, f.kind === 'pergola' ? 0.45 : 1);
+    });
+
+    // Ordenar caras por profundidad (painter's algorithm)
+    faces.sort((a, b) => a.depth - b.depth);
+    faces.forEach((f) => {
+      ctx.beginPath();
+      f.p2.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+      ctx.closePath();
+      ctx.fillStyle = f.fill;
+      ctx.fill();
+      ctx.strokeStyle = f.stroke;
+      ctx.lineWidth = f.lw;
+      ctx.stroke();
+    });
+
+    // Etiquetas de habitaciones
+    ctx.font = '700 13px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    list.filter((e) => e.type === 'room' && e.points.length >= 3).forEach((r) => {
+      if (!r.name) return;
+      const c = centroid(r.points);
+      const p = proj(c.x, c.y, 12);
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = 'rgba(255,255,255,0.88)';
+      ctx.strokeText(r.name, p.x, p.y);
+      ctx.fillStyle = '#0f172a';
+      ctx.fillText(r.name, p.x, p.y);
+    });
+  }
+
+  function buildRenderPrompt(style, viewMode, roomName) {
+    const p = plan(), st = stats(p);
+    const roomsDesc = st.rooms.map((r) => `${r.name} (${fmtNum(r.area, 1)} m²${r.floor ? ', suelo: ' + r.floor : ''})`).join('; ');
+    const furnNames = [...new Set(els().filter((e) => e.type === 'furn' && e.name).map((e) => e.name))].slice(0, 20).join(', ');
+    const winElec = els().filter((e) => e.type === 'window' && e.shutter === 'electric').length;
+    const garaje = els().some((e) => e.type === 'door' && e.kind === 'garaje');
+    const isExt = p.scope === 'exterior';
+    const baseView = viewMode === 'interior' && roomName
+      ? `Fotografía arquitectónica fotorrealista a altura de ojos dentro de la estancia "${roomName}"`
+      : (isExt ? 'Render arquitectónico 3D fotorrealista aéreo de la parcela exterior y jardín' : 'Render arquitectónico 3D fotorrealista en perspectiva axonométrica cenital (tipo maqueta abierta sin techo)');
+    return `${baseView}, basado fielmente en la distribución exacta de la imagen adjunta del plano "${p.name}".
+Estilo de decoración: ${style}. Iluminación natural cálida, sombras realistas, materiales de alta calidad, fotografía de revista de arquitectura.
+Estancias y superficies: ${roomsDesc || 'vivienda reformada'}.
+Elementos y mobiliario presentes: ${furnNames || 'mobiliario acorde a cada estancia'}${winElec ? `. ${winElec} ventanas con persianas eléctricas empotradas` : ''}${garaje ? '. Puerta de garaje seccional eléctrica moderna' : ''}.
+Respeta exactamente la posición de muros, puertas, ventanas y muebles del plano adjunto. Sin texto ni cotas sobre la imagen final.`;
+  }
+
+  function openRender3DModal() {
+    const state3d = { yaw: -35, pitch: 42, zoom: 1, wallCut: 0.72, hideDemo: true };
+    const GEM_KEY = 'mi-reforma:gemini:key';
+    const st = stats(plan());
+    Modal.open({
+      title: `Vista 3D y Render · ${esc(plan().name)}`,
+      wide: true,
+      body: `
+        <div class="seg" id="r3dSeg" style="margin-bottom:14px">
+          <button class="active" data-rt="v3d">${icon('box', 15)}<span>Vista 3D interactiva</span></button>
+          <button data-rt="ai">${icon('image', 15)}<span>Render fotorrealista IA</span></button>
+        </div>
+        <div id="r3dPane">
+          <div class="r3d-canvas-wrap">
+            <canvas id="r3dCanvas" width="960" height="560"></canvas>
+            <div class="r3d-hint">Arrastra para rotar 360° e inclinar</div>
+          </div>
+          <div class="r3d-controls">
+            <label class="field"><span>Altura de muros</span><input type="range" id="r3dCut" min="0.2" max="1" step="0.05" value="0.72"></label>
+            <label class="field"><span>Zoom</span><input type="range" id="r3dZoom" min="0.6" max="1.8" step="0.05" value="1"></label>
+            <label class="chk"><input type="checkbox" id="r3dHideDemo" checked> Ocultar muros a demoler</label>
+          </div>
+          <div class="r3d-actions">
+            <button class="btn sm" id="r3dReset">${icon('rotate', 14)} Reiniciar vista</button>
+            <button class="btn sm" id="r3dSaveDiary">${icon('camera', 14)} Guardar en Diario de Obra</button>
+            <button class="btn sm primary" id="r3dDownload">${icon('download', 14)} Descargar PNG</button>
+          </div>
+        </div>
+        <div id="rAiPane" style="display:none">
+          <div class="grid2" style="margin-bottom:12px">
+            <label class="field"><span>Estilo visual</span><select id="aiStyle">
+              <option>Moderno cálido (madera clara, tonos neutros, luz natural)</option>
+              <option>Nórdico minimalista (blanco roto, roble natural, líneas limpias)</option>
+              <option>Mediterráneo luminoso (cal, lino, piedra natural, madera)</option>
+              <option>Industrial elegante (microcemento, hierro negro, madera cálida)</option>
+              <option>Contemporáneo de lujo (mármol suave, iluminación indirecta LED)</option>
+            </select></label>
+            <label class="field"><span>Tipo de encuadre</span><select id="aiView">
+              <option value="aerial">Vista 3D completa de toda la planta</option>
+              <option value="interior">Foto interior de una estancia</option>
+            </select></label>
+            <label class="field span2" id="aiRoomWrap" style="display:none"><span>Estancia a fotografiar</span><select id="aiRoom">${st.rooms.map((r) => `<option value="${esc(r.name)}">${esc(r.name)}</option>`).join('') || '<option value="">General</option>'}</select></label>
+            <label class="field span2"><span>Prompt generado automáticamente (puedes editarlo)</span><textarea id="aiPrompt" rows="4"></textarea></label>
+          </div>
+          <div class="callout" style="margin-bottom:12px">${icon('hint', 18)}
+            <div><b>Opción gratis sin configurar nada:</b> pulsa <i>Descargar vista 3D + Copiar prompt</i> y pégalo directamente en Gemini o ChatGPT.<br>
+            <b>Opción automática aquí mismo:</b> pega tu API Key gratuita de <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google AI Studio (Gemini)</a> y genera el render directamente.</div>
+          </div>
+          <div class="r3d-actions" style="margin-bottom:14px">
+            <button class="btn primary" id="aiCopyPack">${icon('copy', 15)} Descargar vista 3D + Copiar prompt</button>
+          </div>
+          <div class="ai-key-box">
+            <label class="field" style="flex:1"><span>API Key de Google Gemini (opcional, solo se guarda en tu navegador)</span><input type="password" id="aiKey" value="${esc(localStorage.getItem(GEM_KEY) || '')}" placeholder="AIza…"></label>
+            <button class="btn" id="aiGenBtn">${icon('image', 15)} Generar render aquí</button>
+          </div>
+          <div id="aiResult" class="ai-result"></div>
+        </div>`,
+      foot: `<button class="btn" data-modal-close>Cerrar</button>`,
+      onOpen(card) {
+        const canvas = $('#r3dCanvas', card);
+        const draw = () => render3DCanvas(canvas, state3d);
+        draw();
+
+        // Rotación táctil / ratón
+        let dragging = false, lx = 0, ly = 0;
+        canvas.addEventListener('pointerdown', (e) => { dragging = true; lx = e.clientX; ly = e.clientY; canvas.setPointerCapture(e.pointerId); });
+        canvas.addEventListener('pointermove', (e) => {
+          if (!dragging) return;
+          state3d.yaw += (e.clientX - lx) * 0.55;
+          state3d.pitch = clamp(state3d.pitch + (e.clientY - ly) * 0.4, 15, 85);
+          lx = e.clientX; ly = e.clientY; draw();
+        });
+        canvas.addEventListener('pointerup', () => { dragging = false; });
+        canvas.addEventListener('pointercancel', () => { dragging = false; });
+
+        $('#r3dCut', card).addEventListener('input', (e) => { state3d.wallCut = num(e.target.value, 0.72); draw(); });
+        $('#r3dZoom', card).addEventListener('input', (e) => { state3d.zoom = num(e.target.value, 1); draw(); });
+        $('#r3dHideDemo', card).addEventListener('change', (e) => { state3d.hideDemo = e.target.checked; draw(); });
+        $('#r3dReset', card).addEventListener('click', () => { Object.assign(state3d, { yaw: -35, pitch: 42, zoom: 1, wallCut: 0.72 }); $('#r3dCut', card).value = 0.72; $('#r3dZoom', card).value = 1; draw(); });
+        $('#r3dDownload', card).addEventListener('click', () => {
+          canvas.toBlob((blob) => { download(`vista-3d-${plan().name.replace(/\s+/g, '_')}.png`, blob); toast('Vista 3D descargada', 'success'); }, 'image/png');
+        });
+        $('#r3dSaveDiary', card).addEventListener('click', () => {
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+          S().diary.unshift({ id: uid(), date: localISO(), phase: 'Propuesta 3D', zone: plan().name, title: `Vista 3D · ${plan().name}`, notes: 'Captura 3D generada desde el editor de planos.', photo: dataUrl, created: Date.now() });
+          Store.save(); toast('Guardada en Obra → Diario y fotos', 'success');
+        });
+
+        // Tabs 3D / IA
+        const refreshPrompt = () => {
+          const v = $('#aiView', card).value;
+          $('#aiRoomWrap', card).style.display = v === 'interior' ? '' : 'none';
+          $('#aiPrompt', card).value = buildRenderPrompt($('#aiStyle', card).value, v, $('#aiRoom', card).value);
+        };
+        refreshPrompt();
+        $('#aiStyle', card).addEventListener('change', refreshPrompt);
+        $('#aiView', card).addEventListener('change', refreshPrompt);
+        $('#aiRoom', card).addEventListener('change', refreshPrompt);
+
+        $('#r3dSeg', card).addEventListener('click', (e) => {
+          const b = e.target.closest('button[data-rt]'); if (!b) return;
+          $$('#r3dSeg button', card).forEach((x) => x.classList.toggle('active', x === b));
+          $('#r3dPane', card).style.display = b.dataset.rt === 'v3d' ? '' : 'none';
+          $('#rAiPane', card).style.display = b.dataset.rt === 'ai' ? '' : 'none';
+        });
+
+        $('#aiCopyPack', card).addEventListener('click', async () => {
+          draw();
+          canvas.toBlob((blob) => download(`plano-3d-${plan().name.replace(/\s+/g, '_')}.png`, blob), 'image/png');
+          try { await navigator.clipboard.writeText($('#aiPrompt', card).value); toast('Vista 3D descargada y prompt copiado al portapapeles', 'success'); }
+          catch (err) { toast('Vista 3D descargada (copia el prompt del cuadro de texto)', 'info'); }
+        });
+
+        $('#aiKey', card).addEventListener('input', (e) => localStorage.setItem(GEM_KEY, e.target.value.trim()));
+        $('#aiGenBtn', card).addEventListener('click', async () => {
+          const key = ($('#aiKey', card).value || '').trim();
+          if (!key) { toast('Introduce primero tu API Key de Google Gemini (o usa el botón de copiar prompt)', 'warn'); return; }
+          const btn = $('#aiGenBtn', card), resBox = $('#aiResult', card);
+          btn.disabled = true;
+          resBox.innerHTML = `<div class="muted small" style="padding:14px 0">Generando render fotorrealista con Gemini… (puede tardar 10–20 segundos)</div>`;
+          try {
+            draw();
+            const b64 = canvas.toDataURL('image/png').split(',')[1];
+            const promptTxt = $('#aiPrompt', card).value;
+            const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${encodeURIComponent(key)}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: promptTxt }, { inlineData: { mimeType: 'image/png', data: b64 } }] }],
+                generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
+              }),
+            });
+            const data = await resp.json();
+            if (!resp.ok) throw new Error(data.error?.message || `HTTP ${resp.status}`);
+            const imgPart = (data.candidates?.[0]?.content?.parts || []).find((pt) => pt.inlineData?.data);
+            if (!imgPart) throw new Error('El modelo no devolvió imagen. Prueba a usar el botón de descargar vista 3D + copiar prompt.');
+            const src = `data:${imgPart.inlineData.mimeType || 'image/png'};base64,${imgPart.inlineData.data}`;
+            resBox.innerHTML = `<img src="${src}" alt="Render IA" style="width:100%;border-radius:12px;margin-top:10px;display:block">
+              <div class="r3d-actions" style="margin-top:10px">
+                <a class="btn sm primary" href="${src}" download="render-ia-${esc(plan().name)}.png">${icon('download', 14)} Descargar render</a>
+                <button class="btn sm" id="aiSaveDiary">${icon('camera', 14)} Guardar en Diario de Obra</button>
+              </div>`;
+            $('#aiSaveDiary', card).addEventListener('click', () => {
+              S().diary.unshift({ id: uid(), date: localISO(), phase: 'Render IA', zone: plan().name, title: `Render IA · ${plan().name}`, notes: promptTxt, photo: src, created: Date.now() });
+              Store.save(); toast('Render guardado en Obra → Diario y fotos', 'success');
+            });
+          } catch (err) {
+            resBox.innerHTML = `<div class="danger-txt small" style="padding:10px 0">No se pudo generar el render: ${esc(err.message)}</div>`;
+          } finally { btn.disabled = false; }
+        });
+      },
+    });
   }
 
   function openBgModal() {

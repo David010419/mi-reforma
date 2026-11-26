@@ -737,6 +737,17 @@ button.save-ind.warn .ic { color: var(--warning); }
 
 .mb-actions { display: flex; align-items: center; gap: 4px; }
 
+/* ---------- Vista 3D y Render IA ---------- */
+.r3d-canvas-wrap { position: relative; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); background: #e8eef7; }
+#r3dCanvas { width: 100%; height: auto; display: block; cursor: grab; touch-action: none; }
+#r3dCanvas:active { cursor: grabbing; }
+.r3d-hint { position: absolute; right: 10px; bottom: 10px; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 8px; background: rgba(15, 23, 42, .62); color: #fff; pointer-events: none; }
+.r3d-controls { display: grid; grid-template-columns: 1fr 1fr auto; gap: 14px; align-items: center; margin: 12px 0; }
+.r3d-controls input[type="range"] { width: 100%; accent-color: var(--accent); }
+.r3d-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.ai-key-box { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; padding: 12px; border-radius: 11px; background: var(--surface-2); border: 1px solid var(--border); }
+.ai-result img { box-shadow: var(--shadow); }
+
 /* ---------- Toasts ---------- */
 #toasts { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 8px; align-items: center; z-index: 100; pointer-events: none; }
 .toast {
