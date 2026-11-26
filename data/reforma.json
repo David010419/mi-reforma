@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795724840186,
+  "updatedAt": 1795724848206,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -355,7 +355,7 @@
           "t": 0.308529945553539,
           "width": 300,
           "height": 210,
-          "kind": "abatible",
+          "kind": "garaje",
           "hinge": "left",
           "side": 1,
           "note": ""
