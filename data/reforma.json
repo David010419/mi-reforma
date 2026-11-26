@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795726012542,
+  "updatedAt": 1795726014404,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -11,7 +11,7 @@
   "settings": {
     "theme": "auto",
     "units": "m",
-    "planTheme": "blueprint"
+    "planTheme": "paper"
   },
   "categories": [
     "General",
