@@ -2304,11 +2304,51 @@ const Plan = (() => {
     const cx = (b.x1 + b.x2) / 2, cy = (b.y1 + b.y2) / 2;
     const span = Math.max(b.x2 - b.x1, b.y2 - b.y1, 200);
     const scale = (Math.min(W, H) * 0.62) / span * state3d.zoom;
+    const isFP = state3d.camMode === 'fp';
     const yaw = (state3d.yaw * Math.PI) / 180;
     const pitch = (state3d.pitch * Math.PI) / 180;
     const cY = Math.cos(yaw), sY = Math.sin(yaw), cP = Math.cos(pitch), sP = Math.sin(pitch);
 
+    // Parámetros de cámara en 1ª persona (perspectiva interior real con recorte near-plane)
+    const NEAR = 14;
+    const fpX = state3d.fpX ?? cx, fpY = state3d.fpY ?? cy, fpZ = state3d.eyeZ ?? 165;
+    const fpYr = ((state3d.fpYaw ?? 0) * Math.PI) / 180;
+    const fpPr = ((state3d.fpPitch ?? -4) * Math.PI) / 180;
+    const ffx0 = Math.cos(fpYr), ffy0 = Math.sin(fpYr);
+    const rX = -ffy0, rY = ffx0;
+    const fX = ffx0 * Math.cos(fpPr), fY = ffy0 * Math.cos(fpPr), fZ = Math.sin(fpPr);
+    const uX = -ffx0 * Math.sin(fpPr), uY = -ffy0 * Math.sin(fpPr), uZ = Math.cos(fpPr);
+    const focal = W * 0.56 * clamp(state3d.zoom || 1, 0.6, 1.8);
+
+    const toCam = (x, y, z) => {
+      const dx = x - fpX, dy = y - fpY, dz = z - fpZ;
+      return [dx * rX + dy * rY, dx * uX + dy * uY + dz * uZ, dx * fX + dy * fY + dz * fZ];
+    };
+    const clipNear = (camPts) => {
+      const out = [];
+      for (let i = 0; i < camPts.length; i++) {
+        const A = camPts[i], B = camPts[(i + 1) % camPts.length];
+        const aIn = A[2] >= NEAR, bIn = B[2] >= NEAR;
+        if (aIn && bIn) out.push(B);
+        else if (aIn && !bIn) {
+          const t = (NEAR - A[2]) / (B[2] - A[2]);
+          out.push([A[0] + t * (B[0] - A[0]), A[1] + t * (B[1] - A[1]), NEAR]);
+        } else if (!aIn && bIn) {
+          const t = (NEAR - A[2]) / (B[2] - A[2]);
+          out.push([A[0] + t * (B[0] - A[0]), A[1] + t * (B[1] - A[1]), NEAR]);
+          out.push(B);
+        }
+      }
+      return out;
+    };
+    const projCam = (c) => ({ x: W / 2 + (c[0] / c[2]) * focal, y: H / 2 - (c[1] / c[2]) * focal, d: -c[2], z: c[2] });
+
     const proj = (x, y, z) => {
+      if (isFP) {
+        const c = toCam(x, y, z);
+        if (c[2] < NEAR) return null;
+        return projCam(c);
+      }
       const dx = x - cx, dy = y - cy;
       const rx = dx * cY - dy * sY;
       const ry = dx * sY + dy * cY;
@@ -2319,17 +2359,39 @@ const Plan = (() => {
       };
     };
 
-    // Fondo degradado (Día / Noche)
+    // Fondo degradado (Día / Noche + horizonte en 1ª persona)
     const night = !!state3d.nightMode;
-    const grad = ctx.createLinearGradient(0, 0, 0, H);
-    grad.addColorStop(0, night ? '#0f172a' : '#e8eef7');
-    grad.addColorStop(1, night ? '#1e293b' : '#f8fafc');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, W, H);
+    if (isFP) {
+      const horizonY = clamp(H / 2 + Math.tan(fpPr) * focal, 0, H);
+      const skyG = ctx.createLinearGradient(0, 0, 0, Math.max(1, horizonY));
+      skyG.addColorStop(0, night ? '#0b1120' : '#dbeafe');
+      skyG.addColorStop(1, night ? '#1e293b' : '#f1f5f9');
+      ctx.fillStyle = skyG;
+      ctx.fillRect(0, 0, W, horizonY);
+      const flrG = ctx.createLinearGradient(0, horizonY, 0, H);
+      flrG.addColorStop(0, night ? '#1e293b' : '#e2e8f0');
+      flrG.addColorStop(1, night ? '#0f172a' : '#cbd5e1');
+      ctx.fillStyle = flrG;
+      ctx.fillRect(0, horizonY, W, H - horizonY);
+    } else {
+      const grad = ctx.createLinearGradient(0, 0, 0, H);
+      grad.addColorStop(0, night ? '#0f172a' : '#e8eef7');
+      grad.addColorStop(1, night ? '#1e293b' : '#f8fafc');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, H);
+    }
 
     const faces = [];
     const lightMul = night ? 0.62 : 1;
     const addPoly = (pts3, fill, stroke = night ? 'rgba(255,255,255,0.12)' : 'rgba(15,23,42,0.22)', lw = 1) => {
+      if (isFP) {
+        const clipped = clipNear(pts3.map((p) => toCam(p[0], p[1], p[2])));
+        if (clipped.length < 3) return;
+        const p2 = clipped.map(projCam);
+        const depth = p2.reduce((a, p) => a + p.d, 0) / p2.length;
+        faces.push({ p2, fill, stroke, lw, depth });
+        return;
+      }
       const p2 = pts3.map((p) => proj(p[0], p[1], p[2]));
       const depth = p2.reduce((a, p) => a + p.d, 0) / p2.length;
       faces.push({ p2, fill, stroke, lw, depth });
@@ -2349,12 +2411,19 @@ const Plan = (() => {
 
     // 1. Suelos de habitaciones
     list.filter((e) => e.type === 'room' && e.points.length >= 3).forEach((r) => {
-      const p2 = r.points.map(([x, y]) => proj(x, y, 0));
+      let p2;
+      if (isFP) {
+        const clipped = clipNear(r.points.map(([x, y]) => toCam(x, y, 0)));
+        if (clipped.length < 3) return;
+        p2 = clipped.map(projCam);
+      } else {
+        p2 = r.points.map(([x, y]) => proj(x, y, 0));
+      }
       ctx.beginPath();
       p2.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
       ctx.closePath();
       ctx.fillStyle = r.color || '#fde68a';
-      ctx.globalAlpha = 0.78;
+      ctx.globalAlpha = night ? 0.52 : 0.78;
       ctx.fill();
       ctx.globalAlpha = 1;
       ctx.strokeStyle = 'rgba(15,23,42,0.18)';
@@ -2363,7 +2432,7 @@ const Plan = (() => {
     });
 
     // 2 y 3. Muros recortados alrededor de puertas, ventanas y garaje (huecos reales sin solapamiento)
-    const hFactor = state3d.wallCut;
+    const hFactor = isFP ? 1 : state3d.wallCut;
     const opsByWall = new Map();
     list.filter((e) => e.type === 'door' || e.type === 'window').forEach((o) => {
       if (!opsByWall.has(o.wallId)) opsByWall.set(o.wallId, []);
@@ -2467,8 +2536,7 @@ const Plan = (() => {
       if (L - cur > 1) addBox(segRect(w, cur, L, ht), 0, wh, col, alpha);
     });
 
-    // 4. Mobiliario en volumen 3D (con escaleras escalonadas y módulos de cocina configurables)
-    state3d._hitList = [];
+    // 4. Mobiliario en volumen 3D (solo visualización y animaciones)
     if (state3d.showFurn) {
       list.filter((e) => e.type === 'furn' && e.kind !== 'norte').forEach((f) => {
         const hw = f.w / 2, hh = f.h / 2, a = f.angle || 0;
@@ -2476,9 +2544,7 @@ const Plan = (() => {
         const st = furn3DStyle(f.kind);
         const fH = (f.h3d || st.h) * fHScale;
         const fZ0 = (f.z0 ?? st.z0 ?? 0) * hFactor;
-        const pCenter = proj(f.x, f.y, fZ0 + fH / 2);
-        state3d._hitList.push({ id: f.id, x: pCenter.x, y: pCenter.y, r: Math.max(18, Math.max(hw, hh) * scale * 0.9) });
-        const isSel3d = state3d.sel3dId === f.id;
+        const isSel3d = false;
         if (f.kind === 'escalera') {
           const steps = clamp(Math.round(f.w / 26), 5, 16);
           const maxH = 250 * Math.max(0.55, hFactor);
@@ -2640,8 +2706,10 @@ const Plan = (() => {
         const live = Obra.isCircuitLive(Obra.inferCircuitId(y));
         const zLight = y.type === 'furn' ? ((y.z0 ?? 120) + (y.h3d || 70) / 2) : (y.height || 250);
         const p = proj(y.x, y.y, Math.max(40, zLight * hFactor));
+        if (!p) return;
         if (live) {
-          const rad = (y.kind === 'foco' || y.kind === 'espejoLed' ? 58 : 95) * state3d.zoom;
+          const baseRad = y.kind === 'foco' || y.kind === 'espejoLed' ? 58 : 95;
+          const rad = isFP ? clamp((baseRad * 180) / Math.max(40, p.z), 18, 220) : baseRad * state3d.zoom;
           const lg = ctx.createRadialGradient(p.x, p.y, 4, p.x, p.y, rad);
           lg.addColorStop(0, 'rgba(255, 241, 168, 0.92)');
           lg.addColorStop(0.35, 'rgba(251, 191, 36, 0.42)');
@@ -2655,19 +2723,22 @@ const Plan = (() => {
       });
     }
 
-    // Etiquetas de habitaciones
+    // Etiquetas de habitaciones (en vista maqueta; en 1ª persona solo si están a distancia media delante)
     ctx.font = '700 13px Inter, sans-serif';
     ctx.textAlign = 'center';
-    list.filter((e) => e.type === 'room' && e.points.length >= 3).forEach((r) => {
-      if (!r.name) return;
-      const c = centroid(r.points);
-      const p = proj(c.x, c.y, 12);
-      ctx.lineWidth = 4;
-      ctx.strokeStyle = 'rgba(255,255,255,0.88)';
-      ctx.strokeText(r.name, p.x, p.y);
-      ctx.fillStyle = '#0f172a';
-      ctx.fillText(r.name, p.x, p.y);
-    });
+    if (!isFP) {
+      list.filter((e) => e.type === 'room' && e.points.length >= 3).forEach((r) => {
+        if (!r.name) return;
+        const c = centroid(r.points);
+        const p = proj(c.x, c.y, 12);
+        if (!p) return;
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = 'rgba(255,255,255,0.88)';
+        ctx.strokeText(r.name, p.x, p.y);
+        ctx.fillStyle = '#0f172a';
+        ctx.fillText(r.name, p.x, p.y);
+      });
+    }
 
     // Anotaciones y pines en 3D (si está activado)
     if (state3d.showNotes) {
@@ -2676,6 +2747,7 @@ const Plan = (() => {
         const txt = e.type === 'text' ? e.text : (e.label || (e.taskId ? (S().tasks.find((t) => t.id === e.taskId)?.title || 'Pin') : 'Incidencia'));
         if (!txt) return;
         const p = proj(e.x, e.y, e.type === 'pin' ? 140 * hFactor : 20);
+        if (!p) return;
         const w = ctx.measureText(txt).width + 16;
         ctx.fillStyle = e.type === 'pin' ? 'rgba(239,68,68,0.92)' : 'rgba(15,23,42,0.84)';
         ctx.beginPath();
@@ -2684,6 +2756,32 @@ const Plan = (() => {
         ctx.fillStyle = '#fff';
         ctx.fillText(txt, p.x, p.y + 3);
       });
+    }
+
+    // Minimapa de orientación en esquina superior izquierda cuando estamos en Paseo 1ª persona
+    if (isFP) {
+      const mw = 136, mh = 104, mx0 = 14, my0 = 14, pad = 10;
+      const bw = Math.max(100, b.x2 - b.x1), bh = Math.max(100, b.y2 - b.y1);
+      const ms = Math.min((mw - pad * 2) / bw, (mh - pad * 2) / bh);
+      const ox = mx0 + (mw - bw * ms) / 2 - b.x1 * ms, oy = my0 + (mh - bh * ms) / 2 - b.y1 * ms;
+      ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      ctx.strokeStyle = 'rgba(15,23,42,0.2)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect ? ctx.roundRect(mx0, my0, mw, mh, 10) : ctx.rect(mx0, my0, mw, mh);
+      ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#334155'; ctx.lineWidth = 2;
+      list.filter((e) => e.type === 'wall' && !(e.status === 'demoler' && state3d.hideDemo)).forEach((w) => {
+        ctx.beginPath(); ctx.moveTo(ox + w.x1 * ms, oy + w.y1 * ms); ctx.lineTo(ox + w.x2 * ms, oy + w.y2 * ms); ctx.stroke();
+      });
+      const px0 = ox + fpX * ms, py0 = oy + fpY * ms;
+      ctx.fillStyle = 'rgba(234,88,12,0.22)';
+      ctx.beginPath();
+      ctx.moveTo(px0, py0);
+      ctx.arc(px0, py0, 22, fpYr - 0.55, fpYr + 0.55);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#ea580c';
+      ctx.beginPath(); ctx.arc(px0, py0, 4, 0, Math.PI * 2); ctx.fill();
     }
 
     // Leyenda en esquina inferior izquierda (si está activada)
@@ -2756,28 +2854,48 @@ Respeta exactamente la posición de muros, puertas, ventanas y muebles del plano
 
   function openRender3DModal() {
     const savedL = getSaved3DLayers();
+    const list0 = plan().elements;
+    const b0 = bbox(list0) || { x1: 0, y1: 0, x2: 800, y2: 600 };
+    const roomsList = list0.filter((e) => e.type === 'room' && e.points.length >= 3);
+    const startPt = roomsList.length ? centroid(roomsList[0].points) : { x: (b0.x1 + b0.x2) / 2, y: (b0.y1 + b0.y2) / 2 };
     const state3d = Object.assign({
+      camMode: 'orbit',
       yaw: -35, pitch: 42, zoom: 1, wallCut: 0.78, hideDemo: true,
+      fpX: startPt.x, fpY: startPt.y, fpYaw: 0, fpPitch: -3, eyeZ: 165,
       animDoors: 0, animGarage: 0, animWindows: 0, animShutters: 0, animKitchen: 0, nightMode: false,
-      edit3d: false, sel3dId: null,
     }, savedL);
     const GEM_KEY = 'mi-reforma:gemini:key';
     const st = stats(plan());
     Modal.open({
-      title: `Vista 3D, Simulador y Render · ${esc(plan().name)}`,
+      title: `Vista 3D, Paseo Interior y Render · ${esc(plan().name)}`,
       wide: true,
       body: `
         <div class="seg" id="r3dSeg" style="margin-bottom:14px">
-          <button class="active" data-rt="v3d">${icon('box', 15)}<span>Vista 3D interactiva</span></button>
+          <button class="active" data-rt="v3d">${icon('box', 15)}<span>Vista 3D y Paseo interior</span></button>
           <button data-rt="ai">${icon('image', 15)}<span>Render fotorrealista IA</span></button>
         </div>
         <div id="r3dPane">
+          <div class="r3d-cam-bar">
+            <div class="seg sm" id="r3dCamSeg">
+              <button class="active" data-cam="orbit">🧊 Maqueta 3D (Órbita)</button>
+              <button data-cam="fp">🚶 Paseo interior (1ª persona)</button>
+            </div>
+            <div id="r3dFpJumpWrap" style="display:none;align-items:center;gap:8px;flex-wrap:wrap">
+              ${roomsList.length ? `<label class="field inline-f"><span>Ir a:</span><select id="r3dFpRoom">${roomsList.map((r, i) => `<option value="${i}">${esc(r.name || 'Estancia ' + (i + 1))}</option>`).join('')}</select></label>` : ''}
+              <label class="field inline-f"><span>Altura ojos</span><input type="range" id="r3dEyeZ" min="100" max="200" step="5" value="165" style="width:90px"><em id="r3dEyeLbl" class="small muted">165 cm</em></label>
+            </div>
+          </div>
           <div class="r3d-canvas-wrap">
             <canvas id="r3dCanvas" width="960" height="560"></canvas>
-            <div class="r3d-hint">Arrastra para rotar 360° e inclinar</div>
+            <div class="r3d-dpad" id="r3dDpad" style="display:none" aria-label="Controles de desplazamiento">
+              <button type="button" class="dp-btn dp-up" data-move="fwd" title="Avanzar (W / ↑)">▲</button>
+              <button type="button" class="dp-btn dp-left" data-move="left" title="Izquierda (A / ←)">◀</button>
+              <button type="button" class="dp-btn dp-down" data-move="back" title="Retroceder (S / ↓)">▼</button>
+              <button type="button" class="dp-btn dp-right" data-move="right" title="Derecha (D / →)">▶</button>
+            </div>
+            <div class="r3d-hint" id="r3dHint">Arrastra para rotar 360° e inclinar · Solo visualización</div>
           </div>
           <div class="r3d-anim-bar">
-            <button class="chip" id="r3dEditModeBtn" title="Toca un mueble en el 3D para moverlo en X, Y o apilarlo en altura Z">${icon('edit', 13)} Editar muebles en 3D</button>
             <button class="chip" data-anim="animDoors">Puertas</button>
             <button class="chip" data-anim="animGarage">Puerta garaje</button>
             <button class="chip" data-anim="animWindows">Ventanas</button>
@@ -2786,8 +2904,7 @@ Respeta exactamente la posición de muros, puertas, ventanas y muebles del plano
             <button class="chip" id="r3dNightBtn">${icon('moon', 13)} Noche / Luces</button>
             <button class="btn sm ghost" id="r3dOpenCge">${icon('bolt', 13)} Cuadro Eléctrico</button>
           </div>
-          <div id="r3dEditBar" class="r3d-edit-bar" style="display:none"></div>
-          <div class="r3d-controls">
+          <div class="r3d-controls" id="r3dOrbitCtrls">
             <label class="field"><span>Altura de muros</span><input type="range" id="r3dCut" min="0.2" max="1" step="0.05" value="0.78"></label>
             <label class="field"><span>Zoom</span><input type="range" id="r3dZoom" min="0.6" max="1.8" step="0.05" value="1"></label>
             <label class="chk"><input type="checkbox" id="r3dHideDemo" checked> Ocultar demoler</label>
@@ -2843,74 +2960,90 @@ Respeta exactamente la posición de muros, puertas, ventanas y muebles del plano
         const draw = () => render3DCanvas(canvas, state3d);
         draw();
 
-        // Rotación táctil / ratón + Selección directa en modo Editar 3D
-        const editBar = $('#r3dEditBar', card);
-        const renderEdit3dBar = () => {
-          const el = state3d.sel3dId ? byId(state3d.sel3dId) : null;
-          if (!state3d.edit3d || !el) {
-            editBar.style.display = state3d.edit3d ? '' : 'none';
-            if (state3d.edit3d) editBar.innerHTML = `<span class="muted small">Toca cualquier mueble o módulo en el 3D para seleccionarlo y ajustar su posición X, Y o altura Z (apilar).</span>`;
-            return;
-          }
-          const stf = furn3DStyle(el.kind);
-          editBar.style.display = '';
-          editBar.innerHTML = `<div class="r3de-head"><b>${esc(el.name || 'Mueble')}</b>${el.locked ? '<span class="muted small">🔒 Bloqueado</span>' : ''}
-              <div class="r3de-presets">
-                <button class="chip" data-e3z="0">Suelo (0)</button>
-                <button class="chip" data-e3z="90">Encimera (90)</button>
-                <button class="chip" data-e3z="145">Colgado (145)</button>
-                <button class="chip" data-e3rot="1">${icon('rotate', 12)} 90°</button>
-              </div>
-            </div>
-            <div class="r3de-grid">
-              <label class="pf"><span>X (cm)</span><input type="number" step="5" data-e3f="x" value="${Math.round(el.x)}"></label>
-              <label class="pf"><span>Y (cm)</span><input type="number" step="5" data-e3f="y" value="${Math.round(el.y)}"></label>
-              <label class="pf"><span>Altura suelo Z</span><input type="number" step="5" data-e3f="z0" value="${Math.round(el.z0 ?? stf.z0 ?? 0)}"></label>
-              <label class="pf"><span>Ancho</span><input type="number" step="5" data-e3f="w" value="${Math.round(el.w)}"></label>
-              <label class="pf"><span>Fondo</span><input type="number" step="5" data-e3f="h" value="${Math.round(el.h)}"></label>
-              <label class="pf"><span>Alto 3D</span><input type="number" step="5" data-e3f="h3d" value="${Math.round(el.h3d || stf.h)}"></label>
-            </div>`;
+        // Cambio entre Maqueta 3D (Órbita) y Paseo interior (1ª persona)
+        const dpad = $('#r3dDpad', card);
+        const fpJump = $('#r3dFpJumpWrap', card);
+        const orbitCtrls = $('#r3dOrbitCtrls', card);
+        const hintEl = $('#r3dHint', card);
+        const syncCamUI = () => {
+          const isFP = state3d.camMode === 'fp';
+          dpad.style.display = isFP ? 'grid' : 'none';
+          fpJump.style.display = isFP ? 'flex' : 'none';
+          orbitCtrls.style.display = isFP ? 'none' : '';
+          hintEl.textContent = isFP
+            ? 'Arrastra para mirar alrededor · Usa las flechas o WASD para caminar'
+            : 'Arrastra para rotar 360° e inclinar · Solo visualización';
+          draw();
         };
-        $('#r3dEditModeBtn', card).addEventListener('click', (e) => {
-          state3d.edit3d = !state3d.edit3d;
-          e.currentTarget.classList.toggle('on', state3d.edit3d);
-          if (!state3d.edit3d) state3d.sel3dId = null;
-          renderEdit3dBar(); draw();
+        $('#r3dCamSeg', card).addEventListener('click', (e) => {
+          const b = e.target.closest('[data-cam]'); if (!b) return;
+          $$('#r3dCamSeg button', card).forEach((x) => x.classList.toggle('active', x === b));
+          state3d.camMode = b.dataset.cam;
+          syncCamUI();
         });
-        editBar.addEventListener('input', (e) => {
-          const k = e.target.dataset.e3f; if (!k || !state3d.sel3dId) return;
-          const el = byId(state3d.sel3dId); if (!el || el.locked) return;
-          el[k] = num(e.target.value, el[k] || 0);
-          Store.save(); draw(); requestRender();
+        const fpRoomSel = $('#r3dFpRoom', card);
+        if (fpRoomSel) fpRoomSel.addEventListener('change', (e) => {
+          const r = roomsList[+e.target.value];
+          if (r) { const c = centroid(r.points); state3d.fpX = c.x; state3d.fpY = c.y; draw(); }
         });
-        editBar.addEventListener('click', (e) => {
-          const el = state3d.sel3dId ? byId(state3d.sel3dId) : null; if (!el || el.locked) return;
-          const zb = e.target.closest('[data-e3z]');
-          if (zb) { el.z0 = +zb.dataset.e3z; Store.save(); renderEdit3dBar(); draw(); requestRender(); return; }
-          if (e.target.closest('[data-e3rot]')) { el.angle = ((el.angle || 0) + 90) % 360; Store.save(); draw(); requestRender(); }
+        $('#r3dEyeZ', card).addEventListener('input', (e) => {
+          state3d.eyeZ = +e.target.value;
+          $('#r3dEyeLbl', card).textContent = `${state3d.eyeZ} cm`;
+          draw();
         });
 
-        let dragging = false, lx = 0, ly = 0, moved = false;
-        canvas.addEventListener('pointerdown', (e) => { dragging = true; moved = false; lx = e.clientX; ly = e.clientY; canvas.setPointerCapture(e.pointerId); });
+        // Desplazamiento fluido en 1ª persona (mantener pulsado en iPad/táctil o teclas WASD / flechas)
+        const moveStep = (dir, speed = 14) => {
+          const yr = (state3d.fpYaw * Math.PI) / 180;
+          const fx = Math.cos(yr), fy = Math.sin(yr), rx = -fy, ry = fx;
+          if (dir === 'fwd') { state3d.fpX += fx * speed; state3d.fpY += fy * speed; }
+          else if (dir === 'back') { state3d.fpX -= fx * speed; state3d.fpY -= fy * speed; }
+          else if (dir === 'right') { state3d.fpX += rx * speed; state3d.fpY += ry * speed; }
+          else if (dir === 'left') { state3d.fpX -= rx * speed; state3d.fpY -= ry * speed; }
+          draw();
+        };
+        let holdDir = null, holdRaf = 0;
+        const holdLoop = () => {
+          if (!holdDir || !card.isConnected) { holdRaf = 0; return; }
+          moveStep(holdDir, 8);
+          holdRaf = requestAnimationFrame(holdLoop);
+        };
+        dpad.addEventListener('pointerdown', (e) => {
+          const b = e.target.closest('[data-move]'); if (!b) return;
+          e.preventDefault();
+          holdDir = b.dataset.move;
+          if (!holdRaf) holdLoop();
+        });
+        const stopHold = () => { holdDir = null; };
+        window.addEventListener('pointerup', stopHold);
+        window.addEventListener('pointercancel', stopHold);
+        const onKeyWalk = (e) => {
+          if (!card.isConnected) { window.removeEventListener('keydown', onKeyWalk); window.removeEventListener('pointerup', stopHold); window.removeEventListener('pointercancel', stopHold); return; }
+          if (state3d.camMode !== 'fp' || ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) return;
+          const k = e.key.toLowerCase();
+          if (k === 'w' || k === 'arrowup') { e.preventDefault(); moveStep('fwd', 22); }
+          else if (k === 's' || k === 'arrowdown') { e.preventDefault(); moveStep('back', 22); }
+          else if (k === 'a' || k === 'arrowleft') { e.preventDefault(); moveStep('left', 22); }
+          else if (k === 'd' || k === 'arrowright') { e.preventDefault(); moveStep('right', 22); }
+        };
+        window.addEventListener('keydown', onKeyWalk);
+
+        // Rotación táctil / ratón (Órbita o Mirar alrededor en 1ª persona, sin edición)
+        let dragging = false, lx = 0, ly = 0;
+        canvas.addEventListener('pointerdown', (e) => { dragging = true; lx = e.clientX; ly = e.clientY; canvas.setPointerCapture(e.pointerId); });
         canvas.addEventListener('pointermove', (e) => {
           if (!dragging) return;
-          if (Math.hypot(e.clientX - lx, e.clientY - ly) > 3) moved = true;
-          state3d.yaw += (e.clientX - lx) * 0.55;
-          state3d.pitch = clamp(state3d.pitch + (e.clientY - ly) * 0.4, 15, 85);
+          const dx = e.clientX - lx, dy = e.clientY - ly;
+          if (state3d.camMode === 'fp') {
+            state3d.fpYaw -= dx * 0.35;
+            state3d.fpPitch = clamp(state3d.fpPitch - dy * 0.25, -45, 45);
+          } else {
+            state3d.yaw += dx * 0.55;
+            state3d.pitch = clamp(state3d.pitch + dy * 0.4, 15, 85);
+          }
           lx = e.clientX; ly = e.clientY; draw();
         });
-        canvas.addEventListener('pointerup', (e) => {
-          dragging = false;
-          if (!moved && state3d.edit3d && state3d._hitList) {
-            const rect = canvas.getBoundingClientRect();
-            const cx = (e.clientX - rect.left) * (canvas.width / rect.width);
-            const cy = (e.clientY - rect.top) * (canvas.height / rect.height);
-            let best = null, bd = Infinity;
-            state3d._hitList.forEach((h) => { const d = Math.hypot(cx - h.x, cy - h.y); if (d < h.r && d < bd) { bd = d; best = h; } });
-            state3d.sel3dId = best ? best.id : null;
-            renderEdit3dBar(); draw();
-          }
-        });
+        canvas.addEventListener('pointerup', () => { dragging = false; });
         canvas.addEventListener('pointercancel', () => { dragging = false; });
 
         $('#r3dCut', card).addEventListener('input', (e) => { state3d.wallCut = num(e.target.value, 0.78); draw(); });
@@ -2947,7 +3080,11 @@ Respeta exactamente la posición de muros, puertas, ventanas y muebles del plano
           draw();
         });
         $('#r3dOpenCge', card).addEventListener('click', () => { Modal.close(); Obra.openTab('electric'); });
-        $('#r3dReset', card).addEventListener('click', () => { Object.assign(state3d, { yaw: -35, pitch: 42, zoom: 1, wallCut: 0.78 }); $('#r3dCut', card).value = 0.78; $('#r3dZoom', card).value = 1; draw(); });
+        $('#r3dReset', card).addEventListener('click', () => {
+          Object.assign(state3d, { yaw: -35, pitch: 42, zoom: 1, wallCut: 0.78, fpX: startPt.x, fpY: startPt.y, fpYaw: 0, fpPitch: -3, eyeZ: 165 });
+          $('#r3dCut', card).value = 0.78; $('#r3dZoom', card).value = 1; $('#r3dEyeZ', card).value = 165; $('#r3dEyeLbl', card).textContent = '165 cm';
+          draw();
+        });
         $('#r3dDownload', card).addEventListener('click', () => {
           canvas.toBlob((blob) => { download(`vista-3d-${plan().name.replace(/\s+/g, '_')}.png`, blob); toast('Vista 3D descargada', 'success'); }, 'image/png');
         });

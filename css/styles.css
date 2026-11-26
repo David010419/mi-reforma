@@ -740,26 +740,32 @@ button.save-ind.warn .ic { color: var(--warning); }
 .mb-actions { display: flex; align-items: center; gap: 4px; }
 
 /* ---------- Vista 3D y Render IA ---------- */
+.r3d-cam-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.inline-f { flex-direction: row !important; align-items: center !important; gap: 6px !important; }
+.inline-f span { font-size: 12px; white-space: nowrap; }
+.inline-f select { padding: 5px 8px; font-size: 12.5px; }
 .r3d-canvas-wrap { position: relative; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); background: #e8eef7; }
 #r3dCanvas { width: 100%; height: auto; display: block; cursor: grab; touch-action: none; }
 #r3dCanvas:active { cursor: grabbing; }
+.r3d-dpad { position: absolute; left: 14px; bottom: 14px; display: grid; grid-template-columns: repeat(3, 44px); grid-template-rows: repeat(2, 44px); gap: 5px; z-index: 4; touch-action: none; }
+.r3d-dpad .dp-btn { width: 44px; height: 44px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.28); background: rgba(15,23,42,0.74); color: #fff; font-size: 16px; font-weight: 700; display: grid; place-items: center; cursor: pointer; backdrop-filter: blur(6px); user-select: none; -webkit-user-select: none; }
+.r3d-dpad .dp-btn:active { background: var(--accent); transform: scale(0.95); }
+.r3d-dpad .dp-up { grid-column: 2; grid-row: 1; }
+.r3d-dpad .dp-left { grid-column: 1; grid-row: 2; }
+.r3d-dpad .dp-down { grid-column: 2; grid-row: 2; }
+.r3d-dpad .dp-right { grid-column: 3; grid-row: 2; }
 .r3d-hint { position: absolute; right: 10px; bottom: 10px; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 8px; background: rgba(15, 23, 42, .62); color: #fff; pointer-events: none; }
 .r3d-controls { display: grid; grid-template-columns: 1fr 1fr auto; gap: 14px; align-items: center; margin: 12px 0; }
 .r3d-controls input[type="range"] { width: 100%; accent-color: var(--accent); }
 .r3d-layers { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 10px 12px; margin-bottom: 12px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--border); font-size: 13px; }
 .r3d-anim-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 10px 0 4px; padding: 8px 10px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--border); }
 .r3d-anim-bar .chip { display: inline-flex; align-items: center; gap: 5px; }
-.r3d-edit-bar { margin: 8px 0 4px; padding: 10px 12px; border-radius: 10px; background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border)); display: flex; flex-direction: column; gap: 8px; }
-.r3de-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
-.r3de-presets { display: flex; gap: 5px; flex-wrap: wrap; }
-.r3de-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
 .active-lock { background: color-mix(in srgb, var(--warning) 18%, transparent) !important; }
 .mod-secs { display: flex; flex-direction: column; gap: 8px; }
 .mod-sec { padding: 8px 9px; border-radius: 9px; background: var(--surface-2); border: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px; }
 .ms-top { display: grid; grid-template-columns: 1fr 78px auto; gap: 6px; align-items: center; }
 .ms-top select, .ms-h input { height: 30px !important; font-size: 12px !important; }
 .ms-opts { display: flex; gap: 14px; flex-wrap: wrap; }
-@media (max-width: 900px) { .r3de-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 .r3d-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 
 /* ---------- Cuadro General Eléctrico (CGE) ---------- */
