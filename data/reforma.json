@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795726554307,
+  "updatedAt": 1795727665294,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -149,6 +149,117 @@
         "date": "",
         "milestone": "",
         "amount": 0
+      }
+    ]
+  },
+  "electrical": {
+    "contractedKw": 5.75,
+    "voltage": 230,
+    "kwhPrice": 0.16,
+    "igaOn": true,
+    "differentials": [
+      {
+        "id": "id-general",
+        "name": "ID 1 · Vivienda General",
+        "amps": 40,
+        "ma": 30,
+        "on": true
+      },
+      {
+        "id": "id-cocina",
+        "name": "ID 2 · Cocina y Climatización",
+        "amps": 40,
+        "ma": 30,
+        "on": true
+      },
+      {
+        "id": "id-ext",
+        "name": "ID 3 · Domótica, Exterior y Garaje",
+        "amps": 40,
+        "ma": 30,
+        "on": true
+      }
+    ],
+    "circuits": [
+      {
+        "id": "c1",
+        "code": "C1",
+        "name": "Iluminación general",
+        "diffId": "id-general",
+        "amps": 10,
+        "on": true,
+        "cable": "1,5 mm²",
+        "notes": "Puntos de luz, focos, tiras LED"
+      },
+      {
+        "id": "c2",
+        "code": "C2",
+        "name": "Tomas uso general",
+        "diffId": "id-general",
+        "amps": 16,
+        "on": true,
+        "cable": "2,5 mm²",
+        "notes": "Enchufes salón y dormitorios"
+      },
+      {
+        "id": "c5",
+        "code": "C5",
+        "name": "Baños y auxiliares cocina",
+        "diffId": "id-general",
+        "amps": 16,
+        "on": true,
+        "cable": "2,5 mm²",
+        "notes": "Enchufes baño y encimera"
+      },
+      {
+        "id": "c3",
+        "code": "C3",
+        "name": "Cocina y horno",
+        "diffId": "id-cocina",
+        "amps": 25,
+        "on": true,
+        "cable": "6 mm²",
+        "notes": "Placa inducción y horno"
+      },
+      {
+        "id": "c4",
+        "code": "C4",
+        "name": "Lavadora, lavavajillas y termo",
+        "diffId": "id-cocina",
+        "amps": 20,
+        "on": true,
+        "cable": "4 mm²",
+        "notes": "Electrodomésticos de agua"
+      },
+      {
+        "id": "c8",
+        "code": "C8",
+        "name": "Aire acondicionado (conductos)",
+        "diffId": "id-cocina",
+        "amps": 20,
+        "on": true,
+        "cable": "4 mm²",
+        "notes": "Máquina interior/exterior AA"
+      },
+      {
+        "id": "c12",
+        "code": "C12",
+        "name": "Domótica, persianas y garaje",
+        "diffId": "id-ext",
+        "amps": 16,
+        "on": true,
+        "cable": "2,5 mm²",
+        "notes": "Hub, persianas eléctricas, motor garaje"
+      },
+      {
+        "id": "c13",
+        "code": "C13",
+        "name": "Cargador coche eléctrico (VE)",
+        "diffId": "id-ext",
+        "amps": 32,
+        "on": true,
+        "cable": "6 mm²",
+        "notes": "Punto de recarga garaje"
       }
     ]
   },
@@ -436,6 +547,16 @@
           "color": "#bfdbfe",
           "floor": "",
           "ceiling": 250,
+          "note": ""
+        },
+        {
+          "id": "mwy1vy5uk43615",
+          "type": "sym",
+          "kind": "maqInt",
+          "x": 405,
+          "y": 335,
+          "angle": 0,
+          "height": 245,
           "note": ""
         }
       ],
