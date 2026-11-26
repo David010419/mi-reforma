@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795723078791,
+  "updatedAt": 1795723093423,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -486,7 +486,14 @@
       "scope": "interior",
       "level": "Subterraneo",
       "elements": []
+    },
+    {
+      "id": "mwxz5yhe8xdri6",
+      "name": "Planta Baja",
+      "scope": "interior",
+      "level": "Planta baja",
+      "elements": []
     }
   ],
-  "activePlan": "mwxz5jjmz8oikc"
+  "activePlan": "mwxz5yhe8xdri6"
 }
