@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795730339067,
+  "updatedAt": 1795730355369,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -520,7 +520,8 @@
               "anim": true,
               "cutlery": false
             }
-          ]
+          ],
+          "frontColor": "#f5970a"
         }
       ],
       "bgImage": null
