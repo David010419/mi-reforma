@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795723425290,
+  "updatedAt": 1795723428653,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -30,37 +30,6 @@
     "Mobiliario"
   ],
   "tasks": [
-    {
-      "id": "mwxz1mjs4tp4oy",
-      "title": "Demoler tabique entre cocina y salón",
-      "desc": "Comprobar antes que no es muro de carga.",
-      "status": "pendiente",
-      "priority": "alta",
-      "category": "Demolición",
-      "zone": "Salón-cocina",
-      "start": "2026-12-16",
-      "due": "2026-12-18",
-      "costEst": 600,
-      "costReal": 0,
-      "provider": "",
-      "tags": [],
-      "subtasks": [
-        {
-          "id": "mwxz1mjslyhn34",
-          "text": "Confirmar con arquitecto que no es estructural",
-          "done": false
-        },
-        {
-          "id": "mwxz1mjsrsmqq6",
-          "text": "Contratar contenedor de escombros",
-          "done": false
-        }
-      ],
-      "comments": [],
-      "links": [],
-      "created": 1795722891112,
-      "updated": 1795723420248
-    },
     {
       "id": "mwxz1mjspfv8cs",
       "title": "Nueva instalación eléctrica",
