@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795723710317,
+  "updatedAt": 1795723726000,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -370,6 +370,33 @@
           "x": -15,
           "y": 240,
           "angle": 90,
+          "note": ""
+        },
+        {
+          "id": "mwxzjikydj4bwd",
+          "type": "room",
+          "name": "Habitación 1",
+          "points": [
+            [
+              -61,
+              -290
+            ],
+            [
+              490,
+              -290
+            ],
+            [
+              490,
+              740
+            ],
+            [
+              -61,
+              740
+            ]
+          ],
+          "color": "#fde68a",
+          "floor": "",
+          "ceiling": 250,
           "note": ""
         }
       ],
