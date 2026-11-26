@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795723737992,
+  "updatedAt": 1795723749705,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -378,8 +378,8 @@
           "name": "Garaje",
           "points": [
             [
-              30,
-              -126.7
+              -61,
+              -290
             ],
             [
               490,
@@ -390,7 +390,7 @@
               740
             ],
             [
-              -61,
+              40,
               740
             ]
           ],
