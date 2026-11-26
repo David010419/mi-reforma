@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795723441547,
+  "updatedAt": 1795723444250,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -29,28 +29,7 @@
     "Exterior",
     "Mobiliario"
   ],
-  "tasks": [
-    {
-      "id": "mwxz1mjs9mozvb",
-      "title": "Elegir azulejo y plato de ducha",
-      "desc": "",
-      "status": "pendiente",
-      "priority": "media",
-      "category": "Baño",
-      "zone": "Baño",
-      "start": "",
-      "due": "2026-12-10",
-      "costEst": 900,
-      "costReal": 0,
-      "provider": "",
-      "tags": [],
-      "subtasks": [],
-      "comments": [],
-      "links": [],
-      "created": 1795722891112,
-      "updated": 1795722891112
-    }
-  ],
+  "tasks": [],
   "expenses": [
     {
       "id": "mwxz1mjs6rwt90",
