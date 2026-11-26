@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795723045413,
+  "updatedAt": 1795723074067,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -709,7 +709,14 @@
         }
       ],
       "bgImage": null
+    },
+    {
+      "id": "mwxz5jjmz8oikc",
+      "name": "Garaje",
+      "scope": "interior",
+      "level": "Subterraneo",
+      "elements": []
     }
   ],
-  "activePlan": "mwxz1mjseoa0w2"
+  "activePlan": "mwxz5jjmz8oikc"
 }
