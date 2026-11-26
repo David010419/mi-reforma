@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795724039061,
+  "updatedAt": 1795723847695,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -29,268 +29,10 @@
     "Exterior",
     "Mobiliario"
   ],
-  "tasks": [
-    {
-      "id": "mwxzq16vx5uud0",
-      "title": "Pedir 3 presupuestos de reforma integral",
-      "desc": "",
-      "status": "en_curso",
-      "priority": "urgente",
-      "category": "General",
-      "zone": "",
-      "start": "",
-      "due": "2026-11-29",
-      "costEst": 0,
-      "costReal": 0,
-      "provider": "",
-      "tags": [
-        "presupuesto"
-      ],
-      "subtasks": [
-        {
-          "id": "mwxzq16vreek9x",
-          "text": "Empresa A – Reformas López",
-          "done": true
-        },
-        {
-          "id": "mwxzq16vme3mis",
-          "text": "Empresa B – Construcciones Sur",
-          "done": false
-        },
-        {
-          "id": "mwxzq16vhlq70b",
-          "text": "Empresa C – autónomo recomendado",
-          "done": false
-        }
-      ],
-      "comments": [
-        {
-          "id": "mwxzq16vrblsvn",
-          "text": "La empresa A viene el jueves a medir.",
-          "date": 1795637629831
-        }
-      ],
-      "links": [],
-      "created": 1795724029831,
-      "updated": 1795724029831
-    },
-    {
-      "id": "mwxzq16wcl8316",
-      "title": "Solicitar licencia de obra menor",
-      "desc": "",
-      "status": "en_curso",
-      "priority": "alta",
-      "category": "Trámites",
-      "zone": "",
-      "start": "",
-      "due": "2026-12-03",
-      "costEst": 250,
-      "costReal": 0,
-      "provider": "",
-      "tags": [],
-      "subtasks": [
-        {
-          "id": "mwxzq16vlisn5o",
-          "text": "Descargar formulario del ayuntamiento",
-          "done": true
-        },
-        {
-          "id": "mwxzq16vjkdrbt",
-          "text": "Presupuesto firmado por el contratista",
-          "done": false
-        },
-        {
-          "id": "mwxzq16vxed37p",
-          "text": "Pagar tasa ICIO",
-          "done": false
-        }
-      ],
-      "comments": [
-        {
-          "id": "mwxzq16vtrfhuv",
-          "text": "En el ayuntamiento me dicen que tarda unas 2-3 semanas.",
-          "date": 1795551229831
-        }
-      ],
-      "links": [],
-      "created": 1795724029832,
-      "updated": 1795724029832
-    },
-    {
-      "id": "mwxzq16wnru53w",
-      "title": "Demoler tabique entre cocina y salón",
-      "desc": "Comprobar antes que no es muro de carga.",
-      "status": "pendiente",
-      "priority": "alta",
-      "category": "Demolición",
-      "zone": "Salón-cocina",
-      "start": "2026-12-16",
-      "due": "2026-12-18",
-      "costEst": 600,
-      "costReal": 0,
-      "provider": "",
-      "tags": [],
-      "subtasks": [
-        {
-          "id": "mwxzq16wzoq47h",
-          "text": "Confirmar con arquitecto que no es estructural",
-          "done": false
-        },
-        {
-          "id": "mwxzq16wyoykfw",
-          "text": "Contratar contenedor de escombros",
-          "done": false
-        }
-      ],
-      "comments": [],
-      "links": [],
-      "created": 1795724029832,
-      "updated": 1795724029832
-    },
-    {
-      "id": "mwxzq16wa226rs",
-      "title": "Nueva instalación eléctrica",
-      "desc": "",
-      "status": "pendiente",
-      "priority": "alta",
-      "category": "Electricidad",
-      "zone": "",
-      "start": "",
-      "due": "2026-12-31",
-      "costEst": 3500,
-      "costReal": 0,
-      "provider": "",
-      "tags": [
-        "boletín"
-      ],
-      "subtasks": [
-        {
-          "id": "mwxzq16wpjh9v1",
-          "text": "Definir puntos de luz y enchufes en el plano",
-          "done": true
-        },
-        {
-          "id": "mwxzq16wmclxs9",
-          "text": "Cuadro nuevo con diferenciales por zonas",
-          "done": false
-        },
-        {
-          "id": "mwxzq16w8jt0v0",
-          "text": "Boletín eléctrico (CIE)",
-          "done": false
-        }
-      ],
-      "comments": [
-        {
-          "id": "mwxzq16wtlaq41",
-          "text": "El electricista recomienda 2 circuitos para cocina.",
-          "date": 1795724029832
-        }
-      ],
-      "links": [],
-      "created": 1795724029832,
-      "updated": 1795724029832
-    },
-    {
-      "id": "mwxzq16w9l5bwy",
-      "title": "Cambiar tomas de agua y desagües del baño",
-      "desc": "",
-      "status": "pendiente",
-      "priority": "media",
-      "category": "Fontanería",
-      "zone": "Baño",
-      "start": "",
-      "due": "2026-12-26",
-      "costEst": 1200,
-      "costReal": 0,
-      "provider": "",
-      "tags": [],
-      "subtasks": [],
-      "comments": [],
-      "links": [],
-      "created": 1795724029832,
-      "updated": 1795724029832
-    },
-    {
-      "id": "mwxzq16wswiogg",
-      "title": "Elegir azulejo y plato de ducha",
-      "desc": "",
-      "status": "pendiente",
-      "priority": "media",
-      "category": "Baño",
-      "zone": "Baño",
-      "start": "",
-      "due": "2026-12-10",
-      "costEst": 900,
-      "costReal": 0,
-      "provider": "",
-      "tags": [],
-      "subtasks": [],
-      "comments": [],
-      "links": [],
-      "created": 1795724029832,
-      "updated": 1795724029832
-    },
-    {
-      "id": "mwxzq16ww8on6u",
-      "title": "Pintar toda la vivienda",
-      "desc": "",
-      "status": "pendiente",
-      "priority": "baja",
-      "category": "Pintura",
-      "zone": "",
-      "start": "",
-      "due": "2027-02-04",
-      "costEst": 1500,
-      "costReal": 0,
-      "provider": "",
-      "tags": [],
-      "subtasks": [],
-      "comments": [],
-      "links": [],
-      "created": 1795724029832,
-      "updated": 1795724029832
-    },
-    {
-      "id": "mwxzq16wjc51xa",
-      "title": "Medir ventanas para presupuesto de carpintería",
-      "desc": "",
-      "status": "hecho",
-      "priority": "media",
-      "category": "Carpintería",
-      "zone": "",
-      "start": "",
-      "due": "",
-      "costEst": 0,
-      "costReal": 0,
-      "provider": "",
-      "tags": [],
-      "subtasks": [
-        {
-          "id": "mwxzq16wktk5wp",
-          "text": "Ventana salón",
-          "done": true
-        },
-        {
-          "id": "mwxzq16w1op45m",
-          "text": "Ventana dormitorio",
-          "done": true
-        },
-        {
-          "id": "mwxzq16w8zsh0f",
-          "text": "Ventana baño",
-          "done": true
-        }
-      ],
-      "comments": [],
-      "links": [],
-      "created": 1795724029832,
-      "updated": 1795724029832
-    }
-  ],
+  "tasks": [],
   "expenses": [
     {
-      "id": "mwxzq16wmbjxxq",
+      "id": "mwxz1mjs6rwt90",
       "date": "2026-11-17",
       "origin": "Disp. 1",
       "category": "Trámites",
@@ -300,10 +42,10 @@
       "invoice": "LIC-2026-014",
       "remaining": null,
       "notes": "",
-      "created": 1795724029832
+      "created": 1795722891112
     },
     {
-      "id": "mwxzq16w1nibvs",
+      "id": "mwxz1mjslbbdmu",
       "date": "2026-11-21",
       "origin": "Disp. 1",
       "category": "Demolición",
@@ -313,10 +55,10 @@
       "invoice": "FAC-0891",
       "remaining": null,
       "notes": "",
-      "created": 1795724029832
+      "created": 1795722891112
     },
     {
-      "id": "mwxzq16wleskkb",
+      "id": "mwxz1mjsi1u8cv",
       "date": "2026-11-24",
       "origin": "Disp. 1",
       "category": "Albañilería",
@@ -326,10 +68,10 @@
       "invoice": "FAC-2026-102",
       "remaining": null,
       "notes": "",
-      "created": 1795724029832
+      "created": 1795722891112
     },
     {
-      "id": "mwxzq16w25v76n",
+      "id": "mwxz1mjsreaho3",
       "date": "2026-12-01",
       "origin": "Disp. 2",
       "category": "Electricidad",
@@ -339,7 +81,7 @@
       "invoice": "PRE-441",
       "remaining": null,
       "notes": "",
-      "created": 1795724029832
+      "created": 1795722891112
     }
   ],
   "loan": {
@@ -353,56 +95,56 @@
     "differential": 0.69,
     "dispositions": [
       {
-        "id": "mwxzq16vkdvnag",
+        "id": "mwxz1mjssr6ksb",
         "name": "Disp. 1",
         "date": "2026-11-14",
         "milestone": "Primera disposición · Inicio de obra",
         "amount": 15000
       },
       {
-        "id": "mwxzq16vvwiw3o",
+        "id": "mwxz1mjsn6tpdu",
         "name": "Disp. 2",
         "date": "2026-11-25",
         "milestone": "Segunda disposición · Albañilería y carpintería",
         "amount": 15000
       },
       {
-        "id": "mwxzq16v3r7lc2",
+        "id": "mwxz1mjsvdt3af",
         "name": "Disp. 3",
         "date": "",
         "milestone": "",
         "amount": 0
       },
       {
-        "id": "mwxzq16vkuzrsu",
+        "id": "mwxz1mjsqrz5au",
         "name": "Disp. 4",
         "date": "",
         "milestone": "",
         "amount": 0
       },
       {
-        "id": "mwxzq16vy89yl4",
+        "id": "mwxz1mjstx4b5z",
         "name": "Disp. 5",
         "date": "",
         "milestone": "",
         "amount": 0
       },
       {
-        "id": "mwxzq16v3mcw3k",
+        "id": "mwxz1mjsxoxynn",
         "name": "Disp. 6",
         "date": "",
         "milestone": "",
         "amount": 0
       },
       {
-        "id": "mwxzq16vam89xo",
+        "id": "mwxz1mjsospf3s",
         "name": "Disp. 7",
         "date": "",
         "milestone": "",
         "amount": 0
       },
       {
-        "id": "mwxzq16vymdxt4",
+        "id": "mwxz1mjs2am8an",
         "name": "Disp. 8",
         "date": "",
         "milestone": "",
@@ -413,7 +155,7 @@
   "diary": [],
   "contacts": [
     {
-      "id": "mwxzq16w43kahw",
+      "id": "mwxz1mjswyj16z",
       "name": "Reformas López",
       "role": "Albañilería",
       "phone": "+34 600 123 456",
@@ -421,7 +163,7 @@
       "notes": "Encargado de obra principal"
     },
     {
-      "id": "mwxzq16wzsnkwe",
+      "id": "mwxz1mjs70d0v0",
       "name": "Carlos (Electricista)",
       "role": "Electricidad",
       "phone": "+34 611 222 333",
@@ -431,7 +173,7 @@
   ],
   "materials": [
     {
-      "id": "mwxzq16wuu8nj1",
+      "id": "mwxz1mjsc53ao7",
       "name": "Porcelánico 60×60 gris",
       "zone": "Salón-cocina",
       "qty": 29.5,
@@ -443,7 +185,7 @@
       "notes": "Incluye +10% merma"
     },
     {
-      "id": "mwxzq16wx8ij2o",
+      "id": "mwxz1mjs1i2v0b",
       "name": "Tarima flotante roble AC5",
       "zone": "Dormitorio",
       "qty": 12.1,
@@ -457,7 +199,7 @@
   ],
   "quotes": [
     {
-      "id": "mwxzq16wuytefv",
+      "id": "mwxz1mjs06uqsk",
       "category": "Carpintería",
       "provider": "Ventanas Norte",
       "amount": 4200,
@@ -468,7 +210,7 @@
       "notes": ""
     },
     {
-      "id": "mwxzq16wf5szvp",
+      "id": "mwxz1mjs5zlzbl",
       "category": "Carpintería",
       "provider": "Aluminios Sur",
       "amount": 4850,
@@ -481,194 +223,89 @@
   ],
   "plans": [
     {
-      "id": "mwxzq16wa7vngo",
-      "name": "Planta baja – Propuesta",
-      "level": "Planta baja",
+      "id": "mwxz5jjmz8oikc",
+      "name": "Garaje",
       "scope": "interior",
+      "level": "Subterraneo",
       "elements": [
         {
-          "id": "mwxzq16wzdavko",
+          "id": "mwxz7clg0rhoqg",
           "type": "wall",
-          "x1": 0,
-          "y1": 0,
-          "x2": 800,
-          "y2": 0,
-          "thick": 20,
+          "x1": 490,
+          "y1": -290,
+          "x2": 490,
+          "y2": 740,
+          "thick": 15,
           "status": "existente",
-          "height": 260,
+          "height": 250,
           "note": ""
         },
         {
-          "id": "mwxzq16w9e1sdg",
+          "id": "mwxz8ho2xzsr2r",
           "type": "wall",
-          "x1": 800,
-          "y1": 0,
-          "x2": 800,
-          "y2": 600,
-          "thick": 20,
+          "x1": 490,
+          "y1": -290,
+          "x2": -61,
+          "y2": -290,
+          "thick": 15,
           "status": "existente",
-          "height": 260,
+          "height": 250,
           "note": ""
         },
         {
-          "id": "mwxzq16w0iomxi",
+          "id": "mwxz8x4zv1hykc",
           "type": "wall",
-          "x1": 800,
-          "y1": 600,
-          "x2": 0,
-          "y2": 600,
-          "thick": 20,
+          "x1": -61,
+          "y1": -290,
+          "x2": -61,
+          "y2": -126.7,
+          "thick": 15,
           "status": "existente",
-          "height": 260,
+          "height": 250,
           "note": ""
         },
         {
-          "id": "mwxzq16wksn7nk",
+          "id": "mwxz8zl8ehm0yh",
           "type": "wall",
-          "x1": 0,
-          "y1": 600,
-          "x2": 0,
-          "y2": 0,
-          "thick": 20,
+          "x1": -61,
+          "y1": -126.7,
+          "x2": 30,
+          "y2": -126.7,
+          "thick": 15,
           "status": "existente",
-          "height": 260,
+          "height": 250,
           "note": ""
         },
         {
-          "id": "mwxzq16w7szfil",
+          "id": "mwxz9yzyn579f4",
           "type": "wall",
-          "x1": 450,
-          "y1": 0,
-          "x2": 450,
-          "y2": 600,
-          "thick": 10,
+          "x1": 30,
+          "y1": -126.7,
+          "x2": 30,
+          "y2": -65,
+          "thick": 15,
           "status": "existente",
-          "height": 260,
+          "height": 250,
           "note": ""
         },
         {
-          "id": "mwxzq16wbq9pi9",
+          "id": "mwxza81qgnh90k",
           "type": "wall",
-          "x1": 450,
-          "y1": 330,
-          "x2": 800,
-          "y2": 330,
-          "thick": 10,
+          "x1": 30,
+          "y1": -60,
+          "x2": 30,
+          "y2": 20,
+          "thick": 15,
           "status": "existente",
-          "height": 260,
+          "height": 250,
           "note": ""
         },
         {
-          "id": "mwxzq16w2uu8le",
-          "type": "wall",
-          "x1": 0,
-          "y1": 260,
-          "x2": 250,
-          "y2": 260,
-          "thick": 10,
-          "status": "demoler",
-          "height": 260,
-          "note": ""
-        },
-        {
-          "id": "mwxzq16w2l2dwu",
-          "type": "wall",
-          "x1": 250,
-          "y1": 440,
-          "x2": 250,
-          "y2": 600,
-          "thick": 10,
-          "status": "nuevo",
-          "height": 260,
-          "note": ""
-        },
-        {
-          "id": "mwxzq16wd18xh2",
-          "type": "room",
-          "name": "Salón-cocina",
-          "points": [
-            [
-              10,
-              10
-            ],
-            [
-              445,
-              10
-            ],
-            [
-              445,
-              590
-            ],
-            [
-              10,
-              590
-            ]
-          ],
-          "color": "#fde68a",
-          "floor": "Porcelánico 60x60 gris",
-          "ceiling": 260,
-          "note": ""
-        },
-        {
-          "id": "mwxzq16wnxzkm7",
-          "type": "room",
-          "name": "Dormitorio",
-          "points": [
-            [
-              455,
-              10
-            ],
-            [
-              790,
-              10
-            ],
-            [
-              790,
-              325
-            ],
-            [
-              455,
-              325
-            ]
-          ],
-          "color": "#bfdbfe",
-          "floor": "Tarima flotante roble AC5",
-          "ceiling": 260,
-          "note": ""
-        },
-        {
-          "id": "mwxzq16w22m0j7",
-          "type": "room",
-          "name": "Baño",
-          "points": [
-            [
-              455,
-              335
-            ],
-            [
-              790,
-              335
-            ],
-            [
-              790,
-              590
-            ],
-            [
-              455,
-              590
-            ]
-          ],
-          "color": "#a5f3fc",
-          "floor": "Porcelánico antideslizante C3",
-          "ceiling": 260,
-          "note": ""
-        },
-        {
-          "id": "mwxzq16w9nsqvi",
+          "id": "mwxzabbcebtwr7",
           "type": "door",
-          "wallId": "mwxzq16w7szfil",
-          "t": 0.22,
-          "width": 80,
+          "wallId": "mwxza81qgnh90k",
+          "t": 0.525,
+          "width": 72,
           "height": 210,
           "kind": "abatible",
           "hinge": "left",
@@ -676,630 +313,170 @@
           "note": ""
         },
         {
-          "id": "mwxzq16wcuxbjg",
-          "type": "door",
-          "wallId": "mwxzq16w7szfil",
-          "t": 0.68,
-          "width": 70,
-          "height": 210,
-          "kind": "corredera",
-          "hinge": "right",
-          "side": -1,
+          "id": "mwxzb3gjvt89dg",
+          "type": "wall",
+          "x1": 30,
+          "y1": 20,
+          "x2": 30,
+          "y2": 462.3,
+          "thick": 15,
+          "status": "existente",
+          "height": 250,
           "note": ""
         },
         {
-          "id": "mwxzq16w0loktl",
+          "id": "mwxze28bnklxh2",
+          "type": "wall",
+          "x1": 490,
+          "y1": 740,
+          "x2": -61,
+          "y2": 740,
+          "thick": 15,
+          "status": "existente",
+          "height": 250,
+          "note": ""
+        },
+        {
+          "id": "mwxzejk85osj43",
+          "type": "wall",
+          "x1": -61,
+          "y1": -126.7,
+          "x2": -61,
+          "y2": 740,
+          "thick": 15,
+          "status": "existente",
+          "height": 250,
+          "note": ""
+        },
+        {
+          "id": "mwxzg084kg1so7",
           "type": "door",
-          "wallId": "mwxzq16w0iomxi",
-          "t": 0.75,
-          "width": 90,
+          "wallId": "mwxze28bnklxh2",
+          "t": 0.308529945553539,
+          "width": 300,
           "height": 210,
           "kind": "abatible",
-          "hinge": "right",
+          "hinge": "left",
           "side": 1,
           "note": ""
         },
         {
-          "id": "mwxzq16wawvcpn",
-          "type": "window",
-          "wallId": "mwxzq16wzdavko",
-          "t": 0.28,
-          "width": 140,
-          "height": 120,
-          "sill": 90,
-          "kind": "corredera",
-          "note": ""
-        },
-        {
-          "id": "mwxzq16w153vnk",
-          "type": "window",
-          "wallId": "mwxzq16wzdavko",
-          "t": 0.78,
-          "width": 120,
-          "height": 120,
-          "sill": 90,
-          "kind": "oscilobatiente",
-          "note": ""
-        },
-        {
-          "id": "mwxzq16wg11ogr",
-          "type": "window",
-          "wallId": "mwxzq16w9e1sdg",
-          "t": 0.78,
-          "width": 60,
-          "height": 60,
-          "sill": 140,
-          "kind": "abatible",
-          "note": ""
-        },
-        {
-          "id": "mwxzq16wjzvlif",
+          "id": "mwxzg9gp1a2cdn",
           "type": "furn",
-          "kind": "sofa",
-          "name": "Sofá",
-          "w": 210,
-          "h": 90,
-          "x": 220,
-          "y": 540,
-          "angle": 180,
-          "note": ""
-        },
-        {
-          "id": "mwxzq16w31aeh3",
-          "type": "furn",
-          "kind": "mesa",
-          "name": "Mesa",
-          "w": 160,
-          "h": 90,
-          "x": 230,
-          "y": 360,
-          "angle": 0,
-          "note": ""
-        },
-        {
-          "id": "mwxzq16wq636ku",
-          "type": "furn",
-          "kind": "encimera",
-          "name": "Encimera",
-          "w": 240,
-          "h": 60,
-          "x": 40,
-          "y": 135,
-          "angle": 270,
-          "note": ""
-        },
-        {
-          "id": "mwxzq16w04dv98",
-          "type": "furn",
-          "kind": "placa",
-          "name": "Placa",
-          "w": 60,
-          "h": 60,
-          "x": 40,
-          "y": 70,
-          "angle": 270,
-          "note": ""
-        },
-        {
-          "id": "mwxzq16wskd6ni",
-          "type": "furn",
-          "kind": "fregadero",
-          "name": "Fregadero",
-          "w": 80,
-          "h": 60,
-          "x": 40,
-          "y": 190,
-          "angle": 270,
-          "note": ""
-        },
-        {
-          "id": "mwxzq16w0w4y38",
-          "type": "furn",
-          "kind": "nevera",
-          "name": "Frigorífico",
-          "w": 70,
-          "h": 65,
-          "x": 45,
-          "y": 300,
-          "angle": 270,
-          "note": ""
-        },
-        {
-          "id": "mwxzq16ww7vxvf",
-          "type": "furn",
-          "kind": "cama",
-          "name": "Cama 150",
-          "w": 150,
-          "h": 200,
-          "x": 620,
-          "y": 110,
-          "angle": 0,
-          "note": ""
-        },
-        {
-          "id": "mwxzq16wjzfrbk",
-          "type": "furn",
-          "kind": "mesita",
-          "name": "Mesita",
-          "w": 45,
-          "h": 40,
-          "x": 515,
-          "y": 32,
-          "angle": 0,
-          "note": ""
-        },
-        {
-          "id": "mwxzq16we1vjta",
-          "type": "furn",
-          "kind": "mesita",
-          "name": "Mesita",
-          "w": 45,
-          "h": 40,
-          "x": 725,
-          "y": 32,
-          "angle": 0,
-          "note": ""
-        },
-        {
-          "id": "mwxzq16wbkz9t2",
-          "type": "furn",
-          "kind": "armario",
-          "name": "Armario",
-          "w": 180,
-          "h": 60,
-          "x": 760,
-          "y": 225,
+          "kind": "escalera",
+          "name": "Escalera",
+          "w": 442,
+          "h": 76,
+          "x": -15,
+          "y": 250,
           "angle": 90,
           "note": ""
         },
         {
-          "id": "mwxzq16wqzkpgx",
-          "type": "furn",
-          "kind": "inodoro",
-          "name": "Inodoro",
-          "w": 40,
-          "h": 65,
-          "x": 520,
-          "y": 557,
-          "angle": 180,
+          "id": "mwxzjikydj4bwd",
+          "type": "room",
+          "name": "Garaje",
+          "points": [
+            [
+              -61,
+              -290
+            ],
+            [
+              490,
+              -290
+            ],
+            [
+              490,
+              740
+            ],
+            [
+              40,
+              740
+            ],
+            [
+              -61,
+              740
+            ],
+            [
+              -61,
+              470
+            ],
+            [
+              35,
+              470
+            ],
+            [
+              30,
+              225
+            ],
+            [
+              30,
+              -126.7
+            ],
+            [
+              -55,
+              -126.7
+            ]
+          ],
+          "color": "#fde68a",
+          "floor": "",
+          "ceiling": 250,
           "note": ""
         },
         {
-          "id": "mwxzq16wxxae45",
-          "type": "furn",
-          "kind": "lavabo",
-          "name": "Lavabo",
-          "w": 60,
-          "h": 45,
-          "x": 620,
-          "y": 567,
-          "angle": 180,
+          "id": "mwxzlpjdyvxu54",
+          "type": "room",
+          "name": "Baño Garaje",
+          "points": [
+            [
+              -60,
+              -120
+            ],
+            [
+              30,
+              -120
+            ],
+            [
+              30,
+              30
+            ],
+            [
+              -60,
+              30
+            ]
+          ],
+          "color": "#bfdbfe",
+          "floor": "",
+          "ceiling": 250,
           "note": ""
-        },
-        {
-          "id": "mwxzq16wl5bbr7",
-          "type": "furn",
-          "kind": "ducha",
-          "name": "Ducha",
-          "w": 120,
-          "h": 80,
-          "x": 725,
-          "y": 375,
-          "angle": 0,
-          "note": ""
-        },
-        {
-          "id": "mwxzq16wacoy4l",
-          "type": "sym",
-          "kind": "luz",
-          "x": 228,
-          "y": 300,
-          "angle": 0,
-          "height": 260,
-          "note": ""
-        },
-        {
-          "id": "mwxzq16ws2ev8d",
-          "type": "sym",
-          "kind": "luz",
-          "x": 622,
-          "y": 168,
-          "angle": 0,
-          "height": 260,
-          "note": ""
-        },
-        {
-          "id": "mwxzq16wqxxscw",
-          "type": "sym",
-          "kind": "luz",
-          "x": 622,
-          "y": 462,
-          "angle": 0,
-          "height": 260,
-          "note": ""
-        },
-        {
-          "id": "mwxzq16w2cnttj",
-          "type": "sym",
-          "kind": "enchufe",
-          "x": 18,
-          "y": 450,
-          "angle": 0,
-          "height": 30,
-          "note": ""
-        },
-        {
-          "id": "mwxzq16wcezem5",
-          "type": "sym",
-          "kind": "tv",
-          "x": 300,
-          "y": 582,
-          "angle": -90,
-          "height": 30,
-          "note": ""
-        },
-        {
-          "id": "mwxzq16w9wn04g",
-          "type": "sym",
-          "kind": "enchufe2",
-          "x": 340,
-          "y": 582,
-          "angle": -90,
-          "height": 30,
-          "note": ""
-        },
-        {
-          "id": "mwxzq16w5ptjny",
-          "type": "sym",
-          "kind": "interruptor",
-          "x": 270,
-          "y": 582,
-          "angle": -90,
-          "height": 110,
-          "note": ""
-        },
-        {
-          "id": "mwxzq16wi2lyj7",
-          "type": "sym",
-          "kind": "cuadro",
-          "x": 120,
-          "y": 582,
-          "angle": -90,
-          "height": 180,
-          "note": ""
-        },
-        {
-          "id": "mwxzq16wadjpxr",
-          "type": "sym",
-          "kind": "enchufe",
-          "x": 505,
-          "y": 18,
-          "angle": 90,
-          "height": 30,
-          "note": ""
-        },
-        {
-          "id": "mwxzq16wmeka11",
-          "type": "sym",
-          "kind": "enchufe",
-          "x": 690,
-          "y": 18,
-          "angle": 90,
-          "height": 30,
-          "note": ""
-        },
-        {
-          "id": "mwxzq16wiwwt0g",
-          "type": "sym",
-          "kind": "conmutador",
-          "x": 463,
-          "y": 190,
-          "angle": 0,
-          "height": 110,
-          "note": ""
-        },
-        {
-          "id": "mwxzq16wmyud20",
-          "type": "sym",
-          "kind": "aguaFria",
-          "x": 605,
-          "y": 582,
-          "angle": -90,
-          "height": 55,
-          "note": ""
-        },
-        {
-          "id": "mwxzq16wn2nhso",
-          "type": "sym",
-          "kind": "aguaCaliente",
-          "x": 635,
-          "y": 582,
-          "angle": -90,
-          "height": 55,
-          "note": ""
-        },
-        {
-          "id": "mwxzq16wbjmnez",
-          "type": "sym",
-          "kind": "desague",
-          "x": 725,
-          "y": 375,
-          "angle": 0,
-          "height": 0,
-          "note": ""
-        },
-        {
-          "id": "mwxzq16wi9yv86",
-          "type": "sym",
-          "kind": "extractor",
-          "x": 560,
-          "y": 400,
-          "angle": 0,
-          "height": 240,
-          "note": ""
-        },
-        {
-          "id": "mwxzq16ws4r0cd",
-          "type": "dim",
-          "x1": 0,
-          "y1": 0,
-          "x2": 800,
-          "y2": 0,
-          "offset": -60,
-          "text": ""
-        },
-        {
-          "id": "mwxzq16wxvj3t7",
-          "type": "dim",
-          "x1": 0,
-          "y1": 600,
-          "x2": 0,
-          "y2": 0,
-          "offset": -60,
-          "text": ""
-        },
-        {
-          "id": "mwxzq16w0owfdc",
-          "type": "text",
-          "x": 125,
-          "y": 240,
-          "text": "Tabique a demoler",
-          "size": 14,
-          "color": ""
         }
       ],
       "bgImage": null
     },
     {
-      "id": "mwxzq16wv4n0m8",
-      "name": "Patio y jardín",
-      "level": "Parcela / Exterior",
-      "scope": "exterior",
-      "elements": [
-        {
-          "id": "mwxzq16wcbljje",
-          "type": "wall",
-          "x1": 0,
-          "y1": 0,
-          "x2": 1200,
-          "y2": 0,
-          "thick": 20,
-          "status": "existente",
-          "height": 180,
-          "note": ""
-        },
-        {
-          "id": "mwxzq16wmmnsrs",
-          "type": "wall",
-          "x1": 1200,
-          "y1": 0,
-          "x2": 1200,
-          "y2": 800,
-          "thick": 20,
-          "status": "existente",
-          "height": 180,
-          "note": ""
-        },
-        {
-          "id": "mwxzq16w4m1kb0",
-          "type": "wall",
-          "x1": 1200,
-          "y1": 800,
-          "x2": 0,
-          "y2": 800,
-          "thick": 20,
-          "status": "existente",
-          "height": 180,
-          "note": ""
-        },
-        {
-          "id": "mwxzq16wjr70fy",
-          "type": "wall",
-          "x1": 0,
-          "y1": 800,
-          "x2": 0,
-          "y2": 0,
-          "thick": 20,
-          "status": "existente",
-          "height": 180,
-          "note": ""
-        },
-        {
-          "id": "mwxzq16we3odzt",
-          "type": "room",
-          "name": "Porche / Terraza",
-          "points": [
-            [
-              10,
-              10
-            ],
-            [
-              600,
-              10
-            ],
-            [
-              600,
-              320
-            ],
-            [
-              10,
-              320
-            ]
-          ],
-          "color": "#fed7aa",
-          "floor": "Porcelánico exterior C3",
-          "ceiling": 0,
-          "note": ""
-        },
-        {
-          "id": "mwxzq16w73x176",
-          "type": "room",
-          "name": "Jardín",
-          "points": [
-            [
-              10,
-              325
-            ],
-            [
-              1190,
-              325
-            ],
-            [
-              1190,
-              790
-            ],
-            [
-              10,
-              790
-            ]
-          ],
-          "color": "#bbf7d0",
-          "floor": "Césped natural",
-          "ceiling": 0,
-          "note": ""
-        },
-        {
-          "id": "mwxzq16wcuvvb9",
-          "type": "room",
-          "name": "Acceso / Garaje",
-          "points": [
-            [
-              605,
-              10
-            ],
-            [
-              1190,
-              10
-            ],
-            [
-              1190,
-              320
-            ],
-            [
-              605,
-              320
-            ]
-          ],
-          "color": "#e5e7eb",
-          "floor": "Hormigón impreso",
-          "ceiling": 0,
-          "note": ""
-        },
-        {
-          "id": "mwxzq16wt76rdc",
-          "type": "furn",
-          "kind": "piscina",
-          "name": "Piscina 6×3",
-          "w": 600,
-          "h": 300,
-          "x": 800,
-          "y": 560,
-          "angle": 0,
-          "note": ""
-        },
-        {
-          "id": "mwxzq16wxyndg5",
-          "type": "furn",
-          "kind": "pergola",
-          "name": "Pérgola",
-          "w": 400,
-          "h": 260,
-          "x": 250,
-          "y": 165,
-          "angle": 0,
-          "note": ""
-        },
-        {
-          "id": "mwxzq16wwdvp51",
-          "type": "furn",
-          "kind": "mesa",
-          "name": "Mesa exterior",
-          "w": 200,
-          "h": 100,
-          "x": 250,
-          "y": 165,
-          "angle": 0,
-          "note": ""
-        },
-        {
-          "id": "mwxzq16wjl2pz5",
-          "type": "furn",
-          "kind": "coche",
-          "name": "Plaza coche",
-          "w": 450,
-          "h": 200,
-          "x": 900,
-          "y": 165,
-          "angle": 0,
-          "note": ""
-        },
-        {
-          "id": "mwxzq16ws6mgu8",
-          "type": "furn",
-          "kind": "arbol",
-          "name": "Árbol",
-          "w": 140,
-          "h": 140,
-          "x": 150,
-          "y": 620,
-          "angle": 0,
-          "note": ""
-        },
-        {
-          "id": "mwxzq16wzct5fh",
-          "type": "furn",
-          "kind": "barbacoa",
-          "name": "Barbacoa",
-          "w": 140,
-          "h": 70,
-          "x": 520,
-          "y": 60,
-          "angle": 0,
-          "note": ""
-        },
-        {
-          "id": "mwxzq16wheuhds",
-          "type": "dim",
-          "x1": 0,
-          "y1": 0,
-          "x2": 1200,
-          "y2": 0,
-          "offset": -65,
-          "text": ""
-        },
-        {
-          "id": "mwxzq16wtt5581",
-          "type": "dim",
-          "x1": 0,
-          "y1": 800,
-          "x2": 0,
-          "y2": 0,
-          "offset": -65,
-          "text": ""
-        }
-      ],
+      "id": "mwxz5yhe8xdri6",
+      "name": "Planta Baja",
+      "scope": "interior",
+      "level": "Planta baja",
+      "elements": [],
+      "bgImage": null
+    },
+    {
+      "id": "mwxz6a4ifut0hq",
+      "name": "Planta Alta",
+      "scope": "interior",
+      "level": "Planta 1",
+      "elements": [],
+      "bgImage": null
+    },
+    {
+      "id": "mwxz6ltacn9h7y",
+      "name": "Buardilla",
+      "scope": "interior",
+      "level": "Planta 2",
+      "elements": [],
       "bgImage": null
     }
   ],
-  "activePlan": "mwxzq16wa7vngo"
+  "activePlan": "mwxz5jjmz8oikc"
 }
