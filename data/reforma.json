@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795730361969,
+  "updatedAt": 1795730412834,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -498,29 +498,7 @@
           "y": -45,
           "angle": 0,
           "note": "",
-          "sections": [
-            {
-              "id": "mwy3fksvkcsa4c",
-              "kind": "cajon",
-              "h": 20,
-              "anim": true,
-              "cutlery": true
-            },
-            {
-              "id": "mwy3ftxo6iyaz8",
-              "kind": "cajon",
-              "h": 20,
-              "anim": true,
-              "cutlery": false
-            },
-            {
-              "id": "mwy3fvv83twwg5",
-              "kind": "cajon",
-              "h": 20,
-              "anim": true,
-              "cutlery": false
-            }
-          ],
+          "sections": [],
           "frontColor": "#3410ea"
         }
       ],
