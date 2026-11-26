@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795723432176,
+  "updatedAt": 1795723434933,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -30,26 +30,6 @@
     "Mobiliario"
   ],
   "tasks": [
-    {
-      "id": "mwxz1mjs2qwk57",
-      "title": "Cambiar tomas de agua y desagües del baño",
-      "desc": "",
-      "status": "pendiente",
-      "priority": "media",
-      "category": "Fontanería",
-      "zone": "Baño",
-      "start": "",
-      "due": "2026-12-26",
-      "costEst": 1200,
-      "costReal": 0,
-      "provider": "",
-      "tags": [],
-      "subtasks": [],
-      "comments": [],
-      "links": [],
-      "created": 1795722891112,
-      "updated": 1795722891112
-    },
     {
       "id": "mwxz1mjs9mozvb",
       "title": "Elegir azulejo y plato de ducha",
