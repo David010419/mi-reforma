@@ -237,6 +237,7 @@ const Settings = (() => {
         case 'export': download(`mi-reforma-copia-${localISO()}.json`, JSON.stringify(S(), null, 2), 'application/json'); toast('Copia de seguridad descargada', 'success'); break;
         case 'import': $('#importFile').click(); break;
         case 'csv': exportCSV(); break;
+        case 'pdfReport': Plan.openReportModal(); break;
         case 'sample': if (confirm('Se reemplazarán tus datos por el proyecto de ejemplo. ¿Continuar?')) { Store.replace(sampleState()); location.reload(); } break;
         case 'reset': if (confirm('¿Borrar TODOS los datos y empezar un proyecto vacío? Te recomendamos exportar una copia antes.')) { Store.replace(emptyState()); location.reload(); } break;
       }
@@ -341,9 +342,10 @@ const Settings = (() => {
         </section>
 
         <section class="card scard">
-          <h3>${icon('download', 18)} Copias de seguridad locales</h3>
+          <h3>${icon('download', 18)} Informes PDF y copias de seguridad</h3>
           <div class="btn-col">
-            <button class="btn primary" data-a="export">${icon('download', 16)} Exportar copia completa (.json)</button>
+            <button class="btn primary" data-a="pdfReport">${icon('file', 16)} Generar Memoria Técnica de Planos (PDF)…</button>
+            <button class="btn" data-a="export">${icon('download', 16)} Exportar copia completa (.json)</button>
             <button class="btn" data-a="import">${icon('upload', 16)} Importar copia…</button>
             <button class="btn" data-a="csv">${icon('file', 16)} Exportar tareas a Excel (.csv)</button>
             <input type="file" id="importFile" accept=".json,application/json" hidden>

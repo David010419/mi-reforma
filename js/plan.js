@@ -586,6 +586,7 @@ const Plan = (() => {
             <div class="dd-menu">
               <button data-pa="exportPng">${icon('image', 15)} Imagen PNG (alta resolución)</button>
               <button data-pa="exportSvg">${icon('file', 15)} Vectorial SVG</button>
+              <button data-pa="exportPdf">${icon('receipt', 15)} Memoria Técnica (PDF)…</button>
             </div>
           </details>
         </div>
@@ -1687,6 +1688,7 @@ const Plan = (() => {
         case 'fit': fit(); break;
         case 'exportPng': exportPlan('png'); break;
         case 'exportSvg': exportPlan('svg'); break;
+        case 'exportPdf': openReportModal(); break;
         case 'addPlan': openPlanModal(false); break;
         case 'dupPlan': openPlanModal(true); break;
         case 'bgModal': openBgModal(); break;
@@ -1858,10 +1860,10 @@ const Plan = (() => {
     return `rgb(${r},${g},${b})`;
   }
 
-  function render3DCanvas(canvas, state3d) {
+  function render3DCanvas(canvas, state3d, targetPlan = null) {
     const ctx = canvas.getContext('2d');
     const W = canvas.width, H = canvas.height;
-    const list = els();
+    const list = (targetPlan || plan()).elements;
     const b = bbox(list) || { x1: 0, y1: 0, x2: 800, y2: 600 };
     const cx = (b.x1 + b.x2) / 2, cy = (b.y1 + b.y2) / 2;
     const span = Math.max(b.x2 - b.x1, b.y2 - b.y1, 200);
@@ -1992,11 +1994,25 @@ const Plan = (() => {
       if (L - cur > 1) addBox(segRect(w, cur, L, ht), 0, wh, col, alpha);
     });
 
-    // 4. Mobiliario en volumen 3D
+    // 4. Mobiliario en volumen 3D (con escaleras escalonadas reales)
     if (state3d.showFurn) {
       list.filter((e) => e.type === 'furn' && e.kind !== 'norte').forEach((f) => {
-        const st = furn3DStyle(f.kind);
         const hw = f.w / 2, hh = f.h / 2, a = f.angle || 0;
+        if (f.kind === 'escalera') {
+          const steps = clamp(Math.round(f.w / 26), 5, 16);
+          const maxH = 250 * Math.max(0.55, hFactor);
+          const sw = f.w / steps;
+          for (let i = 0; i < steps; i++) {
+            const x0 = -hw + i * sw, x1 = x0 + sw;
+            const pts = [[x0, -hh], [x1, -hh], [x1, hh], [x0, hh]].map(([x, y]) => {
+              const p = rotPt(x, y, a); return [f.x + p.x, f.y + p.y];
+            });
+            const zTop = ((i + 1) / steps) * maxH;
+            addBox(pts, 0, zTop, i % 2 ? '#d6cfc4' : '#c9bfb0', 1);
+          }
+          return;
+        }
+        const st = furn3DStyle(f.kind);
         const pts = [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]].map(([x, y]) => {
           const p = rotPt(x, y, a); return [f.x + p.x, f.y + p.y];
         });
@@ -2054,6 +2070,61 @@ const Plan = (() => {
       ctx.fillStyle = '#0f172a';
       ctx.fillText(r.name, p.x, p.y);
     });
+
+    // Anotaciones y pines en 3D (si está activado)
+    if (state3d.showNotes) {
+      ctx.font = '600 12px Inter, sans-serif';
+      list.filter((e) => e.type === 'text' || e.type === 'pin').forEach((e) => {
+        const txt = e.type === 'text' ? e.text : (e.label || (e.taskId ? (S().tasks.find((t) => t.id === e.taskId)?.title || 'Pin') : 'Incidencia'));
+        if (!txt) return;
+        const p = proj(e.x, e.y, e.type === 'pin' ? 140 * hFactor : 20);
+        const w = ctx.measureText(txt).width + 16;
+        ctx.fillStyle = e.type === 'pin' ? 'rgba(239,68,68,0.92)' : 'rgba(15,23,42,0.84)';
+        ctx.beginPath();
+        ctx.roundRect ? ctx.roundRect(p.x - w / 2, p.y - 12, w, 22, 6) : ctx.rect(p.x - w / 2, p.y - 12, w, 22);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.fillText(txt, p.x, p.y + 3);
+      });
+    }
+
+    // Leyenda en esquina inferior izquierda (si está activada)
+    if (state3d.showLegend) {
+      const items = [
+        ['#e2e8f0', 'Muro existente'],
+        ['#fdba74', 'Muro nuevo'],
+        ['#38bdf8', 'Ventanas / balconeras'],
+        ['#c08b5c', 'Puertas'],
+        ['#64748b', 'Puerta garaje'],
+      ];
+      if (!state3d.hideDemo) items.push(['#fde047', 'A demoler']);
+      if (state3d.showClima) items.push(['#06b6d4', 'AA / Conductos']);
+      if (state3d.showElec) items.push(['#f59e0b', 'Iluminación / Elec.']);
+      if (state3d.showFonta) items.push(['#0284c7', 'Fontanería / Agua']);
+      if (state3d.showDomo) items.push(['#8b5cf6', 'Domótica']);
+      const lh = 20, pad = 12, bw = 185, bh = items.length * lh + pad * 2 + 16;
+      const x0 = 14, y0 = H - bh - 14;
+      ctx.fillStyle = 'rgba(255,255,255,0.92)';
+      ctx.strokeStyle = 'rgba(15,23,42,0.16)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect ? ctx.roundRect(x0, y0, bw, bh, 10) : ctx.rect(x0, y0, bw, bh);
+      ctx.fill(); ctx.stroke();
+      ctx.textAlign = 'left';
+      ctx.font = '800 11px Inter, sans-serif';
+      ctx.fillStyle = '#0f172a';
+      ctx.fillText('LEYENDA', x0 + pad, y0 + pad + 9);
+      ctx.font = '600 11.5px Inter, sans-serif';
+      items.forEach(([col, lbl], i) => {
+        const yy = y0 + pad + 26 + i * lh;
+        ctx.fillStyle = col;
+        ctx.fillRect(x0 + pad, yy - 9, 12, 12);
+        ctx.strokeStyle = 'rgba(15,23,42,0.25)';
+        ctx.strokeRect(x0 + pad, yy - 9, 12, 12);
+        ctx.fillStyle = '#334155';
+        ctx.fillText(lbl, x0 + pad + 18, yy + 1);
+      });
+    }
   }
 
   function buildRenderPrompt(style, viewMode, roomName) {
@@ -2081,6 +2152,8 @@ Respeta exactamente la posición de muros, puertas, ventanas y muebles del plano
       showElec: pui.viewPreset === 'elec',
       showFonta: pui.viewPreset === 'fonta',
       showDomo: pui.viewPreset === 'domo',
+      showLegend: true,
+      showNotes: true,
     };
     const GEM_KEY = 'mi-reforma:gemini:key';
     const st = stats(plan());
@@ -2108,10 +2181,13 @@ Respeta exactamente la posición de muros, puertas, ventanas y muebles del plano
             <label class="chk"><input type="checkbox" data-3dl="showElec" ${state3d.showElec ? 'checked' : ''}> Iluminación / Electricidad</label>
             <label class="chk"><input type="checkbox" data-3dl="showFonta" ${state3d.showFonta ? 'checked' : ''}> Fontanería / Agua</label>
             <label class="chk"><input type="checkbox" data-3dl="showDomo" ${state3d.showDomo ? 'checked' : ''}> Domótica</label>
+            <label class="chk"><input type="checkbox" data-3dl="showLegend" ${state3d.showLegend ? 'checked' : ''}> Leyenda</label>
+            <label class="chk"><input type="checkbox" data-3dl="showNotes" ${state3d.showNotes ? 'checked' : ''}> Anotaciones</label>
           </div>
           <div class="r3d-actions">
             <button class="btn sm" id="r3dReset">${icon('rotate', 14)} Reiniciar vista</button>
-            <button class="btn sm" id="r3dSaveDiary">${icon('camera', 14)} Guardar en Diario de Obra</button>
+            <button class="btn sm" id="r3dSaveDiary">${icon('camera', 14)} Guardar en Diario</button>
+            <button class="btn sm" id="r3dPdf">${icon('file', 14)} Memoria Técnica (PDF)</button>
             <button class="btn sm primary" id="r3dDownload">${icon('download', 14)} Descargar PNG</button>
           </div>
         </div>
@@ -2175,6 +2251,7 @@ Respeta exactamente la posición de muros, puertas, ventanas y muebles del plano
           S().diary.unshift({ id: uid(), date: localISO(), phase: 'Propuesta 3D', zone: plan().name, title: `Vista 3D · ${plan().name}`, notes: 'Captura 3D generada desde el editor de planos.', photo: dataUrl, created: Date.now() });
           Store.save(); toast('Guardada en Obra → Diario y fotos', 'success');
         });
+        $('#r3dPdf', card).addEventListener('click', () => { Modal.close(); openReportModal(); });
 
         // Tabs 3D / IA
         const refreshPrompt = () => {
@@ -2331,6 +2408,248 @@ Respeta exactamente la posición de muros, puertas, ventanas y muebles del plano
     });
   }
 
+  /* ---------- Memoria Técnica / Informe de Planos en PDF ---------- */
+  function buildPlanSVGForReport(p, layerPreset, autoDims = true) {
+    const list = p.elements || [], b = bbox(list);
+    const th = THEMES.paper;
+    if (!b) return `<div style="padding:40px;text-align:center;color:#64748b">Plano sin elementos</div>`;
+    const bw = Math.max(b.x2 - b.x1, 100), bh = Math.max(b.y2 - b.y1, 100);
+    const s = clamp(1200 / Math.max(bw, bh), 0.35, 4);
+    const pad = 45, W = Math.ceil(bw * s + pad * 2), H = Math.ceil(bh * s + pad * 2);
+    const L = Object.assign({}, DEF_LAYERS, layerPreset || {});
+    const inner = renderElements(list, s, th, L, autoDims).replace(/ data-id="[^"]*"/g, '');
+    const cands = [50, 100, 200, 500, 1000], sbl = cands.find((c) => c * s >= 100) || 500;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" style="width:100%;height:100%;max-height:100%;display:block" font-family="Inter, Segoe UI, Arial, sans-serif">
+      <rect width="${W}" height="${H}" fill="#ffffff"/>
+      <g transform="translate(${pad - b.x1 * s} ${pad - b.y1 * s}) scale(${s})">${inner}</g>
+      <g transform="translate(${W - pad - sbl * s} ${H - 24})"><rect width="${sbl * s}" height="6" fill="#1e293b"/><rect width="${(sbl * s) / 2}" height="6" fill="#fff" stroke="#1e293b"/><text x="${(sbl * s) / 2}" y="18" font-size="11" font-weight="700" text-anchor="middle" fill="#1e293b">Escala: ${sbl / 100} m</text></g>
+    </svg>`;
+  }
+
+  function buildLegendForPlan(p, layers) {
+    const items = [];
+    const list = p.elements || [];
+    if (layers.walls) {
+      if (list.some((e) => e.type === 'wall' && (!e.status || e.status === 'existente'))) items.push(['#555c68', 'Muro existente']);
+      if (list.some((e) => e.type === 'wall' && e.status === 'nuevo')) items.push(['#e8590c', 'Muro nuevo']);
+      if (list.some((e) => e.type === 'wall' && e.status === 'demoler')) items.push(['#d4a000', 'Muro a demoler']);
+    }
+    const usedDucts = new Set(list.filter((e) => e.type === 'duct' && layerOn(e, layers)).map((e) => e.kind));
+    usedDucts.forEach((k) => { const dk = DUCT_KINDS[k]; if (dk) items.push([dk.color, dk.label]); });
+    const usedSyms = new Set(list.filter((e) => e.type === 'sym' && layerOn(e, layers)).map((e) => e.kind));
+    usedSyms.forEach((k) => { const d = SYMBOLS[k]; if (d) items.push([SYM_GROUPS[d.group].color, `${d.g || '•'} · ${d.label}`]); });
+    if (!items.length) return '';
+    return `<div class="rep-legend">${items.map(([c, l]) => `<span><i style="background:${c}"></i>${esc(l)}</span>`).join('')}</div>`;
+  }
+
+  function openReportModal() {
+    const plans = S().plans || [];
+    Modal.open({
+      title: 'Generar Memoria Técnica de Planos (PDF)',
+      wide: true,
+      body: `<div class="callout" style="margin-bottom:14px">${icon('file', 18)}
+          <div>Genera un documento técnico multipágina listo para imprimir o guardar como <b>PDF</b> con portada, planos 2D acotados, vistas 3D, planos de instalaciones, leyendas y cuadro de mediciones.</div>
+        </div>
+        <div class="grid2" style="margin-bottom:14px">
+          <label class="field"><span>Formato de página</span><select id="repSize">
+            <option value="A4 landscape">A4 Horizontal (recomendado para planos)</option>
+            <option value="A4 portrait">A4 Vertical (formato memoria)</option>
+            <option value="A3 landscape">A3 Horizontal (plano grande)</option>
+          </select></label>
+          <label class="field"><span>Título de la memoria</span><input id="repTitle" value="${esc('Memoria Técnica · ' + (S().project.name || 'Mi Reforma'))}"></label>
+        </div>
+        <div class="rep-sec">
+          <b>Planos a incluir</b>
+          <div class="rep-chks">${plans.map((p) => `<label class="chk"><input type="checkbox" data-rp="${p.id}" checked> ${esc((p.level ? p.level + ' · ' : '') + p.name)} <small class="muted">(${p.scope === 'exterior' ? 'Exterior' : 'Interior'})</small></label>`).join('')}</div>
+        </div>
+        <div class="rep-sec">
+          <b>Láminas por cada plano</b>
+          <div class="rep-chks">
+            <label class="chk"><input type="checkbox" id="rv2d" checked> Plano 2D acotado (Distribución y mobiliario)</label>
+            <label class="chk"><input type="checkbox" id="rv3d" checked> Vista 3D isométrica (con escaleras y huecos)</label>
+            <label class="chk"><input type="checkbox" id="rvClima" checked> Plano de Aire Acondicionado y conductos (si tiene elementos)</label>
+            <label class="chk"><input type="checkbox" id="rvElec" checked> Plano de Iluminación y Electricidad (si tiene elementos)</label>
+            <label class="chk"><input type="checkbox" id="rvFonta" checked> Plano de Fontanería y Agua (si tiene elementos)</label>
+            <label class="chk"><input type="checkbox" id="rvDomo" checked> Plano de Domótica y Control (si tiene elementos)</label>
+          </div>
+        </div>
+        <div class="rep-sec">
+          <b>Detalles y anexos técnicos</b>
+          <div class="rep-chks">
+            <label class="chk"><input type="checkbox" id="raCover" checked> Portada e índice de planos</label>
+            <label class="chk"><input type="checkbox" id="raLegend" checked> Leyenda técnica en cada plano</label>
+            <label class="chk"><input type="checkbox" id="raMeasures" checked> Cuadro de superficies, mediciones (+10% merma) e instalaciones</label>
+            <label class="chk"><input type="checkbox" id="raNotes" checked> Anotaciones y pines en la vista 3D</label>
+          </div>
+        </div>`,
+      foot: `<button class="btn" data-modal-close>Cancelar</button><button class="btn primary" id="repGenBtn">${icon('download', 16)} Generar PDF / Imprimir</button>`,
+      onOpen(card) {
+        $('#repGenBtn', card).addEventListener('click', () => {
+          const selIds = $$('[data-rp]:checked', card).map((c) => c.dataset.rp);
+          if (!selIds.length) { toast('Selecciona al menos un plano', 'warn'); return; }
+          const opts = {
+            pageSize: $('#repSize', card).value,
+            title: $('#repTitle', card).value.trim() || 'Memoria Técnica',
+            planIds: selIds,
+            v2d: $('#rv2d', card).checked,
+            v3d: $('#rv3d', card).checked,
+            vClima: $('#rvClima', card).checked,
+            vElec: $('#rvElec', card).checked,
+            vFonta: $('#rvFonta', card).checked,
+            vDomo: $('#rvDomo', card).checked,
+            cover: $('#raCover', card).checked,
+            legend: $('#raLegend', card).checked,
+            measures: $('#raMeasures', card).checked,
+            notes3d: $('#raNotes', card).checked,
+          };
+          Modal.close();
+          generateTechnicalReport(opts);
+        });
+      },
+    });
+  }
+
+  function generateTechnicalReport(opts) {
+    const P = S().project;
+    const selPlans = S().plans.filter((p) => opts.planIds.includes(p.id));
+    const sheets = [];
+    const hasGroup = (p, g) => p.elements.some((e) => (e.type === 'sym' && (SYMBOLS[e.kind] || {}).group === g) || (e.type === 'duct' && (DUCT_KINDS[e.kind] || {}).group === g));
+
+    selPlans.forEach((p) => {
+      const st = stats(p);
+      if (opts.v2d) {
+        const layers = Object.assign({}, DEF_LAYERS, VIEW_PRESETS.distribucion.layers);
+        sheets.push({ plan: p, st, spec: 'Distribución y mobiliario (2D acotado)', content: buildPlanSVGForReport(p, layers, true), legend: opts.legend ? buildLegendForPlan(p, layers) : '' });
+      }
+      if (opts.v3d) {
+        const c = document.createElement('canvas'); c.width = 1400; c.height = 820;
+        render3DCanvas(c, { yaw: -35, pitch: 42, zoom: 1, wallCut: 0.78, hideDemo: true, showFurn: true, showClima: hasGroup(p, 'clima'), showElec: false, showFonta: false, showDomo: false, showLegend: opts.legend, showNotes: opts.notes3d }, p);
+        sheets.push({ plan: p, st, spec: 'Perspectiva 3D isométrica', content: `<img src="${c.toDataURL('image/png')}" style="width:100%;height:100%;object-fit:contain;display:block">`, legend: '' });
+      }
+      const specs = [
+        [opts.vClima, 'clima', 'Aire Acondicionado y Conductos'],
+        [opts.vElec, 'elec', 'Iluminación y Electricidad'],
+        [opts.vFonta, 'fonta', 'Fontanería y Agua'],
+        [opts.vDomo, 'domo', 'Domótica y Control'],
+      ];
+      specs.forEach(([on, key, label]) => {
+        if (!on || !hasGroup(p, key)) return;
+        const layers = Object.assign({}, DEF_LAYERS, VIEW_PRESETS[key].layers);
+        sheets.push({ plan: p, st, spec: label, content: buildPlanSVGForReport(p, layers, true), legend: opts.legend ? buildLegendForPlan(p, layers) : '' });
+      });
+    });
+
+    const totalArea = selPlans.reduce((a, p) => a + stats(p).area, 0);
+    const todayStr = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+
+    const coverHTML = opts.cover ? `<section class="page cover">
+      <div class="cov-bar"></div>
+      <div class="cov-top"><span>MEMORIA TÉCNICA Y PLANOS DE REFORMA</span><span>${todayStr}</span></div>
+      <h1>${esc(opts.title)}</h1>
+      <p class="cov-sub">${esc(P.address || 'Documentación gráfica y cuadro de mediciones')}</p>
+      <div class="cov-kpis">
+        <div><span>Superficie útil total</span><b>${fmtNum(totalArea)} m²</b></div>
+        <div><span>Planos incluidos</span><b>${selPlans.length}</b></div>
+        <div><span>Total láminas</span><b>${sheets.length}</b></div>
+        <div><span>Presupuesto</span><b>${P.budget ? fmtMoney(P.budget) : '—'}</b></div>
+      </div>
+      <h3>Índice de láminas</h3>
+      <table class="rep-tbl"><thead><tr><th>Nº</th><th>Planta / Plano</th><th>Tipo</th><th>Especialidad</th><th class="num">Sup. útil</th></tr></thead><tbody>
+        ${sheets.map((sh, i) => `<tr><td><b>${String(i + 1).padStart(2, '0')}</b></td><td>${esc((sh.plan.level ? sh.plan.level + ' · ' : '') + sh.plan.name)}</td><td>${sh.plan.scope === 'exterior' ? 'Exterior' : 'Interior'}</td><td>${esc(sh.spec)}</td><td class="num">${fmtNum(sh.st.area)} m²</td></tr>`).join('')}
+      </tbody></table>
+    </section>` : '';
+
+    const sheetsHTML = sheets.map((sh, i) => `<section class="page sheet">
+      <div class="sheet-body">${sh.content}</div>
+      ${sh.legend}
+      <footer class="cajetin">
+        <div><span>PROYECTO</span><b>${esc(P.name || 'Mi Reforma')}</b></div>
+        <div><span>PLANO / PLANTA</span><b>${esc((sh.plan.level ? sh.plan.level + ' · ' : '') + sh.plan.name)}</b></div>
+        <div><span>ESPECIALIDAD</span><b>${esc(sh.spec)}</b></div>
+        <div><span>SUPERFICIE</span><b>${fmtNum(sh.st.area)} m²</b></div>
+        <div><span>FECHA</span><b>${new Date().toLocaleDateString('es-ES')}</b></div>
+        <div class="num-box"><span>LÁMINA</span><b>${String(i + 1).padStart(2, '0')} / ${String(sheets.length).padStart(2, '0')}</b></div>
+      </footer>
+    </section>`).join('');
+
+    const measuresHTML = opts.measures ? `<section class="page measures">
+      <h2>Anexo · Cuadro de superficies, mediciones e instalaciones</h2>
+      ${selPlans.map((p) => {
+        const st = stats(p);
+        const ducts = {};
+        p.elements.filter((e) => e.type === 'duct').forEach((d) => { const k = d.kind || 'impulsion'; ducts[k] = (ducts[k] || 0) + wlen(d) / 100; });
+        return `<div class="mblock">
+          <h3>${esc((p.level ? p.level + ' · ' : '') + p.name)} <small>(${p.scope === 'exterior' ? 'Exterior' : 'Interior'} · ${fmtNum(st.area)} m²)</small></h3>
+          ${st.rooms.length ? `<table class="rep-tbl"><thead><tr><th>Estancia</th><th class="num">Útil (m²)</th><th class="num">+10% merma</th><th class="num">Rodapié (m)</th><th class="num">Paredes (m²)</th><th>Acabado suelo</th></tr></thead><tbody>
+            ${st.rooms.map((r) => `<tr><td><b>${esc(r.name)}</b></td><td class="num">${fmtNum(r.area)}</td><td class="num">${fmtNum(r.area * 1.1)}</td><td class="num">${fmtNum(r.perim)}</td><td class="num">${fmtNum(r.perim * (r.ceiling / 100))}</td><td>${esc(r.floor || '—')}</td></tr>`).join('')}
+          </tbody></table>` : ''}
+          <div class="m-mini">
+            <div><b>Muros:</b> ${Object.entries(st.walls).map(([k, v]) => `${WALL_STATUS[k] || k}: ${fmtNum(v.len)} m (${fmtNum(v.area)} m²)`).join(' · ') || '—'}</div>
+            <div><b>Carpintería:</b> ${st.doors} puertas · ${st.windows} ventanas · ${st.furn} muebles/elementos</div>
+            ${Object.keys(st.syms).length ? `<div><b>Instalaciones:</b> ${Object.entries(st.syms).map(([k, n]) => `${(SYMBOLS[k] || { label: k }).label}: ${n}`).join(' · ')}</div>` : ''}
+            ${Object.keys(ducts).length ? `<div><b>Conductos / Tuberías:</b> ${Object.entries(ducts).map(([k, m]) => `${(DUCT_KINDS[k] || { label: k }).label}: ${fmtNum(m)} m`).join(' · ')}</div>` : ''}
+          </div>
+        </div>`;
+      }).join('')}
+    </section>` : '';
+
+    const docHTML = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${esc(opts.title)}</title>
+      <style>
+        @page { size: ${opts.pageSize}; margin: 10mm; }
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: Inter, Segoe UI, Arial, sans-serif; color: #0f172a; font-size: 12px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .page { page-break-after: always; break-after: page; display: flex; flex-direction: column; min-height: 94vh; }
+        .page:last-child { page-break-after: auto; break-after: auto; }
+        .cover { padding: 14mm 10mm; }
+        .cov-bar { height: 6px; width: 90px; background: #f97316; border-radius: 3px; margin-bottom: 18px; }
+        .cov-top { display: flex; justify-content: space-between; font-size: 11px; font-weight: 700; letter-spacing: .08em; color: #64748b; margin-bottom: 10px; }
+        .cover h1 { font-size: 32px; margin: 0 0 8px; letter-spacing: -.02em; }
+        .cov-sub { font-size: 15px; color: #475569; margin: 0 0 24px; }
+        .cov-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+        .cov-kpis div { padding: 12px 14px; border: 1px solid #cbd5e1; border-radius: 8px; background: #f8fafc; }
+        .cov-kpis span { display: block; font-size: 10px; text-transform: uppercase; color: #64748b; font-weight: 700; }
+        .cov-kpis b { font-size: 18px; }
+        .sheet { border: 1.5px solid #1e293b; padding: 6mm; height: 95vh; }
+        .sheet-body { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        .rep-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 6px 8px; border-top: 1px solid #cbd5e1; font-size: 10.5px; color: #334155; }
+        .rep-legend span { display: inline-flex; align-items: center; gap: 5px; }
+        .rep-legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+        .cajetin { display: grid; grid-template-columns: 1.3fr 1.5fr 1.4fr .8fr .8fr .7fr; border: 1.5px solid #1e293b; margin-top: 4px; background: #f8fafc; }
+        .cajetin div { padding: 5px 8px; border-right: 1px solid #cbd5e1; }
+        .cajetin div:last-child { border-right: 0; }
+        .cajetin span { display: block; font-size: 8.5px; font-weight: 700; color: #64748b; letter-spacing: .04em; }
+        .cajetin b { font-size: 11px; }
+        .cajetin .num-box { background: #0f172a; color: #fff; text-align: center; }
+        .cajetin .num-box span { color: #94a3b8; }
+        .measures { padding: 4mm 2mm; }
+        .measures h2 { margin: 0 0 12px; font-size: 18px; border-bottom: 2px solid #f97316; padding-bottom: 6px; }
+        .mblock { margin-bottom: 16px; break-inside: avoid; }
+        .mblock h3 { margin: 0 0 6px; font-size: 14px; }
+        .mblock h3 small { color: #64748b; font-weight: 500; }
+        .rep-tbl { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 8px; }
+        .rep-tbl th, .rep-tbl td { padding: 6px 8px; border: 1px solid #cbd5e1; text-align: left; }
+        .rep-tbl th { background: #f1f5f9; font-size: 10px; text-transform: uppercase; color: #475569; }
+        .rep-tbl .num { text-align: right; font-variant-numeric: tabular-nums; }
+        .m-mini { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: #334155; padding: 8px 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; }
+        .noprint { position: fixed; top: 10px; right: 10px; z-index: 99; display: flex; gap: 8px; }
+        .noprint button { padding: 8px 14px; border-radius: 8px; border: 0; background: #f97316; color: #fff; font-weight: 700; cursor: pointer; }
+        @media print { .noprint { display: none !important; } }
+      </style></head><body>
+      <div class="noprint"><button onclick="window.print()">Guardar PDF / Imprimir</button></div>
+      ${coverHTML}${sheetsHTML}${measuresHTML}
+      <script>window.onload = function(){ setTimeout(function(){ window.print(); }, 350); };<\/script>
+      </body></html>`;
+
+    const win = window.open('', '_blank');
+    if (win) {
+      win.document.open(); win.document.write(docHTML); win.document.close();
+    } else {
+      // Fallback si el navegador móvil bloquea popups: descarga como HTML imprimible
+      download(`memoria-tecnica-${localISO()}.html`, docHTML, 'text/html;charset=utf-8');
+      toast('Popup bloqueado: se descargó el informe HTML (ábrelo e imprime como PDF)', 'info');
+    }
+  }
+
   function openPlanModal(duplicate) {
     const cur = plan();
     const defName = duplicate ? cur.name + ' (copia)' : 'Planta ' + (S().plans.length + 1);
@@ -2393,5 +2712,5 @@ Respeta exactamente la posición de muros, puertas, ventanas y muebles del plano
     return [...set].sort((a, b) => a.localeCompare(b));
   }
 
-  return { init, show, switchPlan, thumb, stats, roomNames, fmtLen, SYMBOLS, SYM_GROUPS, refresh: () => { if (svg) { syncTop(); renderPanel(); requestRender(); } } };
+  return { init, show, switchPlan, openReportModal, thumb, stats, roomNames, fmtLen, SYMBOLS, SYM_GROUPS, refresh: () => { if (svg) { syncTop(); renderPanel(); requestRender(); } } };
 })();

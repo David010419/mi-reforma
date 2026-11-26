@@ -748,6 +748,9 @@ button.save-ind.warn .ic { color: var(--warning); }
 .r3d-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .ai-key-box { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; padding: 12px; border-radius: 11px; background: var(--surface-2); border: 1px solid var(--border); }
 .ai-result img { box-shadow: var(--shadow); }
+.rep-sec { margin-bottom: 14px; padding: 12px 14px; border-radius: 11px; background: var(--surface-2); border: 1px solid var(--border); }
+.rep-sec > b { display: block; font-size: 13px; margin-bottom: 8px; }
+.rep-chks { display: flex; flex-direction: column; gap: 7px; }
 
 /* ---------- Tarjetas móviles para tablas (Control Hipoteca, Partidas, Simulación) ---------- */
 .mob-cards { display: none; flex-direction: column; gap: 10px; }
