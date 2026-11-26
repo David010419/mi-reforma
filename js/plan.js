@@ -99,7 +99,12 @@ const Plan = (() => {
     { kind: 'despensa', name: 'Columna despensa', w: 60, h: 60, h3d: 215 }, { kind: 'vinoteca', name: 'Vinoteca', w: 60, h: 60 }, { kind: 'lavavajillas', name: 'Lavavajillas', w: 60, h: 60 },
     { kind: 'lavadora', name: 'Lavadora', w: 60, h: 60 }, { kind: 'secadora', name: 'Secadora', w: 60, h: 60 }, { kind: 'isla', name: 'Isla cocina', w: 180, h: 90 }, { kind: 'peninsula', name: 'Península / barra', w: 200, h: 90 },
     { kind: 'inodoro', name: 'Inodoro', w: 40, h: 65 }, { kind: 'lavabo', name: 'Lavabo', w: 60, h: 45 }, { kind: 'lavabo2', name: 'Lavabo doble', w: 120, h: 48 },
-    { kind: 'ducha', name: 'Plato ducha', w: 120, h: 80 }, { kind: 'banera', name: 'Bañera', w: 170, h: 75 }, { kind: 'bide', name: 'Bidé', w: 38, h: 55 },
+    { kind: 'muebleBano', name: 'Mueble baño lavabo', w: 90, h: 48, h3d: 82, z0: 0, plinth: 0, handleType: 'unero', frontColor: '#e7dfd5', sections: [{ id: 'b1', kind: 'cajon', h: 40, anim: true }, { id: 'b2', kind: 'cajon', h: 40, anim: true }] },
+    { kind: 'ducha', name: 'Plato ducha', w: 120, h: 80 }, { kind: 'mampara', name: 'Mampara fija cristal', w: 100, h: 6, h3d: 200 },
+    { kind: 'mamparaCorredera', name: 'Mampara corredera', w: 120, h: 8, h3d: 200 }, { kind: 'mamparaAbatible', name: 'Mampara abatible', w: 80, h: 6, h3d: 200 },
+    { kind: 'columnaDucha', name: 'Columna de ducha', w: 30, h: 35, h3d: 215 }, { kind: 'espejoLed', name: 'Espejo baño LED', w: 90, h: 5, h3d: 80, z0: 120 },
+    { kind: 'hornacina', name: 'Hornacina ducha', w: 60, h: 15, h3d: 35, z0: 115 },
+    { kind: 'banera', name: 'Bañera', w: 170, h: 75 }, { kind: 'baneraExenta', name: 'Bañera exenta', w: 170, h: 80, h3d: 58 }, { kind: 'bide', name: 'Bidé', w: 38, h: 55 },
     { kind: 'toallero', name: 'Toallero', w: 60, h: 12 }, { kind: 'generico', name: 'Mueble', w: 100, h: 50 },
     { kind: 'escalera', name: 'Escalera', w: 280, h: 100 }, { kind: 'pilar', name: 'Pilar', w: 35, h: 35 },
     { kind: 'bajante', name: 'Bajante', w: 20, h: 20 }, { kind: 'norte', name: 'Norte (N)', w: 70, h: 70 },
@@ -127,7 +132,17 @@ const Plan = (() => {
     cajonInt: 'Cajón interior oculto', puerta: 'Puerta abatible', puerta2: 'Doble puerta abatible',
     elevable: 'Puerta elevable (alto)', hueco: 'Hueco abierto / estante', horno: 'Hueco electrodoméstico',
   };
-  const MODULAR_KITCHEN = new Set(['moduloCocina', 'muebleBajo', 'muebleCajon', 'muebleAlto', 'despensa', 'isla', 'peninsula']);
+  const MODULAR_KITCHEN = new Set(['moduloCocina', 'muebleBajo', 'muebleCajon', 'muebleAlto', 'despensa', 'isla', 'peninsula', 'muebleBano']);
+  const TEXTURES = {
+    liso: 'Color liso',
+    madera: 'Madera / Roble',
+    marmol: 'Mármol / Silestone',
+    azulejo: 'Azulejo / Porcelánico',
+    metro: 'Azulejo Metro / Ladrillo',
+    microcemento: 'Microcemento / Hormigón',
+    piedra: 'Piedra natural',
+    cesped: 'Césped / Jardín',
+  };
   const TOOLS = [
     { id: 'select', icon: 'pointer', label: 'Seleccionar y mover', key: 'V' },
     { id: 'pan', icon: 'move', label: 'Desplazar vista', key: 'H' },
@@ -182,6 +197,7 @@ const Plan = (() => {
   let undoStack = [], redoStack = [], fitted = false, raf = 0, pinch = null;
   let compareId = null, compareOpacity = 0.35, calib = null, tapGesture = null, pencilHintShown = false;
   let multiSel = new Set(), multiMode = false;
+  let sim2d = { doors: 0, windows: 0, shutters: 0, kitchen: 0, lights: false };
   const pointers = new Map();
   const MIN_S = 0.04, MAX_S = 8;
 
@@ -228,11 +244,21 @@ const Plan = (() => {
   function furnShape(f, s, th, opts = {}) {
     const px = (v) => v / s, w = f.w, h = f.h, x0 = -w / 2, y0 = -h / 2, sw = px(1.2);
     const st = `stroke="${th.furn}" stroke-width="${sw}" fill="none"`;
-    const base = `fill="${th.furnFill}" stroke="${th.furn}" stroke-width="${sw}"`;
+    const fillCol = f.frontColor || th.furnFill;
+    const base = `fill="${fillCol}" stroke="${th.furn}" stroke-width="${sw}"`;
     const R = (x, y, ww, hh, rx = 0, extra = st) => `<rect x="${x}" y="${y}" width="${Math.max(0, ww)}" height="${Math.max(0, hh)}" rx="${rx}" ${extra}/>`;
     let o = '';
     switch (f.kind) {
       case 'mesaRedonda': o += `<ellipse rx="${w / 2}" ry="${h / 2}" ${base}/><ellipse rx="${w / 2 - 6}" ry="${h / 2 - 6}" ${st}/>`; break;
+      case 'baneraExenta': o += `<ellipse rx="${w / 2}" ry="${h / 2}" ${base}/><ellipse rx="${w / 2 - 8}" ry="${h / 2 - 8}" ${st}/><circle cx="${x0 + 20}" cy="0" r="3" ${st}/>`; break;
+      case 'mampara': o += R(x0, y0, w, h, 1, `fill="#38bdf8" fill-opacity=".45" stroke="#0284c7" stroke-width="${sw * 1.4}"`); break;
+      case 'mamparaCorredera': o += R(x0, y0, w * 0.56, h * 0.5, 1, `fill="#38bdf8" fill-opacity=".45" stroke="#0284c7" stroke-width="${sw}"`) + R(x0 + w * 0.44, 0, w * 0.56, h * 0.5, 1, `fill="#38bdf8" fill-opacity=".45" stroke="#0284c7" stroke-width="${sw}"`); break;
+      case 'mamparaAbatible': {
+        const ang = (sim2d.doors || 0) * 75;
+        o += `<g transform="translate(${x0} 0) rotate(${ang}) translate(${-x0} 0)">${R(x0, y0, w, h, 1, `fill="#38bdf8" fill-opacity=".48" stroke="#0284c7" stroke-width="${sw * 1.4}"`)}</g>
+          <path d="M${-x0} 0 A${w} ${w} 0 0 1 ${x0} ${w}" fill="none" stroke="#0284c7" stroke-width="${sw}" stroke-dasharray="${px(4)} ${px(3)}" opacity=".6"/>`;
+        break;
+      }
       case 'taburete': o += `<circle r="${Math.min(w, h) / 2}" ${base}/><circle r="${Math.min(w, h) * 0.28}" ${st}/>`; break;
       case 'sofaL': {
         const d1 = Math.min(90, h * 0.55), d2 = Math.min(95, w * 0.36);
@@ -316,6 +342,10 @@ const Plan = (() => {
       case 'campana': o += `<path d="M${x0} ${y0} L${-x0} ${-y0} M${-x0} ${y0} L${x0} ${-y0}" ${st} stroke-dasharray="${px(4)} ${px(3)}"/><circle r="${Math.min(w, h) * 0.16}" ${st}/>`; break;
       case 'peninsula': o += `<line x1="${x0}" y1="0" x2="${-x0}" y2="0" ${st} stroke-dasharray="${px(5)} ${px(3)}"/>`; break;
       case 'lavabo2': o += `<ellipse cx="${-w * 0.25}" cy="2" rx="${w * 0.19}" ry="${h * 0.3}" ${st}/><ellipse cx="${w * 0.25}" cy="2" rx="${w * 0.19}" ry="${h * 0.3}" ${st}/>`; break;
+      case 'muebleBano': o += `<ellipse cx="0" cy="2" rx="${Math.min(26, w * 0.32)}" ry="${h * 0.32}" ${st}/><circle cx="0" cy="${y0 + 7}" r="2.5" ${st}/>`; break;
+      case 'columnaDucha': o += `<circle cx="0" cy="4" r="${Math.min(w, h) * 0.35}" fill="#bae6fd" stroke="#0284c7" stroke-width="${sw}"/><circle cx="0" cy="4" r="3" fill="#0284c7"/>`; break;
+      case 'espejoLed': o += R(x0, y0, w, h, 1, `fill="#fef08a" fill-opacity=".7" stroke="#eab308" stroke-width="${sw * 1.4}"`); break;
+      case 'hornacina': o += R(x0 + 3, y0 + 3, w - 6, h - 6, 1, `${st} stroke-dasharray="${px(3)} ${px(2)}"`); break;
       case 'toallero': o += `<line x1="${x0 + 6}" y1="0" x2="${-x0 - 6}" y2="0" stroke="#ef4444" stroke-width="${sw * 1.6}"/>`; break;
       case 'moto': case 'bici': o += `<ellipse cx="${-w * 0.3}" cy="0" rx="${w * 0.14}" ry="${h * 0.16}" ${st}/><ellipse cx="${w * 0.3}" cy="0" rx="${w * 0.14}" ry="${h * 0.16}" ${st}/><line x1="${-w * 0.3}" y1="0" x2="${w * 0.3}" y2="0" ${st} stroke-width="${sw * 1.5}"/>`; break;
       case 'huerto': o += R(x0 + 6, y0 + 6, w - 12, h - 12, 4, `fill="#86efac" fill-opacity=".35" stroke="#16a34a" stroke-width="${sw}"`); break;
@@ -372,50 +402,60 @@ const Plan = (() => {
     if (o.type === 'door') {
       inner += jamb;
       const sd = o.side || 1, y0 = sd * ht;
+      const aOpen = sim2d.doors || 0;
       const leaf = (hx, ox, len) => {
         const sweep = ((hx > ox) !== (sd < 0)) ? 1 : 0;
-        return `<path d="M${hx} ${y0} L${hx} ${y0 + sd * len}" stroke="${c}" stroke-width="${px(2.2)}"/>
+        const dir = ox > hx ? 1 : -1;
+        // Ángulo animado en 2D: 0 = cerrada (a lo largo del hueco), 1 = abierta 90°
+        const ang = (Math.PI / 2) * (0.15 + aOpen * 0.85);
+        const ex = hx + Math.cos(ang) * len * dir, ey = y0 + Math.sin(ang) * len * sd;
+        return `<path d="M${hx} ${y0} L${ex} ${ey}" stroke="${c}" stroke-width="${px(2.4)}"/>
           <path d="M${hx} ${y0 + sd * len} A${len} ${len} 0 0 ${sweep} ${ox} ${y0}" fill="none" stroke="${c}" stroke-width="${px(1)}" stroke-dasharray="${px(4)} ${px(3)}"/>`;
       };
       if (o.kind === 'corredera') {
         const yy = sd > 0 ? ht + px(1) : -ht - px(1) - 4;
-        inner += `<rect x="${o.hinge === 'right' ? -hw + o.width * 0.15 : -hw - o.width * 0.15}" y="${yy}" width="${o.width}" height="4" fill="${th.furnFill}" stroke="${c}" stroke-width="${px(1.5)}"/>`;
+        const shift = aOpen * o.width * 0.75 * (o.hinge === 'right' ? 1 : -1);
+        inner += `<rect x="${(o.hinge === 'right' ? -hw + o.width * 0.15 : -hw - o.width * 0.15) + shift}" y="${yy}" width="${o.width}" height="4" fill="${th.furnFill}" stroke="${c}" stroke-width="${px(1.5)}"/>`;
       } else if (o.kind === 'correderaDoble') {
         inner += `<rect x="${-hw}" y="${-ht}" width="${o.width}" height="${g.thick}" fill="${th.glass}" stroke="${c}" stroke-width="${px(1.3)}"/>
-          <line x1="${-hw}" y1="${-ht / 3}" x2="${px(6)}" y2="${-ht / 3}" stroke="${c}" stroke-width="${px(1.5)}"/>
-          <line x1="${-px(6)}" y1="${ht / 3}" x2="${hw}" y2="${ht / 3}" stroke="${c}" stroke-width="${px(1.5)}"/>`;
+          <line x1="${-hw + aOpen * hw * 0.6}" y1="${-ht / 3}" x2="${px(6) + aOpen * hw * 0.6}" y2="${-ht / 3}" stroke="${c}" stroke-width="${px(1.5)}"/>
+          <line x1="${-px(6) - aOpen * hw * 0.6}" y1="${ht / 3}" x2="${hw - aOpen * hw * 0.6}" y2="${ht / 3}" stroke="${c}" stroke-width="${px(1.5)}"/>`;
       } else if (o.kind === 'doble') {
         inner += leaf(-hw, 0, hw) + leaf(hw, 0, hw);
       } else if (o.kind === 'balconera') {
         inner += `<rect x="${-hw}" y="${-ht}" width="${o.width}" height="${g.thick}" fill="${th.glass}" stroke="${c}" stroke-width="${px(1.2)}"/>` + leaf(-hw, 0, hw) + leaf(hw, 0, hw);
       } else if (o.kind === 'garaje') {
-        inner += `<rect x="${-hw}" y="${-ht}" width="${o.width}" height="${g.thick}" fill="${th.furnFill}" stroke="${c}" stroke-width="${px(1.8)}"/>`;
+        inner += `<rect x="${-hw}" y="${-ht}" width="${o.width}" height="${g.thick}" fill="${aOpen > 0.5 ? 'transparent' : th.furnFill}" stroke="${c}" stroke-width="${px(1.8)}" ${aOpen > 0.5 ? `stroke-dasharray="${px(5)} ${px(4)}"` : ''}/>`;
         const segs = Math.max(4, Math.round(o.width / 45));
-        for (let i = 1; i < segs; i++) { const xx = -hw + (o.width / segs) * i; inner += `<line x1="${xx}" y1="${-ht}" x2="${xx}" y2="${ht}" stroke="${c}" stroke-width="${px(1)}"/>`; }
+        if (aOpen < 0.5) for (let i = 1; i < segs; i++) { const xx = -hw + (o.width / segs) * i; inner += `<line x1="${xx}" y1="${-ht}" x2="${xx}" y2="${ht}" stroke="${c}" stroke-width="${px(1)}"/>`; }
         inner += `<line x1="${-hw}" y1="${sd * (ht + 12)}" x2="${hw}" y2="${sd * (ht + 12)}" stroke="${c}" stroke-width="${px(1)}" stroke-dasharray="${px(5)} ${px(3)}"/>
-          <circle cx="0" cy="${sd * (ht + 12)}" r="${px(7)}" fill="#f59e0b" stroke="${th.bg}" stroke-width="${px(1.2)}"/>
+          <circle cx="0" cy="${sd * (ht + 12)}" r="${px(7)}" fill="${aOpen > 0.5 ? '#10b981' : '#f59e0b'}" stroke="${th.bg}" stroke-width="${px(1.2)}"/>
           <text x="0" y="${sd * (ht + 12)}" text-anchor="middle" dominant-baseline="central" font-size="${px(8)}" font-weight="800" fill="#fff">⚡</text>`;
       } else if (o.kind === 'blindada') {
         const hx = o.hinge === 'right' ? hw : -hw;
-        inner += `<path d="M${hx} ${y0} L${hx} ${y0 + sd * o.width}" stroke="${c}" stroke-width="${px(4)}"/>
+        const dir = hx < 0 ? 1 : -1, ang = (Math.PI / 2) * (0.15 + aOpen * 0.85);
+        inner += `<path d="M${hx} ${y0} L${hx + Math.cos(ang) * o.width * dir} ${y0 + Math.sin(ang) * o.width * sd}" stroke="${c}" stroke-width="${px(4)}"/>
           <path d="M${hx} ${y0 + sd * o.width} A${o.width} ${o.width} 0 0 ${((hx > -hx) !== (sd < 0)) ? 1 : 0} ${-hx} ${y0}" fill="none" stroke="${c}" stroke-width="${px(1.1)}" stroke-dasharray="${px(4)} ${px(3)}"/>`;
       } else if (o.kind !== 'hueco') {
         const hx = o.hinge === 'right' ? hw : -hw;
         inner += leaf(hx, -hx, o.width);
       }
     } else {
-      inner += `<rect x="${-hw}" y="${-ht}" width="${o.width}" height="${g.thick}" fill="${th.glass}" stroke="${c}" stroke-width="${px(1.3)}"/>
+      const aWin = sim2d.windows || 0, aShut = sim2d.shutters || 0;
+      inner += `<rect x="${-hw}" y="${-ht}" width="${o.width}" height="${g.thick}" fill="${aShut > 0.5 && o.shutter && o.shutter !== 'none' ? '#64748b' : th.glass}" stroke="${c}" stroke-width="${px(1.3)}"/>
         <line x1="${-hw}" y1="0" x2="${hw}" y2="0" stroke="${c}" stroke-width="${px(1)}"/>`;
       const sd = o.side || 1, y0 = sd * ht;
       if (o.kind === 'corredera') {
         inner += `<line x1="${-hw}" y1="${-ht / 3}" x2="${px(4)}" y2="${-ht / 3}" stroke="${c}" stroke-width="${px(1)}"/><line x1="${-px(4)}" y1="${ht / 3}" x2="${hw}" y2="${ht / 3}" stroke="${c}" stroke-width="${px(1)}"/>`;
       } else if (o.kind === 'abatible' || o.kind === 'oscilobatiente') {
-        const swing = Math.min(o.width * 0.55, 65);
-        inner += `<path d="M${-hw} ${y0} L${-hw} ${y0 + sd * swing} A${swing} ${swing} 0 0 ${sd > 0 ? 0 : 1} ${-hw + swing} ${y0}" fill="none" stroke="${c}" stroke-width="${px(1)}" stroke-dasharray="${px(3)} ${px(2.5)}"/>`;
+        const swing = Math.min(o.width * 0.55, 65), ang = (Math.PI / 2) * (0.2 + aWin * 0.8);
+        inner += `<path d="M${-hw} ${y0} L${-hw + Math.cos(ang) * swing} ${y0 + Math.sin(ang) * swing * sd}" stroke="${c}" stroke-width="${px(1.6)}" ${aWin > 0.05 ? '' : `opacity=".4"`}/>
+          <path d="M${-hw} ${y0 + sd * swing} A${swing} ${swing} 0 0 ${sd > 0 ? 0 : 1} ${-hw + swing} ${y0}" fill="none" stroke="${c}" stroke-width="${px(1)}" stroke-dasharray="${px(3)} ${px(2.5)}"/>`;
       } else if (o.kind === 'abatible2' || o.kind === 'balconera') {
-        const swing = Math.min(hw * 0.85, 65);
-        inner += `<path d="M${-hw} ${y0} L${-hw} ${y0 + sd * swing} A${swing} ${swing} 0 0 ${sd > 0 ? 0 : 1} ${-hw + swing} ${y0}" fill="none" stroke="${c}" stroke-width="${px(1)}" stroke-dasharray="${px(3)} ${px(2.5)}"/>
-          <path d="M${hw} ${y0} L${hw} ${y0 + sd * swing} A${swing} ${swing} 0 0 ${sd > 0 ? 1 : 0} ${hw - swing} ${y0}" fill="none" stroke="${c}" stroke-width="${px(1)}" stroke-dasharray="${px(3)} ${px(2.5)}"/>`;
+        const swing = Math.min(hw * 0.85, 65), ang = (Math.PI / 2) * (0.2 + aWin * 0.8);
+        inner += `<path d="M${-hw} ${y0} L${-hw + Math.cos(ang) * swing} ${y0 + Math.sin(ang) * swing * sd} M${hw} ${y0} L${hw - Math.cos(ang) * swing} ${y0 + Math.sin(ang) * swing * sd}" stroke="${c}" stroke-width="${px(1.6)}" ${aWin > 0.05 ? '' : `opacity=".4"`}/>
+          <path d="M${-hw} ${y0 + sd * swing} A${swing} ${swing} 0 0 ${sd > 0 ? 0 : 1} ${-hw + swing} ${y0}" fill="none" stroke="${c}" stroke-width="${px(1)}" stroke-dasharray="${px(3)} ${px(2.5)}"/>
+          <path d="M${hw} ${y0 + sd * swing} A${swing} ${swing} 0 0 ${sd > 0 ? 1 : 0} ${hw - swing} ${y0}" fill="none" stroke="${c}" stroke-width="${px(1)}" stroke-dasharray="${px(3)} ${px(2.5)}"/>`;
       }
       if (o.shutter === 'manual' || o.shutter === 'electric') {
         const sy = -sd * (ht + px(4));
@@ -443,9 +483,13 @@ const Plan = (() => {
     const wallMap = new Map(list.filter((e) => e.type === 'wall').map((w) => [w.id, w]));
     const walls = vis.filter((e) => e.type === 'wall');
     let out = '';
-    // Habitaciones
+    // Habitaciones (con textura opcional en 2D)
     vis.filter((e) => e.type === 'room' && e.points.length >= 3).forEach((r) => {
-      out += `<polygon data-id="${r.id}" points="${r.points.map((p) => p.join(',')).join(' ')}" fill="${r.color || ROOM_COLORS[0]}" fill-opacity="${th.roomOpacity}" stroke="${r.color || ROOM_COLORS[0]}" stroke-opacity=".9" stroke-width="${px(1)}"/>`;
+      const pts = r.points.map((p) => p.join(',')).join(' ');
+      out += `<polygon data-id="${r.id}" points="${pts}" fill="${r.color || ROOM_COLORS[0]}" fill-opacity="${th.roomOpacity}" stroke="${r.color || ROOM_COLORS[0]}" stroke-opacity=".9" stroke-width="${px(1)}"/>`;
+      if (r.floorTexture && r.floorTexture !== 'liso') {
+        out += `<polygon points="${pts}" fill="url(#tex-${r.floorTexture})" pointer-events="none"/>`;
+      }
     });
     // Muros: contorno + relleno (fusionados)
     const solid = walls.filter((w) => w.status !== 'demoler');
@@ -474,9 +518,20 @@ const Plan = (() => {
         out += `<text x="${mx}" y="${my}" transform="rotate(${ra} ${mx} ${my})" text-anchor="middle" dominant-baseline="central" font-size="${px(10)}" font-weight="600" fill="${th.dim}" opacity=".9" paint-order="stroke" stroke="${th.bg}" stroke-width="${px(3)}" stroke-linejoin="round" pointer-events="none">${fmtLen(Lw)}</text>`;
       });
     }
-    // Mobiliario
+    // Mobiliario (con textura + animación de cajones/puertas de cocina en 2D)
     vis.filter((e) => e.type === 'furn').forEach((f) => {
-      out += `<g data-id="${f.id}" transform="translate(${f.x} ${f.y}) rotate(${f.angle || 0})">${furnShape(f, s, th)}</g>`;
+      let extra = '';
+      if (f.texture && f.texture !== 'liso') {
+        extra += `<rect x="${-f.w / 2}" y="${-f.h / 2}" width="${f.w}" height="${f.h}" fill="url(#tex-${f.texture})" pointer-events="none"/>`;
+      }
+      if (sim2d.kitchen > 0.05 && (MODULAR_KITCHEN.has(f.kind) || ['horno', 'microondas', 'nevera', 'lavavajillas'].includes(f.kind))) {
+        const pull = 34 * sim2d.kitchen;
+        extra += `<rect x="${-f.w / 2 + 3}" y="${f.h / 2}" width="${f.w - 6}" height="${pull}" fill="#f97316" fill-opacity=".22" stroke="#ea580c" stroke-width="${px(1.3)}" stroke-dasharray="${px(4)} ${px(3)}" pointer-events="none"/>`;
+      }
+      if (sim2d.lights && f.kind === 'espejoLed' && Obra.isCircuitLive(Obra.inferCircuitId(f) || 'c1')) {
+        extra += `<ellipse cx="0" cy="0" rx="${f.w * 0.7}" ry="${f.w * 0.45}" fill="url(#lightGlow2d)" pointer-events="none"/>`;
+      }
+      out += `<g data-id="${f.id}" transform="translate(${f.x} ${f.y}) rotate(${f.angle || 0})">${furnShape(f, s, th)}${extra}</g>`;
     });
     // Etiquetas de habitaciones
     vis.filter((e) => e.type === 'room' && e.points.length >= 3).forEach((r) => {
@@ -498,7 +553,15 @@ const Plan = (() => {
       }
       out += `<line data-id="${d.id}" x1="${d.x1}" y1="${d.y1}" x2="${d.x2}" y2="${d.y2}" stroke="transparent" stroke-width="${Math.max(w, px(12))}"/>`;
     });
-    // Instalaciones
+    // Instalaciones (con simulación de halos de luz en 2D respetando el Cuadro Eléctrico)
+    if (sim2d.lights) {
+      vis.filter((e) => e.type === 'sym' && ['luz', 'foco', 'tiraLed', 'aplique'].includes(e.kind)).forEach((y) => {
+        if (Obra.isCircuitLive(Obra.inferCircuitId(y))) {
+          const rad = y.kind === 'foco' ? 95 : 155;
+          out += `<circle cx="${y.x}" cy="${y.y}" r="${rad}" fill="url(#lightGlow2d)" pointer-events="none"/>`;
+        }
+      });
+    }
     vis.filter((e) => e.type === 'sym').forEach((y) => { out += `<g data-id="${y.id}" transform="translate(${y.x} ${y.y})">${symShape(y, s, th)}</g>`; });
     // Cotas
     vis.filter((e) => e.type === 'dim').forEach((d) => { out += `<g data-id="${d.id}">${dimShape(d, s, th)}</g>`; });
@@ -606,6 +669,16 @@ const Plan = (() => {
         <div class="pt-group">
           <button class="tgl" id="pBgBtn" data-pa="bgModal" title="Imagen de fondo para calcar un plano real">${icon('image', 15)}<span>Calcar</span></button>
           <button class="tgl" id="pCmpBtn" data-pa="compareModal" title="Comparar con otro plano (Antes / Después)">${icon('compare', 15)}<span>Comparar</span></button>
+          <details class="dropdown">
+            <summary class="tgl" id="pSimBtn" title="Animar puertas, ventanas, persianas, cocina y luces directamente en el plano 2D">${icon('bolt', 15)}<span>Simular 2D</span></summary>
+            <div class="dd-menu" id="pSimMenu">
+              <button data-pa="sim2dDoors">🚪 Abrir / cerrar puertas y garaje</button>
+              <button data-pa="sim2dWindows">🪟 Abrir / cerrar ventanas</button>
+              <button data-pa="sim2dShutters">⚡ Bajar / subir persianas</button>
+              <button data-pa="sim2dKitchen">🍳 Abrir cajones y cocina</button>
+              <button data-pa="sim2dLights">💡 Encender / apagar luces (Cuadro CGE)</button>
+            </div>
+          </details>
           <button class="btn sm" data-pa="render3d" title="Ver en 3D interactivo, animar y generar render">${icon('box', 15)}<span>Vista 3D</span></button>
           <button class="btn sm" data-pa="exportPdf" title="Generar Memoria Técnica de Planos en PDF">${icon('receipt', 15)}<span>Informe PDF</span></button>
           <button class="tgl" id="pDeskPanelBtn" data-pa="toggleDeskPanel" title="Ocultar / mostrar panel derecho (más espacio en iPad)">${icon('sliders', 15)}<span>Panel</span></button>
@@ -668,6 +741,7 @@ const Plan = (() => {
     const cmpB = $('#pCmpBtn'); if (cmpB) cmpB.classList.toggle('on', !!compareId);
     const dpb = $('#pDeskPanelBtn'); if (dpb) dpb.classList.toggle('on', !pui.panelHidden);
     const mb = $('#pMultiBtn'); if (mb) mb.classList.toggle('on', !!multiMode);
+    const simB = $('#pSimBtn'); if (simB) simB.classList.toggle('on', !!(sim2d.doors > 0 || sim2d.windows > 0 || sim2d.shutters > 0 || sim2d.kitchen > 0 || sim2d.lights));
     if (root) root.classList.toggle('panel-hidden', !!pui.panelHidden);
     $('#pUndo').disabled = !undoStack.length; $('#pRedo').disabled = !redoStack.length;
     updateSelBar();
@@ -772,15 +846,24 @@ const Plan = (() => {
     const th = T(), s = view.s, r = svg.getBoundingClientRect();
     svg.style.background = th.bg;
     world.setAttribute('transform', `translate(${view.x} ${view.y}) scale(${s})`);
+    const texDefs = `
+      <radialGradient id="lightGlow2d"><stop offset="0%" stop-color="#fde047" stop-opacity=".75"/><stop offset="45%" stop-color="#fbbf24" stop-opacity=".28"/><stop offset="100%" stop-color="#fbbf24" stop-opacity="0"/></radialGradient>
+      <pattern id="tex-madera" width="40" height="14" patternUnits="userSpaceOnUse"><path d="M0 7H40 M15 0V7 M35 7V14" stroke="rgba(120,72,24,0.22)" stroke-width="1" fill="none"/></pattern>
+      <pattern id="tex-azulejo" width="30" height="30" patternUnits="userSpaceOnUse"><path d="M30 0H0V30" stroke="rgba(15,23,42,0.2)" stroke-width="1" fill="none"/></pattern>
+      <pattern id="tex-metro" width="30" height="15" patternUnits="userSpaceOnUse"><path d="M0 0H30 M0 7.5H30 M0 0V7.5 M15 7.5V15" stroke="rgba(15,23,42,0.2)" stroke-width="1" fill="none"/></pattern>
+      <pattern id="tex-marmol" width="60" height="60" patternUnits="userSpaceOnUse"><path d="M0 20 Q20 5 45 25 T60 40 M10 55 Q35 35 60 50" stroke="rgba(100,116,139,0.24)" stroke-width="1.2" fill="none"/></pattern>
+      <pattern id="tex-microcemento" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="5" cy="7" r="1" fill="rgba(15,23,42,0.14)"/><circle cx="17" cy="15" r="1.2" fill="rgba(15,23,42,0.12)"/><circle cx="12" cy="21" r=".8" fill="rgba(15,23,42,0.14)"/></pattern>
+      <pattern id="tex-piedra" width="40" height="30" patternUnits="userSpaceOnUse"><path d="M0 15L14 12L28 17L40 14 M14 0V12 M28 17V30" stroke="rgba(15,23,42,0.22)" stroke-width="1" fill="none"/></pattern>
+      <pattern id="tex-cesped" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M4 10L6 6M14 16L16 12M10 18L11 14" stroke="rgba(22,163,74,0.35)" stroke-width="1.2" stroke-linecap="round"/></pattern>`;
     let grid = '';
     if (pui.layers.grid) {
       let m = 10; if (m * s < 7) m = 50; if (m * s < 7) m = 0;
       let M = 100; if (M * s < 10) M = 500; if (M * s < 10) M = 1000;
-      defs.innerHTML = (m ? `<pattern id="gMinor" width="${m}" height="${m}" patternUnits="userSpaceOnUse"><path d="M${m} 0H0V${m}" fill="none" stroke="${th.grid}" stroke-width="${2 / s}"/></pattern>` : '')
+      defs.innerHTML = texDefs + (m ? `<pattern id="gMinor" width="${m}" height="${m}" patternUnits="userSpaceOnUse"><path d="M${m} 0H0V${m}" fill="none" stroke="${th.grid}" stroke-width="${2 / s}"/></pattern>` : '')
         + `<pattern id="gMajor" width="${M}" height="${M}" patternUnits="userSpaceOnUse"><path d="M${M} 0H0V${M}" fill="none" stroke="${th.gridMajor}" stroke-width="${2 / s}"/></pattern>`;
       const x0 = -view.x / s, y0 = -view.y / s, w = r.width / s, h = r.height / s;
       grid = (m ? `<rect x="${x0}" y="${y0}" width="${w}" height="${h}" fill="url(#gMinor)" pointer-events="none"/>` : '') + `<rect x="${x0}" y="${y0}" width="${w}" height="${h}" fill="url(#gMajor)" pointer-events="none"/>`;
-    }
+    } else defs.innerHTML = texDefs;
     let bg = '';
     const bgi = plan().bgImage;
     if (bgi && bgi.src) {
@@ -1708,6 +1791,8 @@ const Plan = (() => {
           ${F.num('Longitud', 'length', L)}${F.num('Grosor', 'thick', el.thick)}
           ${F.num('Ángulo', 'wangle', Math.round((((-deg(Math.atan2(el.y2 - el.y1, el.x2 - el.x1))) % 360) + 360) % 360 * 10) / 10, '°')}${F.num('Altura', 'height', el.height || 250)}
           ${F.sel('Estado', 'status', el.status || 'existente', WALL_STATUS, true)}
+          <label class="pf"><span>Color / pintura</span><input type="color" data-p="wallColor" value="${el.wallColor || '#e2e8f0'}"></label>
+          ${F.sel('Textura / revestimiento', 'wallTexture', el.wallTexture || 'liso', TEXTURES, true)}
         </div>
         <div class="pinfos">${F.info('Superficie por cara', fmtNum((L * (el.height || 250)) / 10000) + ' m²')}${F.info('Huecos en el muro', ops.length + (huecos ? ` (${fmtNum(huecos)} m²)` : ''))}${F.info('Superficie neta por cara', fmtNum((L * (el.height || 250)) / 10000 - huecos) + ' m²')}</div>
         ${F.area('Notas', 'note', el.note, 'Material, refuerzos, rozas…')}</div>
@@ -1719,7 +1804,7 @@ const Plan = (() => {
         return head('roomrect', esc(el.name || 'Habitación'), fmtNum(a) + ' m²') + `<div class="psec">
           ${F.text('Nombre', 'name', el.name, 'Ej. Cocina')}
           <div class="pf full"><span>Color</span><div class="swatches">${ROOM_COLORS.map((col) => `<button class="sw ${col === el.color ? 'on' : ''}" style="--c:${col}" data-a="color" data-c="${col}"></button>`).join('')}</div></div>
-          <div class="pgrid">${F.num('Altura de techo', 'ceiling', c)}</div>
+          <div class="pgrid">${F.num('Altura de techo', 'ceiling', c)}${F.sel('Textura suelo', 'floorTexture', el.floorTexture || 'liso', TEXTURES, true)}</div>
           ${F.text('Suelo / pavimento', 'floor', el.floor, 'Ej. Porcelánico 60x60')}
           ${F.text('Paredes / acabado', 'wallsFinish', el.wallsFinish, 'Ej. Pintura plástica blanca')}
           <div class="pinfos">
@@ -1759,11 +1844,10 @@ const Plan = (() => {
         const secs = Array.isArray(el.sections) ? el.sections : [];
         const modH = el.h3d || st3d.h, plinth = el.plinth ?? (el.z0 > 0 ? 0 : 10), usedH = secs.reduce((a, s) => a + num(s.h, 0), 0);
         const modHTML = isMod ? `<div class="psec">
-          <h4>${icon('layers', 16)} Módulo de cocina (10–300 cm)</h4>
+          <h4>${icon('layers', 16)} Módulo configurable (10–300 cm)</h4>
           <div class="pgrid">
             ${F.sel('Tipo apertura / tirador', 'handleType', el.handleType || 'gola', HANDLE_KINDS, true)}
             ${F.num('Zócalo', 'plinth', plinth)}
-            <label class="pf"><span>Color frente</span><input type="color" data-p="frontColor" value="${el.frontColor || '#f1ede6'}"></label>
           </div>
           <div class="pinfo" style="margin-top:4px"><span>Altura útil / ocupada</span><b class="${usedH > (modH - plinth) ? 'danger-txt' : ''}">${r1(usedH)} / ${r1(modH - plinth)} cm</b></div>
           <div class="mod-secs">${secs.map((s, idx) => `<div class="mod-sec" data-sidx="${idx}">
@@ -1773,7 +1857,7 @@ const Plan = (() => {
               <button class="icon-btn sm" data-a="delSec" data-sidx="${idx}" title="Quitar">${icon('x', 13)}</button>
             </div>
             <div class="ms-opts">
-              <label class="chk small"><input type="checkbox" data-sf="anim" ${s.anim !== false ? 'checked' : ''}> Animar 3D</label>
+              <label class="chk small"><input type="checkbox" data-sf="anim" ${s.anim !== false ? 'checked' : ''}> Animar</label>
               <label class="chk small"><input type="checkbox" data-sf="cutlery" ${s.cutlery || s.kind === 'cubertero' ? 'checked' : ''}> Cubertero</label>
             </div>
           </div>`).join('') || '<p class="phint">Módulo hueco: añade cajones, puertas o estantes abajo.</p>'}</div>
@@ -1784,6 +1868,8 @@ const Plan = (() => {
           <div class="pgrid">
             ${F.num('Ancho (10-300)', 'w', el.w)}${F.num('Fondo', 'h', el.h)}
             ${F.num('Altura 3D', 'h3d', el.h3d || st3d.h)}${F.num('Elevación suelo (Z)', 'z0', el.z0 ?? st3d.z0 ?? 0)}
+            <label class="pf"><span>Color / acabado</span><input type="color" data-p="frontColor" value="${el.frontColor || st3d.c || '#f1ede6'}"></label>
+            ${F.sel('Textura / material', 'texture', el.texture || 'liso', TEXTURES, true)}
             ${F.num('Ángulo', 'angle', el.angle || 0, '°', 15)}${F.num('Consumo (si elec.)', 'watts', el.watts ?? (Obra.DEFAULT_WATTS[el.kind] || 0), 'W')}
             ${F.sel('Circuito eléctrico', 'circuitId', el.circuitId || '', cirOpts, true)}
           </div>
@@ -1998,6 +2084,27 @@ const Plan = (() => {
         case 'lockSel': toggleLockSel(); break;
         case 'clearSel': sel = null; multiSel.clear(); renderPanel(); requestRender(); break;
         case 'toggleMulti': multiMode = !multiMode; if (multiMode) setTool('select', true); syncTop(); toast(multiMode ? 'Multiselección activa: toca varios elementos o arrastra un recuadro' : 'Multiselección desactivada', 'info'); break;
+        case 'sim2dDoors': case 'sim2dWindows': case 'sim2dShutters': case 'sim2dKitchen': {
+          const map = { sim2dDoors: 'doors', sim2dWindows: 'windows', sim2dShutters: 'shutters', sim2dKitchen: 'kitchen' };
+          const key = map[a.dataset.pa];
+          const from = sim2d[key] || 0, to = from > 0.5 ? 0 : 1, t0 = performance.now();
+          const step = (now) => {
+            const p = Math.min(1, (now - t0) / 420);
+            const e2 = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+            sim2d[key] = from + (to - from) * e2;
+            requestRender();
+            if (p < 1) requestAnimationFrame(step);
+            else syncTop();
+          };
+          requestAnimationFrame(step);
+          break;
+        }
+        case 'sim2dLights':
+          sim2d.lights = !sim2d.lights;
+          syncTop();
+          requestRender();
+          toast(sim2d.lights ? 'Simulación de luces 2D activada (según Cuadro Eléctrico)' : 'Simulación de luces 2D apagada', 'info');
+          break;
       }
     });
     root.addEventListener('change', (e) => {
@@ -2162,7 +2269,12 @@ const Plan = (() => {
       case 'silla': case 'sillaOficina': case 'taburete': case 'mesita': case 'tv': return { h: 52, c: '#b8a898' };
       case 'mesaCentro': case 'tumbona': return { h: 40, c: '#c9a67d' };
       case 'inodoro': case 'lavabo': case 'lavabo2': case 'bide': return { h: 75, c: '#f1f5f9' };
-      case 'ducha': case 'duchaExt': case 'banera': return { h: 42, c: '#bae6fd' };
+      case 'muebleBano': return { h: 82, z0: 0, c: '#e7dfd5' };
+      case 'mampara': case 'mamparaCorredera': case 'mamparaAbatible': return { h: 200, z0: 0, c: '#38bdf8', glass: true };
+      case 'columnaDucha': return { h: 215, z0: 0, c: '#cbd5e1' };
+      case 'espejoLed': return { h: 80, z0: 120, c: '#e0f2fe' };
+      case 'hornacina': return { h: 35, z0: 115, c: '#94a3b8' };
+      case 'ducha': case 'duchaExt': case 'banera': case 'baneraExenta': return { h: 48, c: '#bae6fd' };
       case 'piscina': return { h: 6, c: '#38bdf8' };
       case 'alfombra': return { h: 2, c: '#e2d9c8' };
       case 'pergola': return { h: 235, c: '#a67c52' };
@@ -2267,7 +2379,7 @@ const Plan = (() => {
       if (w.status === 'demoler' && state3d.hideDemo) return;
       const L = wlen(w); if (L < 1) return;
       const wh = (w.height || 250) * hFactor;
-      const col = w.status === 'nuevo' ? '#fdba74' : w.status === 'demoler' ? '#fde047' : '#e2e8f0';
+      const col = w.status === 'nuevo' ? '#fdba74' : w.status === 'demoler' ? '#fde047' : (w.wallColor || '#e2e8f0');
       const alpha = w.status === 'demoler' ? 0.45 : 1;
       const ht = w.thick / 2;
       const ops = (opsByWall.get(w.id) || []).map((o) => {
@@ -2440,10 +2552,31 @@ const Plan = (() => {
           });
           return;
         }
+        if (st.glass) {
+          // Mamparas de ducha de cristal translúcido + perfilería metálica (con animación en abatible/corredera)
+          const aDoor = state3d.animDoors || 0;
+          const frameCol = isSel3d ? '#fb923c' : '#334155';
+          const glassCol = isSel3d ? '#fdba74' : (f.frontColor || st.c);
+          localBox(-hw, -hh, -hw + 2.5, hh, fZ0, fZ0 + fH, frameCol, 1);
+          localBox(hw - 2.5, -hh, hw, hh, fZ0, fZ0 + fH, frameCol, 1);
+          if (f.kind === 'mamparaCorredera') {
+            localBox(-hw + 2.5, -hh * 0.4, 2, hh * 0.4, fZ0 + 2, fZ0 + fH - 2, glassCol, 0.42);
+            const slide = aDoor * (hw - 4);
+            localBox(-slide, hh * 0.1, hw - 2.5 - slide, hh * 0.9, fZ0 + 2, fZ0 + fH - 2, glassCol, 0.48);
+          } else if (f.kind === 'mamparaAbatible' && aDoor > 0.03) {
+            const ang = aDoor * 75, dw = f.w - 5;
+            const p0 = rotPt(-hw + 2.5, 0, a), p1 = rotPt(-hw + 2.5 + Math.cos((ang * Math.PI) / 180) * dw, Math.sin((ang * Math.PI) / 180) * dw, a);
+            const p2 = rotPt(-hw + 2.5 + Math.cos((ang * Math.PI) / 180) * dw, Math.sin((ang * Math.PI) / 180) * dw + 2.5, a), p3 = rotPt(-hw + 2.5, 2.5, a);
+            addBox([[f.x + p0.x, f.y + p0.y], [f.x + p1.x, f.y + p1.y], [f.x + p2.x, f.y + p2.y], [f.x + p3.x, f.y + p3.y]], fZ0 + 2, fZ0 + fH - 2, glassCol, 0.45);
+          } else {
+            localBox(-hw + 2.5, -hh * 0.5, hw - 2.5, hh * 0.5, fZ0 + 2, fZ0 + fH - 2, glassCol, 0.42);
+          }
+          return;
+        }
         const pts = [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]].map(([x, y]) => {
           const p = rotPt(x, y, a); return [f.x + p.x, f.y + p.y];
         });
-        addBox(pts, fZ0, fZ0 + fH, isSel3d ? '#fdba74' : st.c, f.kind === 'pergola' ? 0.45 : 1);
+        addBox(pts, fZ0, fZ0 + fH, isSel3d ? '#fdba74' : (f.frontColor || st.c), f.kind === 'pergola' ? 0.45 : 1);
         // Animación estándar de muebles de cocina sin secciones personalizadas
         if (aKit > 0.02) {
           if (f.kind === 'muebleCajon') {
@@ -2499,11 +2632,16 @@ const Plan = (() => {
 
     // Halos luminosos en Modo Noche (solo se encienden las luces cuyo circuito en el Cuadro General está ON)
     if (night) {
-      list.filter((e) => e.type === 'sym' && ['luz', 'foco', 'tiraLed', 'aplique'].includes(e.kind)).forEach((y) => {
+      const lightSources = [
+        ...list.filter((e) => e.type === 'sym' && ['luz', 'foco', 'tiraLed', 'aplique'].includes(e.kind)),
+        ...list.filter((e) => e.type === 'furn' && e.kind === 'espejoLed'),
+      ];
+      lightSources.forEach((y) => {
         const live = Obra.isCircuitLive(Obra.inferCircuitId(y));
-        const p = proj(y.x, y.y, Math.max(40, (y.height || 250) * hFactor));
+        const zLight = y.type === 'furn' ? ((y.z0 ?? 120) + (y.h3d || 70) / 2) : (y.height || 250);
+        const p = proj(y.x, y.y, Math.max(40, zLight * hFactor));
         if (live) {
-          const rad = (y.kind === 'foco' ? 58 : 95) * state3d.zoom;
+          const rad = (y.kind === 'foco' || y.kind === 'espejoLed' ? 58 : 95) * state3d.zoom;
           const lg = ctx.createRadialGradient(p.x, p.y, 4, p.x, p.y, rad);
           lg.addColorStop(0, 'rgba(255, 241, 168, 0.92)');
           lg.addColorStop(0.35, 'rgba(251, 191, 36, 0.42)');
