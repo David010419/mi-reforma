@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795723401093,
+  "updatedAt": 1795723407797,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -34,7 +34,7 @@
       "id": "mwxz1mjs0bwvlb",
       "title": "Pedir 3 presupuestos de reforma integral",
       "desc": "",
-      "status": "en_curso",
+      "status": "pendiente",
       "priority": "urgente",
       "category": "General",
       "zone": "",
@@ -72,7 +72,7 @@
       ],
       "links": [],
       "created": 1795722891112,
-      "updated": 1795722891112
+      "updated": 1795723407573
     },
     {
       "id": "mwxz1mjszc4dki",
