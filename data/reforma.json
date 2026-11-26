@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795728242064,
+  "updatedAt": 1795728245482,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -509,6 +509,48 @@
           "h3d": 0,
           "z0": 0,
           "x": 435,
+          "y": -60,
+          "angle": 0,
+          "note": ""
+        },
+        {
+          "id": "mwy28cjswzrwyl",
+          "type": "furn",
+          "kind": "muebleBajo",
+          "name": "Mueble bajo cocina",
+          "w": 60,
+          "h": 60,
+          "h3d": 0,
+          "z0": 0,
+          "x": 315,
+          "y": -60,
+          "angle": 0,
+          "note": ""
+        },
+        {
+          "id": "mwy28d5suronyv",
+          "type": "furn",
+          "kind": "muebleBajo",
+          "name": "Mueble bajo cocina",
+          "w": 60,
+          "h": 60,
+          "h3d": 0,
+          "z0": 0,
+          "x": 255,
+          "y": -60,
+          "angle": 0,
+          "note": ""
+        },
+        {
+          "id": "mwy28du00533my",
+          "type": "furn",
+          "kind": "muebleBajo",
+          "name": "Mueble bajo cocina",
+          "w": 60,
+          "h": 60,
+          "h3d": 0,
+          "z0": 0,
+          "x": 195,
           "y": -60,
           "angle": 0,
           "note": ""
