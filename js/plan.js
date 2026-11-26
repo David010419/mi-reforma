@@ -198,6 +198,12 @@ const Plan = (() => {
   let compareId = null, compareOpacity = 0.35, calib = null, tapGesture = null, pencilHintShown = false;
   let multiSel = new Set(), multiMode = false;
   let sim2d = { doors: 0, windows: 0, shutters: 0, kitchen: 0, lights: false };
+  let inline3d = {
+    active: false, transitioning: false, camMode: 'fp',
+    yaw: -32, pitch: 42, zoom: 1, wallCut: 0.92, hideDemo: true,
+    fpX: 0, fpY: 0, fpYaw: 0, fpPitch: -3, eyeZ: 165,
+    nightMode: false, editable: true, sel3dId: null, _hitList: [],
+  };
   const pointers = new Map();
   const MIN_S = 0.04, MAX_S = 8;
 
@@ -679,7 +685,7 @@ const Plan = (() => {
               <button data-pa="sim2dLights">${icon('hint', 15)} Encender / apagar luces (Cuadro CGE)</button>
             </div>
           </details>
-          <button class="btn sm" data-pa="edit3d" title="Entrar en 3D en primera persona para tocar, editar y animar muebles">${icon('walk', 15)}<span>Editar 3D</span></button>
+          <button class="tgl" id="pEdit3dBtn" data-pa="edit3d" title="Transformar el plano actual en editor 3D interactivo">${icon('walk', 15)}<span>Editar 3D</span></button>
           <button class="btn sm" data-pa="render3d" title="Render 3D: visualizar, pasear, ver animaciones y generar informes">${icon('box', 15)}<span>Render 3D</span></button>
           <button class="btn sm" data-pa="exportPdf" title="Generar Memoria Técnica de Planos en PDF">${icon('receipt', 15)}<span>Informe PDF</span></button>
           <button class="tgl" id="pDeskPanelBtn" data-pa="toggleDeskPanel" title="Ocultar / mostrar panel derecho (más espacio en iPad)">${icon('sliders', 15)}<span>Panel</span></button>
@@ -698,6 +704,25 @@ const Plan = (() => {
         <div class="plan-tools" id="pTools">${TOOLS.map((t) => t.sep ? '<span class="tsep"></span>' : `<button data-tool="${t.id}" title="${t.label} (${t.key})">${icon(t.icon, 20)}<kbd>${t.key}</kbd></button>`).join('')}</div>
         <div class="plan-canvas">
           <svg id="planSvg" xmlns="http://www.w3.org/2000/svg"><defs id="planDefs"></defs><g id="planWorld"></g></svg>
+          <div class="plan-3d-stage" id="plan3dStage" aria-hidden="true">
+            <canvas id="plan3dCanvas"></canvas>
+            <div class="p3d-top-hud">
+              <div class="seg sm" id="p3dCamSeg">
+                <button class="active" data-i3cam="fp">${icon('walk', 14)}<span>Primera persona</span></button>
+                <button data-i3cam="orbit">${icon('box', 14)}<span>Maqueta 3D</span></button>
+              </div>
+              <select id="p3dRoomSel" title="Ir a estancia"></select>
+              <button class="btn sm" id="p3dNightBtn" title="Encender luces del Cuadro Eléctrico en modo noche">${icon('moon', 14)}<span>Luces</span></button>
+              <button class="btn sm primary" data-pa="edit3d">${icon('plan', 14)}<span>Volver a 2D</span></button>
+            </div>
+            <div class="r3d-dpad" id="p3dDpad" aria-label="Controles de desplazamiento">
+              <button type="button" class="dp-btn dp-up" data-move="fwd" title="Avanzar (W / Flecha arriba)">▲</button>
+              <button type="button" class="dp-btn dp-left" data-move="left" title="Izquierda (A / Flecha izquierda)">◀</button>
+              <button type="button" class="dp-btn dp-down" data-move="back" title="Retroceder (S / Flecha abajo)">▼</button>
+              <button type="button" class="dp-btn dp-right" data-move="right" title="Derecha (D / Flecha derecha)">▶</button>
+            </div>
+            <div class="r3d-hint" id="p3dHint">Toca cualquier mueble o muro para editarlo en el panel · Arrastra para mirar · Flechas o WASD para caminar</div>
+          </div>
           <div class="plan-hud">
             <div class="scale-bar" id="pScale"><i></i><span></span></div>
           </div>
@@ -743,7 +768,11 @@ const Plan = (() => {
     const dpb = $('#pDeskPanelBtn'); if (dpb) dpb.classList.toggle('on', !pui.panelHidden);
     const mb = $('#pMultiBtn'); if (mb) mb.classList.toggle('on', !!multiMode);
     const simB = $('#pSimBtn'); if (simB) simB.classList.toggle('on', !!(sim2d.doors > 0 || sim2d.windows > 0 || sim2d.shutters > 0 || sim2d.kitchen > 0 || sim2d.lights));
-    if (root) root.classList.toggle('panel-hidden', !!pui.panelHidden);
+    const e3B = $('#pEdit3dBtn'); if (e3B) e3B.classList.toggle('on', !!inline3d.active);
+    if (root) {
+      root.classList.toggle('panel-hidden', !!pui.panelHidden);
+      root.classList.toggle('mode-3d', !!inline3d.active);
+    }
     $('#pUndo').disabled = !undoStack.length; $('#pRedo').disabled = !redoStack.length;
     updateSelBar();
   }
@@ -842,8 +871,108 @@ const Plan = (() => {
     requestRender();
   }
 
+  function drawInline3D() {
+    if (!inline3d.active || !root) return;
+    const c = $('#plan3dCanvas', root), wrap = $('#plan3dStage', root);
+    if (!c || !wrap) return;
+    const rect = wrap.getBoundingClientRect();
+    const w = Math.max(320, Math.round(rect.width)), h = Math.max(240, Math.round(rect.height));
+    if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
+    inline3d.showFurn = pui.layers.furn !== false;
+    inline3d.showClima = !!pui.layers.clima;
+    inline3d.showElec = !!pui.layers.elec;
+    inline3d.showFonta = !!pui.layers.fonta;
+    inline3d.showDomo = !!pui.layers.domo;
+    inline3d.showNotes = !!pui.layers.text || !!pui.layers.pins;
+    inline3d.showLegend = false;
+    inline3d.animDoors = sim2d.doors || 0;
+    inline3d.animGarage = sim2d.doors || 0;
+    inline3d.animWindows = sim2d.windows || 0;
+    inline3d.animShutters = sim2d.shutters || 0;
+    inline3d.animKitchen = sim2d.kitchen || 0;
+    inline3d.nightMode = !!(inline3d.nightMode || sim2d.lights);
+    inline3d.sel3dId = sel;
+    render3DCanvas(c, inline3d);
+  }
+
+  function syncInline3DHud() {
+    if (!root) return;
+    const rooms = els().filter((e) => e.type === 'room' && e.points.length >= 3);
+    const rSel = $('#p3dRoomSel', root);
+    if (rSel) {
+      rSel.style.display = inline3d.camMode === 'fp' && rooms.length ? '' : 'none';
+      rSel.innerHTML = rooms.map((r, i) => `<option value="${i}">${esc(r.name || 'Estancia ' + (i + 1))}</option>`).join('');
+    }
+    const dpad = $('#p3dDpad', root);
+    if (dpad) dpad.style.display = inline3d.camMode === 'fp' ? 'grid' : 'none';
+    const hint = $('#p3dHint', root);
+    if (hint) hint.textContent = inline3d.camMode === 'fp'
+      ? 'Toca cualquier mueble o muro para editarlo en el panel · Arrastra para mirar · Flechas o WASD para caminar'
+      : 'Toca cualquier mueble o muro para editarlo en el panel · Arrastra para rotar 360° · Rueda para zoom';
+    $$('#p3dCamSeg button', root).forEach((b) => b.classList.toggle('active', b.dataset.i3cam === inline3d.camMode));
+    const nb = $('#p3dNightBtn', root);
+    if (nb) nb.classList.toggle('on', !!(inline3d.nightMode || sim2d.lights));
+  }
+
+  function toggleInline3D() {
+    if (!root || inline3d.transitioning) return;
+    const stage = $('#plan3dStage', root);
+    if (!inline3d.active) {
+      const list0 = els(), b0 = bbox(list0) || { x1: 0, y1: 0, x2: 800, y2: 600 };
+      const rooms = list0.filter((e) => e.type === 'room' && e.points.length >= 3);
+      const startPt = rooms.length ? centroid(rooms[0].points) : { x: (b0.x1 + b0.x2) / 2, y: (b0.y1 + b0.y2) / 2 };
+      Object.assign(inline3d, {
+        active: true, transitioning: true, camMode: 'orbit',
+        yaw: 0, pitch: 86, zoom: 1, wallCut: 0.06,
+        fpX: startPt.x, fpY: startPt.y, fpYaw: 0, fpPitch: -3, eyeZ: 165,
+      });
+      if (stage) stage.setAttribute('aria-hidden', 'false');
+      syncTop(); syncInline3DHud();
+      const t0 = performance.now(), dur = 460;
+      const step = (now) => {
+        const u = clamp((now - t0) / dur, 0, 1);
+        const e = u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
+        inline3d.pitch = 86 - 44 * e;
+        inline3d.yaw = -32 * e;
+        inline3d.wallCut = 0.06 + 0.88 * e;
+        drawInline3D();
+        if (u < 1) requestAnimationFrame(step);
+        else {
+          inline3d.camMode = 'fp';
+          inline3d.transitioning = false;
+          syncInline3DHud();
+          drawInline3D();
+        }
+      };
+      requestAnimationFrame(step);
+    } else {
+      inline3d.transitioning = true;
+      inline3d.camMode = 'orbit';
+      const p0 = inline3d.pitch || 42, y0 = inline3d.yaw || -32, w0 = inline3d.wallCut || 0.92;
+      const t0 = performance.now(), dur = 260;
+      const step = (now) => {
+        const u = clamp((now - t0) / dur, 0, 1);
+        const e = u * u;
+        inline3d.pitch = p0 + (86 - p0) * e;
+        inline3d.yaw = y0 * (1 - e);
+        inline3d.wallCut = w0 * (1 - e) + 0.05 * e;
+        drawInline3D();
+        if (u < 1) requestAnimationFrame(step);
+        else {
+          inline3d.active = false;
+          inline3d.transitioning = false;
+          if (stage) stage.setAttribute('aria-hidden', 'true');
+          syncTop();
+          requestRender();
+        }
+      };
+      requestAnimationFrame(step);
+    }
+  }
+
   function render() {
     if (!svg || !svg.isConnected) return;
+    if (inline3d.active) { drawInline3D(); return; }
     const th = T(), s = view.s, r = svg.getBoundingClientRect();
     svg.style.background = th.bg;
     world.setAttribute('transform', `translate(${view.x} ${view.y}) scale(${s})`);
@@ -2055,7 +2184,7 @@ const Plan = (() => {
         case 'dupPlan': openPlanModal(true); break;
         case 'bgModal': openBgModal(); break;
         case 'compareModal': openCompareModal(); break;
-        case 'edit3d': openRender3DModal(true); break;
+        case 'edit3d': toggleInline3D(); break;
         case 'render3d': openRender3DModal(false); break;
         case 'delPlan': {
           if (!confirm(`¿Eliminar el plano «${plan().name}» y todo su contenido?`)) break;
@@ -2122,6 +2251,86 @@ const Plan = (() => {
       else if (t.id === 'pTheme') { S().settings.planTheme = t.value; Store.save(); renderPanel(); requestRender(); }
       else if (t.dataset.layer) { pui.layers[t.dataset.layer] = t.checked; pui.viewPreset = 'custom'; savePui(); syncTop(); requestRender(); }
     });
+    // Controles del editor 3D integrado (paseo 1ª persona, órbita y selección directa sincronizada con el panel derecho)
+    const c3d = $('#plan3dCanvas', root), dpad3d = $('#p3dDpad', root);
+    if (c3d) {
+      let d3 = false, lx3 = 0, ly3 = 0, mv3 = false;
+      c3d.addEventListener('pointerdown', (e) => { d3 = true; mv3 = false; lx3 = e.clientX; ly3 = e.clientY; c3d.setPointerCapture(e.pointerId); });
+      c3d.addEventListener('pointermove', (e) => {
+        if (!d3 || !inline3d.active) return;
+        const dx = e.clientX - lx3, dy = e.clientY - ly3;
+        if (Math.hypot(dx, dy) > 4) mv3 = true;
+        if (inline3d.camMode === 'fp') {
+          inline3d.fpYaw -= dx * 0.35;
+          inline3d.fpPitch = clamp(inline3d.fpPitch - dy * 0.25, -45, 45);
+        } else {
+          inline3d.yaw += dx * 0.55;
+          inline3d.pitch = clamp(inline3d.pitch + dy * 0.4, 15, 85);
+        }
+        lx3 = e.clientX; ly3 = e.clientY; drawInline3D();
+      });
+      c3d.addEventListener('pointerup', (e) => {
+        d3 = false;
+        if (!mv3 && inline3d.active && inline3d._hitList) {
+          const rect = c3d.getBoundingClientRect();
+          const cx = (e.clientX - rect.left) * (c3d.width / rect.width);
+          const cy = (e.clientY - rect.top) * (c3d.height / rect.height);
+          let best = null, bd = Infinity;
+          inline3d._hitList.forEach((h) => {
+            const d = Math.hypot(cx - h.x, cy - h.y);
+            if (d < h.r && d < bd) { bd = d; best = h; }
+          });
+          sel = best ? best.id : null;
+          multiSel.clear();
+          renderPanel(); updateSelBar(); drawInline3D();
+        }
+      });
+      c3d.addEventListener('pointercancel', () => { d3 = false; });
+      c3d.addEventListener('wheel', (e) => {
+        if (!inline3d.active || inline3d.camMode !== 'orbit') return;
+        e.preventDefault();
+        inline3d.zoom = clamp((inline3d.zoom || 1) * (e.deltaY > 0 ? 0.92 : 1.08), 0.55, 2.2);
+        drawInline3D();
+      }, { passive: false });
+    }
+    $('#p3dCamSeg', root)?.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-i3cam]'); if (!b) return;
+      inline3d.camMode = b.dataset.i3cam;
+      syncInline3DHud(); drawInline3D();
+    });
+    $('#p3dRoomSel', root)?.addEventListener('change', (e) => {
+      const rooms = els().filter((x) => x.type === 'room' && x.points.length >= 3);
+      const r = rooms[+e.target.value];
+      if (r) { const c = centroid(r.points); inline3d.fpX = c.x; inline3d.fpY = c.y; drawInline3D(); }
+    });
+    $('#p3dNightBtn', root)?.addEventListener('click', () => {
+      inline3d.nightMode = !inline3d.nightMode;
+      syncInline3DHud(); drawInline3D();
+    });
+    if (dpad3d) {
+      const walkStep = (dir, speed = 10) => {
+        const yr = (inline3d.fpYaw * Math.PI) / 180;
+        const fx = Math.cos(yr), fy = Math.sin(yr), rx = -fy, ry = fx;
+        if (dir === 'fwd') { inline3d.fpX += fx * speed; inline3d.fpY += fy * speed; }
+        else if (dir === 'back') { inline3d.fpX -= fx * speed; inline3d.fpY -= fy * speed; }
+        else if (dir === 'right') { inline3d.fpX += rx * speed; inline3d.fpY += ry * speed; }
+        else if (dir === 'left') { inline3d.fpX -= rx * speed; inline3d.fpY -= ry * speed; }
+        drawInline3D();
+      };
+      let hDir = null, hRaf = 0;
+      const hLoop = () => { if (!hDir || !inline3d.active) { hRaf = 0; return; } walkStep(hDir, 9); hRaf = requestAnimationFrame(hLoop); };
+      dpad3d.addEventListener('pointerdown', (e) => { const b = e.target.closest('[data-move]'); if (!b) return; e.preventDefault(); hDir = b.dataset.move; if (!hRaf) hLoop(); });
+      window.addEventListener('pointerup', () => { hDir = null; });
+      window.addEventListener('pointercancel', () => { hDir = null; });
+      window.addEventListener('keydown', (e) => {
+        if (!inline3d.active || inline3d.camMode !== 'fp' || ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) return;
+        const k = e.key.toLowerCase();
+        if (k === 'w' || k === 'arrowup') { e.preventDefault(); walkStep('fwd', 22); }
+        else if (k === 's' || k === 'arrowdown') { e.preventDefault(); walkStep('back', 22); }
+        else if (k === 'a' || k === 'arrowleft') { e.preventDefault(); walkStep('left', 22); }
+        else if (k === 'd' || k === 'arrowright') { e.preventDefault(); walkStep('right', 22); }
+      });
+    }
     document.addEventListener('click', (e) => { $$('details.dropdown[open]').forEach((d) => { if (!d.contains(e.target)) d.open = false; }); });
 
     // Panel
@@ -2434,6 +2643,7 @@ const Plan = (() => {
     });
 
     // 2 y 3. Muros recortados alrededor de puertas, ventanas y garaje (huecos reales sin solapamiento)
+    state3d._hitList = [];
     const hFactor = isFP ? 1 : state3d.wallCut;
     const opsByWall = new Map();
     list.filter((e) => e.type === 'door' || e.type === 'window').forEach((o) => {
@@ -2450,7 +2660,12 @@ const Plan = (() => {
       if (w.status === 'demoler' && state3d.hideDemo) return;
       const L = wlen(w); if (L < 1) return;
       const wh = (w.height || 250) * hFactor;
-      const col = w.status === 'nuevo' ? '#fdba74' : w.status === 'demoler' ? '#fde047' : (w.wallColor || '#e2e8f0');
+      const isSelWall = !!state3d.editable && state3d.sel3dId === w.id;
+      const col = isSelWall ? '#fdba74' : (w.status === 'nuevo' ? '#fdba74' : w.status === 'demoler' ? '#fde047' : (w.wallColor || '#e2e8f0'));
+      if (state3d.editable) {
+        const pm = proj((w.x1 + w.x2) / 2, (w.y1 + w.y2) / 2, wh / 2);
+        if (pm) state3d._hitList.push({ id: w.id, x: pm.x, y: pm.y, r: isFP ? clamp((Math.min(L, 120) * focal) / Math.max(50, pm.z), 20, 90) : 26, prio: 2 });
+      }
       const alpha = w.status === 'demoler' ? 0.45 : 1;
       const ht = w.thick / 2;
       const ops = (opsByWall.get(w.id) || []).map((o) => {
@@ -2539,7 +2754,6 @@ const Plan = (() => {
     });
 
     // 4. Mobiliario en volumen 3D (con hit-testing solo en modo Editar 3D)
-    state3d._hitList = [];
     if (state3d.showFurn) {
       list.filter((e) => e.type === 'furn' && e.kind !== 'norte').forEach((f) => {
         const hw = f.w / 2, hh = f.h / 2, a = f.angle || 0;
@@ -2553,7 +2767,7 @@ const Plan = (() => {
             const rad = isFP
               ? clamp((Math.max(hw, hh, fH / 2) * focal) / Math.max(40, pCenter.z), 22, 180)
               : Math.max(20, Math.max(hw, hh) * scale * 0.9);
-            state3d._hitList.push({ id: f.id, x: pCenter.x, y: pCenter.y, r: rad, z: pCenter.z || 0 });
+            state3d._hitList.push({ id: f.id, x: pCenter.x, y: pCenter.y, r: rad, z: pCenter.z || 0, prio: 1 });
           }
         }
         const isSel3d = !!state3d.editable && state3d.sel3dId === f.id;
