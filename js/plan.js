@@ -686,7 +686,7 @@ const Plan = (() => {
           <button class="tgl" id="pBgBtn" data-pa="bgModal" title="Imagen de fondo para calcar un plano real">${icon('image', 15)}<span>Calcar</span></button>
           <button class="tgl" id="pCmpBtn" data-pa="compareModal" title="Comparar con otro plano (Antes / Después)">${icon('compare', 15)}<span>Comparar</span></button>
           <details class="dropdown">
-            <summary class="tgl" id="pSimBtn" title="Animar puertas, ventanas, persianas, cocina y luces directamente en el plano 2D">${icon('bolt', 15)}<span>Simular 2D</span></summary>
+            <summary class="tgl" id="pSimBtn" title="Animar puertas, ventanas, persianas, cocina y luces en 2D y 3D">${icon('bolt', 15)}<span>Simular</span></summary>
             <div class="dd-menu" id="pSimMenu">
               <button data-pa="sim2dDoors">${icon('door', 15)} Abrir / cerrar puertas y garaje</button>
               <button data-pa="sim2dWindows">${icon('window', 15)} Abrir / cerrar ventanas</button>
@@ -716,14 +716,9 @@ const Plan = (() => {
           <svg id="planSvg" xmlns="http://www.w3.org/2000/svg"><defs id="planDefs"></defs><g id="planWorld"></g></svg>
           <div class="plan-3d-stage" id="plan3dStage" aria-hidden="true">
             <canvas id="plan3dCanvas"></canvas>
-            <div class="p3d-top-hud">
-              <div class="seg sm" id="p3dCamSeg">
-                <button class="active" data-i3cam="fp">${icon('walk', 14)}<span>Primera persona</span></button>
-                <button data-i3cam="orbit">${icon('box', 14)}<span>Maqueta 3D</span></button>
-              </div>
-              <select id="p3dRoomSel" title="Ir a estancia"></select>
-              <button class="btn sm" id="p3dNightBtn" title="Encender luces del Cuadro Eléctrico en modo noche">${icon('moon', 14)}<span>Luces</span></button>
-              <button class="btn sm primary" data-pa="edit3d">${icon('plan', 14)}<span>Volver a 2D</span></button>
+            <div class="p3d-mini-hud">
+              <button class="btn xs" id="p3dCamToggle" title="Cambiar entre 1ª persona y Maqueta 3D">${icon('walk', 13)}<span>1ª persona</span></button>
+              <button class="btn xs" id="p3dNightBtn" title="Encender o apagar luces del Cuadro Eléctrico">${icon('moon', 13)}<span>Luces</span></button>
             </div>
             <div class="r3d-dpad" id="p3dDpad" aria-label="Controles de desplazamiento">
               <button type="button" class="dp-btn dp-up" data-move="fwd" title="Avanzar (W / Flecha arriba)">▲</button>
@@ -731,7 +726,6 @@ const Plan = (() => {
               <button type="button" class="dp-btn dp-down" data-move="back" title="Retroceder (S / Flecha abajo)">▼</button>
               <button type="button" class="dp-btn dp-right" data-move="right" title="Derecha (D / Flecha derecha)">▶</button>
             </div>
-            <div class="r3d-hint" id="p3dHint">Toca cualquier mueble o muro para editarlo en el panel · Arrastra para mirar · Flechas o WASD para caminar</div>
           </div>
           <div class="plan-hud">
             <div class="scale-bar" id="pScale"><i></i><span></span></div>
@@ -817,6 +811,7 @@ const Plan = (() => {
     const canRot = el.type === 'furn' || el.type === 'sym' || el.type === 'door';
     bar.innerHTML = `
       <button class="btn sm primary" data-pa="openPanel">${icon('sliders', 15)} Editar</button>
+      ${inline3d.active && el.type === 'furn' && !el.locked ? `<button class="btn sm" data-pa="zDown" title="Bajar 10 cm">Z-</button><button class="btn sm" data-pa="zUp" title="Subir 10 cm">Z+</button>` : ''}
       <button class="btn sm" data-pa="lockSel" title="${el.locked ? 'Desbloquear' : 'Bloquear'}">${icon(el.locked ? 'unlock' : 'lock', 15)}</button>
       ${canRot && !el.locked ? `<button class="btn sm" data-pa="rotSel">${icon('rotate', 15)}</button>` : ''}
       <button class="btn sm" data-pa="dupSel">${icon('copy', 15)}</button>
@@ -907,19 +902,14 @@ const Plan = (() => {
 
   function syncInline3DHud() {
     if (!root) return;
-    const rooms = els().filter((e) => e.type === 'room' && e.points.length >= 3);
-    const rSel = $('#p3dRoomSel', root);
-    if (rSel) {
-      rSel.style.display = inline3d.camMode === 'fp' && rooms.length ? '' : 'none';
-      rSel.innerHTML = rooms.map((r, i) => `<option value="${i}">${esc(r.name || 'Estancia ' + (i + 1))}</option>`).join('');
-    }
     const dpad = $('#p3dDpad', root);
     if (dpad) dpad.style.display = inline3d.camMode === 'fp' ? 'grid' : 'none';
-    const hint = $('#p3dHint', root);
-    if (hint) hint.textContent = inline3d.camMode === 'fp'
-      ? 'Toca cualquier mueble o muro para editarlo en el panel · Arrastra para mirar · Flechas o WASD para caminar'
-      : 'Toca cualquier mueble o muro para editarlo en el panel · Arrastra para rotar 360° · Rueda para zoom';
-    $$('#p3dCamSeg button', root).forEach((b) => b.classList.toggle('active', b.dataset.i3cam === inline3d.camMode));
+    const camBtn = $('#p3dCamToggle', root);
+    if (camBtn) {
+      const isFP = inline3d.camMode === 'fp';
+      camBtn.innerHTML = `${icon(isFP ? 'box' : 'walk', 13)}<span>${isFP ? 'Maqueta' : '1ª pers.'}</span>`;
+      camBtn.title = isFP ? 'Cambiar a Maqueta 3D' : 'Cambiar a Primera persona';
+    }
     const nb = $('#p3dNightBtn', root);
     if (nb) nb.classList.toggle('on', !!(inline3d.nightMode || sim2d.lights));
   }
@@ -2259,11 +2249,22 @@ const Plan = (() => {
           requestAnimationFrame(step);
           break;
         }
+        case 'zUp': case 'zDown': {
+          const el = sel && byId(sel);
+          if (el && el.type === 'furn' && !el.locked) {
+            pushUndo();
+            el.z0 = Math.max(0, (el.z0 ?? furn3DStyle(el.kind).z0 ?? 0) + (a.dataset.pa === 'zUp' ? 10 : -10));
+            commit();
+          }
+          break;
+        }
         case 'sim2dLights':
           sim2d.lights = !sim2d.lights;
+          inline3d.nightMode = sim2d.lights;
           syncTop();
+          syncInline3DHud();
           requestRender();
-          toast(sim2d.lights ? 'Simulación de luces 2D activada (según Cuadro Eléctrico)' : 'Simulación de luces 2D apagada', 'info');
+          toast(sim2d.lights ? 'Luces encendidas (según Cuadro Eléctrico)' : 'Luces apagadas', 'info');
           break;
       }
     });
@@ -2280,15 +2281,51 @@ const Plan = (() => {
       else if (t.id === 'pTheme') { S().settings.planTheme = t.value; Store.save(); renderPanel(); requestRender(); }
       else if (t.dataset.layer) { pui.layers[t.dataset.layer] = t.checked; pui.viewPreset = 'custom'; savePui(); syncTop(); requestRender(); }
     });
-    // Controles del editor 3D integrado (paseo 1ª persona, órbita y selección directa sincronizada con el panel derecho)
+    // Controles del editor 3D integrado (paseo 1ª persona, órbita, selección y arrastre directo de muebles)
     const c3d = $('#plan3dCanvas', root), dpad3d = $('#p3dDpad', root);
     if (c3d) {
-      let d3 = false, lx3 = 0, ly3 = 0, mv3 = false;
-      c3d.addEventListener('pointerdown', (e) => { d3 = true; mv3 = false; lx3 = e.clientX; ly3 = e.clientY; c3d.setPointerCapture(e.pointerId); });
+      let d3 = false, lx3 = 0, ly3 = 0, mv3 = false, dragEl3 = null, dragPushed3 = false;
+      const hitAt3d = (e) => {
+        if (!inline3d._hitList) return null;
+        const rect = c3d.getBoundingClientRect();
+        const cx = (e.clientX - rect.left) * (c3d.width / rect.width);
+        const cy = (e.clientY - rect.top) * (c3d.height / rect.height);
+        let best = null, bd = Infinity;
+        inline3d._hitList.forEach((h) => {
+          const d = Math.hypot(cx - h.x, cy - h.y);
+          if (d < h.r && (!best || (h.prio || 1) < (best.prio || 1) || ((h.prio || 1) === (best.prio || 1) && d < bd))) { bd = d; best = h; }
+        });
+        return best;
+      };
+      c3d.addEventListener('pointerdown', (e) => {
+        d3 = true; mv3 = false; dragPushed3 = false; lx3 = e.clientX; ly3 = e.clientY;
+        const hit = hitAt3d(e);
+        const curSel = sel && byId(sel);
+        dragEl3 = (hit && curSel && hit.id === curSel.id && curSel.type === 'furn' && !curSel.locked) ? curSel : null;
+        c3d.setPointerCapture(e.pointerId);
+      });
       c3d.addEventListener('pointermove', (e) => {
         if (!d3 || !inline3d.active) return;
         const dx = e.clientX - lx3, dy = e.clientY - ly3;
         if (Math.hypot(dx, dy) > 4) mv3 = true;
+        if (dragEl3 && mv3) {
+          if (!dragPushed3) { pushUndo(); dragPushed3 = true; }
+          if (inline3d.camMode === 'fp') {
+            const yr = (inline3d.fpYaw * Math.PI) / 180;
+            const fx = Math.cos(yr), fy = Math.sin(yr), rx = -fy, ry = fx;
+            const k = 1.1;
+            dragEl3.x = r1(dragEl3.x + (dx * rx - dy * fx) * k);
+            dragEl3.y = r1(dragEl3.y + (dx * ry - dy * fy) * k);
+          } else {
+            const yr = (inline3d.yaw * Math.PI) / 180;
+            const cY = Math.cos(yr), sY = Math.sin(yr);
+            const k = 1.25 / Math.max(0.5, inline3d.zoom || 1);
+            dragEl3.x = r1(dragEl3.x + (dx * cY + dy * sY) * k);
+            dragEl3.y = r1(dragEl3.y + (-dx * sY + dy * cY) * k);
+          }
+          lx3 = e.clientX; ly3 = e.clientY; drawInline3D();
+          return;
+        }
         if (inline3d.camMode === 'fp') {
           inline3d.fpYaw -= dx * 0.35;
           inline3d.fpPitch = clamp(inline3d.fpPitch - dy * 0.25, -45, 45);
@@ -2300,21 +2337,16 @@ const Plan = (() => {
       });
       c3d.addEventListener('pointerup', (e) => {
         d3 = false;
-        if (!mv3 && inline3d.active && inline3d._hitList) {
-          const rect = c3d.getBoundingClientRect();
-          const cx = (e.clientX - rect.left) * (c3d.width / rect.width);
-          const cy = (e.clientY - rect.top) * (c3d.height / rect.height);
-          let best = null, bd = Infinity;
-          inline3d._hitList.forEach((h) => {
-            const d = Math.hypot(cx - h.x, cy - h.y);
-            if (d < h.r && d < bd) { bd = d; best = h; }
-          });
+        if (dragEl3 && dragPushed3) { dragEl3 = null; commit(); return; }
+        dragEl3 = null;
+        if (!mv3 && inline3d.active) {
+          const best = hitAt3d(e);
           sel = best ? best.id : null;
           multiSel.clear();
           renderPanel(); updateSelBar(); drawInline3D();
         }
       });
-      c3d.addEventListener('pointercancel', () => { d3 = false; });
+      c3d.addEventListener('pointercancel', () => { d3 = false; dragEl3 = null; });
       c3d.addEventListener('wheel', (e) => {
         if (!inline3d.active || inline3d.camMode !== 'orbit') return;
         e.preventDefault();
@@ -2322,19 +2354,14 @@ const Plan = (() => {
         drawInline3D();
       }, { passive: false });
     }
-    $('#p3dCamSeg', root)?.addEventListener('click', (e) => {
-      const b = e.target.closest('[data-i3cam]'); if (!b) return;
-      inline3d.camMode = b.dataset.i3cam;
+    $('#p3dCamToggle', root)?.addEventListener('click', () => {
+      inline3d.camMode = inline3d.camMode === 'fp' ? 'orbit' : 'fp';
       syncInline3DHud(); drawInline3D();
-    });
-    $('#p3dRoomSel', root)?.addEventListener('change', (e) => {
-      const rooms = els().filter((x) => x.type === 'room' && x.points.length >= 3);
-      const r = rooms[+e.target.value];
-      if (r) { const c = centroid(r.points); inline3d.fpX = c.x; inline3d.fpY = c.y; drawInline3D(); }
     });
     $('#p3dNightBtn', root)?.addEventListener('click', () => {
       inline3d.nightMode = !inline3d.nightMode;
-      syncInline3DHud(); drawInline3D();
+      sim2d.lights = inline3d.nightMode;
+      syncTop(); syncInline3DHud(); drawInline3D();
     });
     if (dpad3d) {
       const walkStep = (dir, speed = 10) => {
@@ -2427,7 +2454,31 @@ const Plan = (() => {
         case 'pickSketchCol': pui.sketchColor = b.dataset.c; savePui(); renderPanel(); break;
         case 'pickSketchSz': pui.sketchSize = +b.dataset.v; savePui(); renderPanel(); break;
         case 'setFurnCat': furnCat = b.dataset.cat || 'all'; renderPanel(); break;
-        case 'pickFurn': { const i = +b.dataset.i; placing = { t: 'furn', i, def: FURN[i], angle: placing && placing.t === 'furn' ? placing.angle : 0 }; renderPanel(); if (window.innerWidth <= 900) setMobilePanel(false); break; }
+        case 'pickFurn': {
+          const i = +b.dataset.i, d = FURN[i];
+          if (inline3d.active && d) {
+            pushUndo();
+            let px0, py0;
+            if (inline3d.camMode === 'fp') {
+              const yr = (inline3d.fpYaw * Math.PI) / 180;
+              px0 = r1(inline3d.fpX + Math.cos(yr) * 145);
+              py0 = r1(inline3d.fpY + Math.sin(yr) * 145);
+            } else {
+              const bb = bbox(els()) || { x1: 0, y1: 0, x2: 600, y2: 400 };
+              px0 = r1((bb.x1 + bb.x2) / 2); py0 = r1((bb.y1 + bb.y2) / 2);
+            }
+            const item = { id: uid(), type: 'furn', kind: d.kind, name: d.name, w: d.w, h: d.h, h3d: d.h3d, z0: d.z0, plinth: d.plinth, handleType: d.handleType, frontColor: d.frontColor, sections: d.sections ? clone(d.sections) : undefined, x: px0, y: py0, angle: 0 };
+            els().push(item);
+            sel = item.id; multiSel.clear();
+            commit(); updateSelBar(); drawInline3D();
+            if (window.innerWidth <= 900) setMobilePanel(false);
+            toast(`${d.name} añadido en 3D — arrástralo para moverlo`, 'success');
+            break;
+          }
+          placing = { t: 'furn', i, def: d, angle: placing && placing.t === 'furn' ? placing.angle : 0 };
+          renderPanel(); if (window.innerWidth <= 900) setMobilePanel(false);
+          break;
+        }
         case 'pickSym': placing = { t: 'sym', kind: b.dataset.k }; renderPanel(); if (window.innerWidth <= 900) setMobilePanel(false); break;
         case 'pickDuct': {
           const dk = DUCT_KINDS[b.dataset.k] || DUCT_KINDS.impulsion;
