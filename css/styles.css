@@ -741,9 +741,19 @@ button.save-ind.warn .ic { color: var(--warning); }
 
 /* ---------- Editor 3D integrado en el plano (transición suave sin modal) ---------- */
 .plan-3d-stage { position: absolute; inset: 0; z-index: 6; background: #e8eef7; opacity: 0; pointer-events: none; transform: scale(1.03); transition: opacity .28s ease, transform .32s ease; }
-.plan-root.mode-3d .plan-3d-stage { opacity: 1; pointer-events: auto; transform: scale(1); }
-.plan-root.mode-3d .plan-tools { opacity: .35; pointer-events: none; }
-.plan-root.mode-3d .plan-hud { display: none; }
+#view-plano.mode-3d .plan-3d-stage { opacity: 1; pointer-events: auto; transform: scale(1); }
+#view-plano.mode-3d .plan-tools { opacity: .35; pointer-events: none; }
+#view-plano.mode-3d .plan-hud { display: none; }
+.furn-filter-bar { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.furn-filter-bar input { width: 100%; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 13px; }
+.furn-cats { display: flex; flex-wrap: wrap; gap: 5px; }
+.furn-cats .chip { font-size: 11.5px; padding: 4px 8px; }
+.furn-group { border-bottom: 1px solid var(--border); padding: 8px 14px; }
+.furn-group summary { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; font-size: 12.5px; font-weight: 700; color: var(--text); padding: 4px 0; user-select: none; }
+.furn-group summary::-webkit-details-marker { display: none; }
+.furn-group summary .fg-l { display: inline-flex; align-items: center; gap: 6px; }
+.furn-group summary em { font-style: normal; font-size: 11px; color: var(--muted); font-weight: 600; }
+.furn-group[open] .lib { margin-top: 8px; }
 #plan3dCanvas { width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; }
 #plan3dCanvas:active { cursor: grabbing; }
 .p3d-top-hud { position: absolute; top: 12px; right: 12px; z-index: 8; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 6px 8px; border-radius: 12px; background: color-mix(in srgb, var(--surface) 92%, transparent); border: 1px solid var(--border); box-shadow: var(--shadow-sm); backdrop-filter: blur(8px); }

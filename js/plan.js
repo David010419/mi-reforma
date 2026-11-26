@@ -83,37 +83,47 @@ const Plan = (() => {
     fonta: { label: 'Vista: Fontanería y Agua', layers: { rooms: true, walls: true, openings: true, furn: false, elec: false, fonta: true, clima: false, domo: false, dims: true, text: true, pins: false } },
     domo: { label: 'Vista: Domótica y Control', layers: { rooms: true, walls: true, openings: true, furn: false, elec: false, fonta: false, clima: false, domo: true, dims: true, text: true, pins: false } },
   };
+  const FURN_CATS = [
+    { id: 'all', label: 'Todos', ic: 'layers' },
+    { id: 'salon', label: 'Salón y comedor', ic: 'sofa' },
+    { id: 'dormitorio', label: 'Dormitorio', ic: 'home' },
+    { id: 'cocina', label: 'Cocina', ic: 'layers' },
+    { id: 'bano', label: 'Baño y ducha', ic: 'drop' },
+    { id: 'estructura', label: 'Estructura', ic: 'wall' },
+    { id: 'exterior', label: 'Exterior y garaje', ic: 'tree' },
+  ];
+  let furnCat = 'all', furnQuery = '';
   const FURN = [
-    { kind: 'cama', name: 'Cama 180', w: 180, h: 200 }, { kind: 'cama', name: 'Cama 150', w: 150, h: 200 }, { kind: 'cama', name: 'Cama 135', w: 135, h: 190 }, { kind: 'cama', name: 'Cama 90', w: 90, h: 190 },
-    { kind: 'cuna', name: 'Cuna', w: 70, h: 130 }, { kind: 'mesita', name: 'Mesita', w: 45, h: 40 }, { kind: 'comoda', name: 'Cómoda', w: 110, h: 48 },
-    { kind: 'armario', name: 'Armario', w: 180, h: 60 }, { kind: 'vestidor', name: 'Vestidor', w: 240, h: 60 }, { kind: 'escritorio', name: 'Escritorio', w: 120, h: 60 }, { kind: 'sillaOficina', name: 'Silla oficina', w: 60, h: 60 },
-    { kind: 'sofa', name: 'Sofá 3 plazas', w: 210, h: 90 }, { kind: 'sofaL', name: 'Sofá chaise longue', w: 270, h: 165 }, { kind: 'sofa', name: 'Sillón', w: 85, h: 85 },
-    { kind: 'mesaCentro', name: 'Mesa centro', w: 110, h: 60 }, { kind: 'alfombra', name: 'Alfombra', w: 240, h: 170 }, { kind: 'tv', name: 'Mueble TV', w: 180, h: 40 },
-    { kind: 'estanteria', name: 'Estantería', w: 140, h: 35 }, { kind: 'chimenea', name: 'Chimenea', w: 110, h: 55 },
-    { kind: 'mesa', name: 'Mesa comedor', w: 160, h: 90 }, { kind: 'mesaRedonda', name: 'Mesa redonda', w: 110, h: 110 }, { kind: 'silla', name: 'Silla', w: 45, h: 45 }, { kind: 'taburete', name: 'Taburete', w: 40, h: 40 },
-    { kind: 'encimera', name: 'Encimera', w: 240, h: 60 }, { kind: 'fregadero', name: 'Fregadero', w: 80, h: 60 }, { kind: 'placa', name: 'Placa cocción', w: 60, h: 60 },
-    { kind: 'moduloCocina', name: 'Módulo cocina a medida', w: 80, h: 60, h3d: 85, z0: 0, plinth: 10, handleType: 'gola', frontColor: '#f1ede6', sections: [{ id: 's1', kind: 'cacerolero', h: 35, anim: true, cutlery: false }, { id: 's2', kind: 'cajon', h: 25, anim: true, cutlery: false }, { id: 's3', kind: 'cubertero', h: 15, anim: true, cutlery: true }] },
-    { kind: 'muebleBajo', name: 'Mueble bajo cocina', w: 60, h: 60 }, { kind: 'muebleCajon', name: 'Cajonero cocina', w: 80, h: 60 }, { kind: 'muebleRincon', name: 'Rincón cocina', w: 90, h: 90 },
-    { kind: 'muebleAlto', name: 'Mueble alto colgado', w: 80, h: 35, z0: 145, h3d: 70 }, { kind: 'campana', name: 'Campana extractora', w: 90, h: 50, z0: 155, h3d: 45 },
-    { kind: 'nevera', name: 'Frigorífico', w: 70, h: 65 }, { kind: 'horno', name: 'Columna horno', w: 60, h: 60 }, { kind: 'microondas', name: 'Columna horno+micro', w: 60, h: 60, h3d: 215 },
-    { kind: 'despensa', name: 'Columna despensa', w: 60, h: 60, h3d: 215 }, { kind: 'vinoteca', name: 'Vinoteca', w: 60, h: 60 }, { kind: 'lavavajillas', name: 'Lavavajillas', w: 60, h: 60 },
-    { kind: 'lavadora', name: 'Lavadora', w: 60, h: 60 }, { kind: 'secadora', name: 'Secadora', w: 60, h: 60 }, { kind: 'isla', name: 'Isla cocina', w: 180, h: 90 }, { kind: 'peninsula', name: 'Península / barra', w: 200, h: 90 },
-    { kind: 'inodoro', name: 'Inodoro', w: 40, h: 65 }, { kind: 'lavabo', name: 'Lavabo', w: 60, h: 45 }, { kind: 'lavabo2', name: 'Lavabo doble', w: 120, h: 48 },
-    { kind: 'muebleBano', name: 'Mueble baño lavabo', w: 90, h: 48, h3d: 82, z0: 0, plinth: 0, handleType: 'unero', frontColor: '#e7dfd5', sections: [{ id: 'b1', kind: 'cajon', h: 40, anim: true }, { id: 'b2', kind: 'cajon', h: 40, anim: true }] },
-    { kind: 'ducha', name: 'Plato ducha', w: 120, h: 80 }, { kind: 'mampara', name: 'Mampara fija cristal', w: 100, h: 6, h3d: 200 },
-    { kind: 'mamparaCorredera', name: 'Mampara corredera', w: 120, h: 8, h3d: 200 }, { kind: 'mamparaAbatible', name: 'Mampara abatible', w: 80, h: 6, h3d: 200 },
-    { kind: 'columnaDucha', name: 'Columna de ducha', w: 30, h: 35, h3d: 215 }, { kind: 'espejoLed', name: 'Espejo baño LED', w: 90, h: 5, h3d: 80, z0: 120 },
-    { kind: 'hornacina', name: 'Hornacina ducha', w: 60, h: 15, h3d: 35, z0: 115 },
-    { kind: 'banera', name: 'Bañera', w: 170, h: 75 }, { kind: 'baneraExenta', name: 'Bañera exenta', w: 170, h: 80, h3d: 58 }, { kind: 'bide', name: 'Bidé', w: 38, h: 55 },
-    { kind: 'toallero', name: 'Toallero', w: 60, h: 12 }, { kind: 'generico', name: 'Mueble', w: 100, h: 50 },
-    { kind: 'escalera', name: 'Escalera', w: 280, h: 100 }, { kind: 'pilar', name: 'Pilar', w: 35, h: 35 },
-    { kind: 'bajante', name: 'Bajante', w: 20, h: 20 }, { kind: 'norte', name: 'Norte (N)', w: 70, h: 70 },
-    { kind: 'piscina', name: 'Piscina', w: 600, h: 300, ext: true }, { kind: 'pergola', name: 'Pérgola', w: 400, h: 300, ext: true },
-    { kind: 'coche', name: 'Coche / plaza', w: 450, h: 200, ext: true }, { kind: 'moto', name: 'Moto', w: 210, h: 85, ext: true }, { kind: 'bici', name: 'Bicicleta', w: 180, h: 60, ext: true },
-    { kind: 'arbol', name: 'Árbol / planta', w: 140, h: 140, ext: true }, { kind: 'huerto', name: 'Huerto / jardinera', w: 200, h: 80, ext: true },
-    { kind: 'barbacoa', name: 'Barbacoa', w: 140, h: 70, ext: true }, { kind: 'tumbona', name: 'Tumbona', w: 195, h: 70, ext: true },
-    { kind: 'duchaExt', name: 'Ducha exterior', w: 90, h: 90, ext: true }, { kind: 'tendedero', name: 'Tendedero', w: 180, h: 70, ext: true },
-    { kind: 'trastero', name: 'Caseta / trastero', w: 240, h: 200, ext: true },
+    { kind: 'cama', name: 'Cama 180', w: 180, h: 200, cat: 'dormitorio' }, { kind: 'cama', name: 'Cama 150', w: 150, h: 200, cat: 'dormitorio' }, { kind: 'cama', name: 'Cama 135', w: 135, h: 190, cat: 'dormitorio' }, { kind: 'cama', name: 'Cama 90', w: 90, h: 190, cat: 'dormitorio' },
+    { kind: 'cuna', name: 'Cuna', w: 70, h: 130, cat: 'dormitorio' }, { kind: 'mesita', name: 'Mesita', w: 45, h: 40, cat: 'dormitorio' }, { kind: 'comoda', name: 'Cómoda', w: 110, h: 48, cat: 'dormitorio' },
+    { kind: 'armario', name: 'Armario', w: 180, h: 60, cat: 'dormitorio' }, { kind: 'vestidor', name: 'Vestidor', w: 240, h: 60, cat: 'dormitorio' }, { kind: 'escritorio', name: 'Escritorio', w: 120, h: 60, cat: 'dormitorio' }, { kind: 'sillaOficina', name: 'Silla oficina', w: 60, h: 60, cat: 'dormitorio' },
+    { kind: 'sofa', name: 'Sofá 3 plazas', w: 210, h: 90, cat: 'salon' }, { kind: 'sofaL', name: 'Sofá chaise longue', w: 270, h: 165, cat: 'salon' }, { kind: 'sofa', name: 'Sillón', w: 85, h: 85, cat: 'salon' },
+    { kind: 'mesaCentro', name: 'Mesa centro', w: 110, h: 60, cat: 'salon' }, { kind: 'alfombra', name: 'Alfombra', w: 240, h: 170, cat: 'salon' }, { kind: 'tv', name: 'Mueble TV', w: 180, h: 40, cat: 'salon' },
+    { kind: 'estanteria', name: 'Estantería', w: 140, h: 35, cat: 'salon' }, { kind: 'chimenea', name: 'Chimenea', w: 110, h: 55, cat: 'salon' },
+    { kind: 'mesa', name: 'Mesa comedor', w: 160, h: 90, cat: 'salon' }, { kind: 'mesaRedonda', name: 'Mesa redonda', w: 110, h: 110, cat: 'salon' }, { kind: 'silla', name: 'Silla', w: 45, h: 45, cat: 'salon' }, { kind: 'taburete', name: 'Taburete', w: 40, h: 40, cat: 'salon' },
+    { kind: 'moduloCocina', name: 'Módulo cocina a medida', w: 80, h: 60, h3d: 85, z0: 0, plinth: 10, handleType: 'gola', frontColor: '#f1ede6', cat: 'cocina', sections: [{ id: 's1', kind: 'cacerolero', h: 35, anim: true, cutlery: false }, { id: 's2', kind: 'cajon', h: 25, anim: true, cutlery: false }, { id: 's3', kind: 'cubertero', h: 15, anim: true, cutlery: true }] },
+    { kind: 'encimera', name: 'Encimera', w: 240, h: 60, cat: 'cocina' }, { kind: 'fregadero', name: 'Fregadero', w: 80, h: 60, cat: 'cocina' }, { kind: 'placa', name: 'Placa cocción', w: 60, h: 60, cat: 'cocina' },
+    { kind: 'muebleBajo', name: 'Mueble bajo cocina', w: 60, h: 60, cat: 'cocina' }, { kind: 'muebleCajon', name: 'Cajonero cocina', w: 80, h: 60, cat: 'cocina' }, { kind: 'muebleRincon', name: 'Rincón cocina', w: 90, h: 90, cat: 'cocina' },
+    { kind: 'muebleAlto', name: 'Mueble alto colgado', w: 80, h: 35, z0: 145, h3d: 70, cat: 'cocina' }, { kind: 'campana', name: 'Campana extractora', w: 90, h: 50, z0: 155, h3d: 45, cat: 'cocina' },
+    { kind: 'nevera', name: 'Frigorífico', w: 70, h: 65, cat: 'cocina' }, { kind: 'horno', name: 'Columna horno', w: 60, h: 60, cat: 'cocina' }, { kind: 'microondas', name: 'Columna horno+micro', w: 60, h: 60, h3d: 215, cat: 'cocina' },
+    { kind: 'despensa', name: 'Columna despensa', w: 60, h: 60, h3d: 215, cat: 'cocina' }, { kind: 'vinoteca', name: 'Vinoteca', w: 60, h: 60, cat: 'cocina' }, { kind: 'lavavajillas', name: 'Lavavajillas', w: 60, h: 60, cat: 'cocina' },
+    { kind: 'lavadora', name: 'Lavadora', w: 60, h: 60, cat: 'cocina' }, { kind: 'secadora', name: 'Secadora', w: 60, h: 60, cat: 'cocina' }, { kind: 'isla', name: 'Isla cocina', w: 180, h: 90, cat: 'cocina' }, { kind: 'peninsula', name: 'Península / barra', w: 200, h: 90, cat: 'cocina' },
+    { kind: 'inodoro', name: 'Inodoro', w: 40, h: 65, cat: 'bano' }, { kind: 'lavabo', name: 'Lavabo', w: 60, h: 45, cat: 'bano' }, { kind: 'lavabo2', name: 'Lavabo doble', w: 120, h: 48, cat: 'bano' },
+    { kind: 'muebleBano', name: 'Mueble baño lavabo', w: 90, h: 48, h3d: 82, z0: 0, plinth: 0, handleType: 'unero', frontColor: '#e7dfd5', cat: 'bano', sections: [{ id: 'b1', kind: 'cajon', h: 40, anim: true }, { id: 'b2', kind: 'cajon', h: 40, anim: true }] },
+    { kind: 'ducha', name: 'Plato ducha', w: 120, h: 80, cat: 'bano' }, { kind: 'mampara', name: 'Mampara fija cristal', w: 100, h: 6, h3d: 200, cat: 'bano' },
+    { kind: 'mamparaCorredera', name: 'Mampara corredera', w: 120, h: 8, h3d: 200, cat: 'bano' }, { kind: 'mamparaAbatible', name: 'Mampara abatible', w: 80, h: 6, h3d: 200, cat: 'bano' },
+    { kind: 'columnaDucha', name: 'Columna de ducha', w: 30, h: 35, h3d: 215, cat: 'bano' }, { kind: 'espejoLed', name: 'Espejo baño LED', w: 90, h: 5, h3d: 80, z0: 120, cat: 'bano' },
+    { kind: 'hornacina', name: 'Hornacina ducha', w: 60, h: 15, h3d: 35, z0: 115, cat: 'bano' },
+    { kind: 'banera', name: 'Bañera', w: 170, h: 75, cat: 'bano' }, { kind: 'baneraExenta', name: 'Bañera exenta', w: 170, h: 80, h3d: 58, cat: 'bano' }, { kind: 'bide', name: 'Bidé', w: 38, h: 55, cat: 'bano' },
+    { kind: 'toallero', name: 'Toallero', w: 60, h: 12, cat: 'bano' },
+    { kind: 'generico', name: 'Mueble genérico', w: 100, h: 50, cat: 'estructura' }, { kind: 'escalera', name: 'Escalera', w: 280, h: 100, cat: 'estructura' }, { kind: 'pilar', name: 'Pilar', w: 35, h: 35, cat: 'estructura' },
+    { kind: 'bajante', name: 'Bajante', w: 20, h: 20, cat: 'estructura' }, { kind: 'norte', name: 'Norte (N)', w: 70, h: 70, cat: 'estructura' },
+    { kind: 'piscina', name: 'Piscina', w: 600, h: 300, ext: true, cat: 'exterior' }, { kind: 'pergola', name: 'Pérgola', w: 400, h: 300, ext: true, cat: 'exterior' },
+    { kind: 'coche', name: 'Coche / plaza', w: 450, h: 200, ext: true, cat: 'exterior' }, { kind: 'moto', name: 'Moto', w: 210, h: 85, ext: true, cat: 'exterior' }, { kind: 'bici', name: 'Bicicleta', w: 180, h: 60, ext: true, cat: 'exterior' },
+    { kind: 'arbol', name: 'Árbol / planta', w: 140, h: 140, ext: true, cat: 'exterior' }, { kind: 'huerto', name: 'Huerto / jardinera', w: 200, h: 80, ext: true, cat: 'exterior' },
+    { kind: 'barbacoa', name: 'Barbacoa', w: 140, h: 70, ext: true, cat: 'exterior' }, { kind: 'tumbona', name: 'Tumbona', w: 195, h: 70, ext: true, cat: 'exterior' },
+    { kind: 'duchaExt', name: 'Ducha exterior', w: 90, h: 90, ext: true, cat: 'exterior' }, { kind: 'tendedero', name: 'Tendedero', w: 180, h: 70, ext: true, cat: 'exterior' },
+    { kind: 'trastero', name: 'Caseta / trastero', w: 240, h: 200, ext: true, cat: 'exterior' },
   ];
   const WALL_STATUS = { existente: 'Existente', nuevo: 'Nuevo (a construir)', demoler: 'A demoler' };
   const DOOR_KINDS = {
@@ -1870,18 +1880,37 @@ const Plan = (() => {
   function furnLibrary() {
     const th = T();
     const isExt = plan().scope === 'exterior';
+    const q = furnQuery.trim().toLowerCase();
     const renderItems = (items) => `<div class="lib">${items.map(({ f, i }) => {
       const m = Math.max(f.w, f.h) * 1.15, s = 54 / m;
       return `<button class="lib-item ${placing && placing.t === 'furn' && placing.i === i ? 'active' : ''}" data-a="pickFurn" data-i="${i}">
         <svg viewBox="${-m / 2} ${-m / 2} ${m} ${m}" width="54" height="54">${furnShape(f, s, Object.assign({}, th, { furnFill: 'transparent' }), { noLabel: true })}</svg>
         <span>${esc(f.name)}</span><small>${f.w}×${f.h}</small></button>`;
     }).join('')}</div>`;
-    const ints = FURN.map((f, i) => ({ f, i })).filter((x) => !x.f.ext);
-    const exts = FURN.map((f, i) => ({ f, i })).filter((x) => x.f.ext);
-    const groups = isExt ? [{ title: 'Exterior y parcela', ic: 'tree', list: exts }, { title: 'Mobiliario interior', ic: 'sofa', list: ints }]
-      : [{ title: 'Mobiliario interior', ic: 'sofa', list: ints }, { title: 'Exterior y parcela', ic: 'tree', list: exts }];
-    return `<div class="psec"><h4>${icon('sofa', 16)} Elementos y mobiliario</h4><p class="phint">Elige un elemento y toca el plano para colocarlo. Después puedes ajustar sus medidas exactas.</p></div>`
-      + groups.map((g) => `<div class="psec"><h4>${icon(g.ic, 16)} ${g.title}</h4>${renderItems(g.list)}</div>`).join('');
+    const allItems = FURN.map((f, i) => ({ f, i })).filter(({ f }) => !q || f.name.toLowerCase().includes(q) || (f.cat || '').includes(q));
+    const orderedCats = isExt
+      ? ['exterior', 'salon', 'cocina', 'bano', 'dormitorio', 'estructura']
+      : ['cocina', 'bano', 'salon', 'dormitorio', 'estructura', 'exterior'];
+    const catMap = Object.fromEntries(FURN_CATS.map((c) => [c.id, c]));
+    let body = '';
+    if (furnCat !== 'all') {
+      const list = allItems.filter((x) => x.f.cat === furnCat);
+      const c = catMap[furnCat] || { label: 'Mobiliario', ic: 'sofa' };
+      body = `<div class="psec"><h4>${icon(c.ic, 16)} ${c.label} (${list.length})</h4>${list.length ? renderItems(list) : '<p class="phint">Sin resultados con ese filtro.</p>'}</div>`;
+    } else {
+      body = orderedCats.map((cid) => {
+        const list = allItems.filter((x) => x.f.cat === cid);
+        if (!list.length) return '';
+        const c = catMap[cid];
+        const openAttr = q || cid === (isExt ? 'exterior' : 'cocina') || cid === 'bano' ? 'open' : '';
+        return `<details class="furn-group" ${openAttr}><summary><span class="fg-l">${icon(c.ic, 15)} ${c.label}</span><em>${list.length}</em></summary>${renderItems(list)}</details>`;
+      }).join('') || '<div class="psec"><p class="phint">No hay muebles que coincidan con tu búsqueda.</p></div>';
+    }
+    return `<div class="psec"><h4>${icon('sofa', 16)} Catálogo de mobiliario</h4>
+      <div class="furn-filter-bar">
+        <input type="search" id="furnSearch" value="${esc(furnQuery)}" placeholder="Buscar mueble (ej. mampara, sofá, horno)…">
+        <div class="furn-cats">${FURN_CATS.map((c) => `<button type="button" class="chip ${furnCat === c.id ? 'on' : ''}" data-a="setFurnCat" data-cat="${c.id}">${c.label}</button>`).join('')}</div>
+      </div></div>` + body;
   }
 
   function symLibrary() {
@@ -2338,6 +2367,14 @@ const Plan = (() => {
     panel.addEventListener('focusin', (e) => { if (e.target.dataset.p) panelSnap = JSON.stringify(els()); });
     panel.addEventListener('input', (e) => {
       const t = e.target;
+      if (t.id === 'furnSearch') {
+        furnQuery = t.value;
+        const pos = t.selectionStart;
+        renderPanel();
+        const inp = $('#furnSearch', panel);
+        if (inp) { inp.focus(); try { inp.setSelectionRange(pos, pos); } catch (_) {} }
+        return;
+      }
       if (t.dataset.pl && t.tagName !== 'SELECT') { plan()[t.dataset.pl] = t.value; Store.save(); syncTop(); return; }
       if (!t.dataset.p || t.type === 'number' || t.tagName === 'SELECT') return;
       const el = sel && byId(sel); if (!el) return;
@@ -2389,6 +2426,7 @@ const Plan = (() => {
         case 'wthick': pui.wallThick = +b.dataset.v; savePui(); renderPanel(); break;
         case 'pickSketchCol': pui.sketchColor = b.dataset.c; savePui(); renderPanel(); break;
         case 'pickSketchSz': pui.sketchSize = +b.dataset.v; savePui(); renderPanel(); break;
+        case 'setFurnCat': furnCat = b.dataset.cat || 'all'; renderPanel(); break;
         case 'pickFurn': { const i = +b.dataset.i; placing = { t: 'furn', i, def: FURN[i], angle: placing && placing.t === 'furn' ? placing.angle : 0 }; renderPanel(); if (window.innerWidth <= 900) setMobilePanel(false); break; }
         case 'pickSym': placing = { t: 'sym', kind: b.dataset.k }; renderPanel(); if (window.innerWidth <= 900) setMobilePanel(false); break;
         case 'pickDuct': {
