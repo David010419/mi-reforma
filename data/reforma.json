@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795724218528,
+  "updatedAt": 1795724225545,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -106,7 +106,7 @@
         "name": "Disp. 2",
         "date": "2026-11-25",
         "milestone": "Segunda disposición · Albañilería y carpintería",
-        "amount": 15000
+        "amount": 37000
       },
       {
         "id": "mwxz1mjsvdt3af",
