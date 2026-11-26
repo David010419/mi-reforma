@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795730861804,
+  "updatedAt": 1795731039760,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -484,17 +484,6 @@
           "floor": "",
           "ceiling": 250,
           "note": ""
-        },
-        {
-          "id": "mwy3scue4xrvt5",
-          "type": "furn",
-          "kind": "muebleRincon",
-          "name": "Rincón cocina",
-          "w": 90,
-          "h": 90,
-          "x": -9,
-          "y": -172.7,
-          "angle": 0
         }
       ],
       "bgImage": null
