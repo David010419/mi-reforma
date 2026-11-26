@@ -136,6 +136,7 @@ const Plan = (() => {
     { id: 'dim', icon: 'dim', label: 'Cota', key: 'C' },
     { id: 'text', icon: 'text', label: 'Texto', key: 'T' },
     { id: 'pin', icon: 'pin', label: 'Pin de tarea / incidencia', key: 'I' },
+    { id: 'sketch', icon: 'edit', label: 'Boceto / nota a mano (Apple Pencil)', key: 'S' },
     { id: 'measure', icon: 'ruler', label: 'Medir distancia', key: 'L' },
   ];
   const HINTS = {
@@ -153,12 +154,13 @@ const Plan = (() => {
     dim: 'Clic en el punto inicial, clic en el final y un tercer clic para separar la cota',
     text: 'Haz clic donde quieras añadir un texto',
     pin: 'Haz clic en el plano para colocar un pin de tarea o incidencia',
+    sketch: 'Dibuja a mano alzada con el Apple Pencil o ratón · en iPad: 2 dedos = deshacer, 3 dedos = rehacer',
     measure: 'Arrastra para medir una distancia (no se guarda)',
   };
   const PUIKEY = 'mi-reforma:ui:plan';
-  const DEF_LAYERS = { grid: true, rooms: true, walls: true, openings: true, furn: true, elec: true, fonta: true, clima: true, domo: true, dims: true, text: true, pins: true };
+  const DEF_LAYERS = { grid: true, rooms: true, walls: true, openings: true, furn: true, elec: true, fonta: true, clima: true, domo: true, dims: true, text: true, pins: true, sketch: true };
   const savedPui = safeJSON(localStorage.getItem(PUIKEY)) || {};
-  const pui = Object.assign({ grid: 5, snap: true, ortho: true, autoDims: true, wallThick: 15, wallStatus: 'existente', viewPreset: 'todo', ductKind: 'impulsion', ductWidth: 26, ductHeight: 245 }, savedPui);
+  const pui = Object.assign({ grid: 5, snap: true, ortho: true, autoDims: true, wallThick: 15, wallStatus: 'existente', viewPreset: 'todo', ductKind: 'impulsion', ductWidth: 26, ductHeight: 245, pencilOnly: false, sketchColor: '#ef4444', sketchSize: 4, panelHidden: false }, savedPui);
   pui.layers = Object.assign({}, DEF_LAYERS, savedPui.layers || {});
   const savePui = () => localStorage.setItem(PUIKEY, JSON.stringify(pui));
 
@@ -167,7 +169,7 @@ const Plan = (() => {
   let tool = 'select', sel = null, draft = null, placing = null, drag = null;
   let cursor = null, lastShift = false, snapInd = null, hoverOpen = null, spaceDown = false;
   let undoStack = [], redoStack = [], fitted = false, raf = 0, pinch = null;
-  let compareId = null, compareOpacity = 0.35, calib = null;
+  let compareId = null, compareOpacity = 0.35, calib = null, tapGesture = null, pencilHintShown = false;
   const pointers = new Map();
   const MIN_S = 0.04, MAX_S = 8;
 
@@ -414,7 +416,7 @@ const Plan = (() => {
       case 'furn': return L.furn;
       case 'sym': { const g = (SYMBOLS[e.kind] || SYMBOLS.enchufe).group; return L[g] !== false; }
       case 'duct': { const g = (DUCT_KINDS[e.kind] || DUCT_KINDS.impulsion).group; return L[g] !== false; }
-      case 'dim': return L.dims; case 'text': return L.text; case 'pin': return L.pins; default: return true;
+      case 'dim': return L.dims; case 'text': return L.text; case 'pin': return L.pins; case 'sketch': return L.sketch !== false; default: return true;
     }
   }
 
@@ -487,6 +489,12 @@ const Plan = (() => {
     vis.filter((e) => e.type === 'text').forEach((t) => {
       out += `<text data-id="${t.id}" x="${t.x}" y="${t.y}" font-size="${t.size || 20}" font-weight="600" fill="${t.color || th.text}" text-anchor="middle" dominant-baseline="central" paint-order="stroke" stroke="${th.bg}" stroke-width="${(t.size || 20) * 0.18}" stroke-linejoin="round">${esc(t.text)}</text>`;
     });
+    // Bocetos a mano alzada (Apple Pencil)
+    vis.filter((e) => e.type === 'sketch' && Array.isArray(e.points) && e.points.length >= 2).forEach((k) => {
+      const pts = k.points.map((p) => p[0] + ',' + p[1]).join(' ');
+      out += `<polyline points="${pts}" fill="none" stroke="${k.color || '#ef4444'}" stroke-width="${Math.max(px(1.5), k.size || 4)}" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>`;
+      out += `<polyline data-id="${k.id}" points="${pts}" fill="none" stroke="transparent" stroke-width="${Math.max(px(14), (k.size || 4) * 2.5)}"/>`;
+    });
     // Pines de tareas / incidencias
     vis.filter((e) => e.type === 'pin').forEach((p) => {
       const task = p.taskId ? S().tasks.find((x) => x.id === p.taskId) : null;
@@ -508,7 +516,7 @@ const Plan = (() => {
       switch (e.type) {
         case 'wall': add(e.x1, e.y1, e.thick / 2); add(e.x2, e.y2, e.thick / 2); break;
         case 'duct': add(e.x1, e.y1, (e.width || 10) / 2); add(e.x2, e.y2, (e.width || 10) / 2); break;
-        case 'room': e.points.forEach((p) => add(p[0], p[1])); break;
+        case 'room': case 'sketch': (e.points || []).forEach((p) => add(p[0], p[1])); break;
         case 'furn': add(e.x, e.y, Math.hypot(e.w, e.h) / 2); break;
         case 'sym': case 'text': case 'pin': add(e.x, e.y, 15); break;
         case 'dim': { const L = Math.hypot(e.x2 - e.x1, e.y2 - e.y1) || 1, nx = -(e.y2 - e.y1) / L, ny = (e.x2 - e.x1) / L, o = (e.offset || 0) * 1.3; add(e.x1, e.y1); add(e.x2, e.y2); add(e.x1 + nx * o, e.y1 + ny * o); add(e.x2 + nx * o, e.y2 + ny * o); break; }
@@ -569,6 +577,7 @@ const Plan = (() => {
           <select id="pGrid" title="Paso de la rejilla de ajuste">${[1, 2, 5, 10, 25, 50].map((g) => `<option value="${g}">${g} cm</option>`).join('')}</select>
           <button class="tgl" data-pt="ortho" title="Modo ortogonal (Shift lo alterna temporalmente)">${icon('ortho', 15)}<span>Orto</span></button>
           <button class="tgl" data-pt="autoDims" title="Mostrar la longitud de cada muro">${icon('dim', 15)}<span>Medidas</span></button>
+          <button class="tgl" data-pt="pencilOnly" title="Modo Apple Pencil: el lápiz dibuja y el dedo solo mueve el plano (evita toques con la palma)">${icon('edit', 15)}<span>Pencil</span></button>
         </div>
         <div class="pt-group">
           <button class="icon-btn" data-pa="zoomOut" title="Alejar (-)">${icon('zoomout', 17)}</button>
@@ -580,6 +589,7 @@ const Plan = (() => {
           <button class="tgl" id="pBgBtn" data-pa="bgModal" title="Imagen de fondo para calcar un plano real">${icon('image', 15)}<span>Calcar</span></button>
           <button class="tgl" id="pCmpBtn" data-pa="compareModal" title="Comparar con otro plano (Antes / Después)">${icon('compare', 15)}<span>Comparar</span></button>
           <button class="btn sm" data-pa="render3d" title="Ver en 3D interactivo y generar render fotorrealista">${icon('box', 15)}<span>Vista 3D / Render</span></button>
+          <button class="tgl" id="pDeskPanelBtn" data-pa="toggleDeskPanel" title="Ocultar / mostrar panel derecho (más espacio en iPad)">${icon('sliders', 15)}<span>Panel</span></button>
           <select id="pTheme" title="Estilo del plano">${Object.entries(THEMES).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('')}</select>
           <details class="dropdown right">
             <summary class="btn sm primary">${icon('download', 15)}<span>Exportar</span></summary>
@@ -632,11 +642,13 @@ const Plan = (() => {
     $$('[data-pt]', root).forEach((b) => b.classList.toggle('on', !!pui[b.dataset.pt]));
     $('#pGrid').value = String(pui.grid);
     $('#pTheme').value = S().settings.planTheme in THEMES ? S().settings.planTheme : 'paper';
-    const names = { grid: 'Rejilla', rooms: 'Habitaciones', walls: 'Muros', openings: 'Puertas y ventanas', furn: 'Mobiliario', elec: 'Iluminación y electricidad', fonta: 'Fontanería y agua', clima: 'Aire acondicionado y conductos', domo: 'Domótica y control', dims: 'Cotas y medidas', text: 'Textos', pins: 'Pines y tareas' };
+    const names = { grid: 'Rejilla', rooms: 'Habitaciones', walls: 'Muros', openings: 'Puertas y ventanas', furn: 'Mobiliario', elec: 'Iluminación y electricidad', fonta: 'Fontanería y agua', clima: 'Aire acondicionado y conductos', domo: 'Domótica y control', dims: 'Cotas y medidas', text: 'Textos', pins: 'Pines y tareas', sketch: 'Bocetos (Apple Pencil)' };
     $('#pLayers').innerHTML = Object.keys(DEF_LAYERS).map((k) => `<label class="chk"><input type="checkbox" data-layer="${k}" ${pui.layers[k] ? 'checked' : ''}> ${names[k]}</label>`).join('');
     const vp = $('#pViewPreset'); if (vp) vp.value = pui.viewPreset || 'todo';
     const bgB = $('#pBgBtn'); if (bgB) bgB.classList.toggle('on', !!cur.bgImage);
     const cmpB = $('#pCmpBtn'); if (cmpB) cmpB.classList.toggle('on', !!compareId);
+    const dpb = $('#pDeskPanelBtn'); if (dpb) dpb.classList.toggle('on', !pui.panelHidden);
+    if (root) root.classList.toggle('panel-hidden', !!pui.panelHidden);
     $('#pUndo').disabled = !undoStack.length; $('#pRedo').disabled = !redoStack.length;
     updateSelBar();
   }
@@ -646,7 +658,8 @@ const Plan = (() => {
     if (!bar) return;
     const el = sel && byId(sel);
     if (draft && (draft.type === 'wall' || draft.type === 'poly' || draft.type === 'duct')) {
-      bar.innerHTML = `<button class="btn sm primary" data-pa="finishDraft">${icon('check', 15)} Terminar</button><button class="btn sm" data-pa="cancelDraft">${icon('x', 15)} Cancelar</button>`;
+      bar.innerHTML = (draft.type === 'wall' ? `<button class="btn sm" data-pa="wallLenPrompt">${icon('ruler', 15)} Medida (cm)</button>` : '')
+        + `<button class="btn sm primary" data-pa="finishDraft">${icon('check', 15)} Terminar</button><button class="btn sm" data-pa="cancelDraft">${icon('x', 15)} Cancelar</button>`;
       bar.classList.add('show');
       return;
     }
@@ -765,9 +778,11 @@ const Plan = (() => {
   function overlay(s, th) {
     const px = (v) => v / s, sc = th.sel;
     let o = '';
+    const coarse = matchMedia('(pointer: coarse)').matches;
+    const hr = coarse ? 9 : 6.5, hsq = coarse ? 12 : 9;
     const handle = (x, y, h, sq) => sq
-      ? `<rect class="handle" data-handle="${h}" x="${x - px(4.5)}" y="${y - px(4.5)}" width="${px(9)}" height="${px(9)}" fill="${sc}" stroke="#fff" stroke-width="${px(1.5)}"/>`
-      : `<circle class="handle" data-handle="${h}" cx="${x}" cy="${y}" r="${px(6.5)}" fill="#fff" stroke="${sc}" stroke-width="${px(2.5)}"/>`;
+      ? `<rect class="handle" data-handle="${h}" x="${x - px(hsq / 2)}" y="${y - px(hsq / 2)}" width="${px(hsq)}" height="${px(hsq)}" fill="${sc}" stroke="#fff" stroke-width="${px(1.8)}"/>`
+      : `<circle class="handle" data-handle="${h}" cx="${x}" cy="${y}" r="${px(hr)}" fill="#fff" stroke="${sc}" stroke-width="${px(2.5)}"/>`;
     const label = (x, y, txt, ang = 0) => `<g transform="translate(${x} ${y}) rotate(${readable(ang)})" pointer-events="none"><rect x="${-px(txt.length * 3.6 + 8)}" y="${-px(10)}" width="${px(txt.length * 7.2 + 16)}" height="${px(20)}" rx="${px(6)}" fill="${sc}"/><text text-anchor="middle" dominant-baseline="central" font-size="${px(11.5)}" font-weight="700" fill="#fff">${esc(txt)}</text></g>`;
     const el = sel && byId(sel);
     if (el) {
@@ -890,6 +905,12 @@ const Plan = (() => {
           o += `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="${sc}" stroke-width="${px(2)}" pointer-events="none"/>`;
           o += `<circle cx="${a.x}" cy="${a.y}" r="${px(4)}" fill="${sc}"/><circle cx="${b.x}" cy="${b.y}" r="${px(4)}" fill="${sc}"/>`;
           if (L > 0.5) o += label((a.x + b.x) / 2, (a.y + b.y) / 2 - px(16), fmtLenU(L) + `  ·  Δx ${fmtLen(Math.abs(b.x - a.x))}  Δy ${fmtLen(Math.abs(b.y - a.y))}`);
+          break;
+        }
+        case 'sketch': {
+          if (draft.pts && draft.pts.length >= 2) {
+            o += `<polyline points="${draft.pts.map((p) => p[0] + ',' + p[1]).join(' ')}" fill="none" stroke="${pui.sketchColor || '#ef4444'}" stroke-width="${Math.max(px(1.5), draft.size || pui.sketchSize || 4)}" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>`;
+          }
           break;
         }
       }
@@ -1057,12 +1078,31 @@ const Plan = (() => {
       requestRender(); return;
     }
     svg.setPointerCapture(e.pointerId);
-    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, type: e.pointerType });
+    // Auto-activar Modo Apple Pencil la primera vez que se usa el lápiz
+    if (e.pointerType === 'pen' && !pui.pencilOnly && !pencilHintShown) {
+      pencilHintShown = true;
+      pui.pencilOnly = true; savePui(); syncTop();
+      toast('Apple Pencil activo: el lápiz dibuja y el dedo mueve el plano', 'info');
+    }
+    // Detección de gestos multi-toque (2 dedos = Deshacer, 3 dedos = Rehacer, 2 dedos arrastre = Zoom)
+    if (e.pointerType === 'touch') {
+      const touchCount = [...pointers.values()].filter((pt) => pt.type === 'touch').length;
+      if (touchCount >= 2) {
+        if (!tapGesture) tapGesture = { t0: Date.now(), max: touchCount, moved: false, sx: e.clientX, sy: e.clientY };
+        else tapGesture.max = Math.max(tapGesture.max, touchCount);
+      }
+    }
     if (pointers.size === 2) {
       const [a, b] = [...pointers.values()];
       pinch = { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, view: Object.assign({}, view) };
-      if (drag && drag.pushed) { /* mantiene cambios */ }
+      if (drag && drag.mode === 'sketch') draft = null;
       drag = null; return;
+    }
+    // Modo Apple Pencil (rechazo de palma): el dedo solo desplaza la vista
+    if (pui.pencilOnly && e.pointerType === 'touch') {
+      startPan(e);
+      return;
     }
     lastShift = e.shiftKey;
     const p = toWorld(e); cursor = p;
@@ -1153,6 +1193,12 @@ const Plan = (() => {
         break;
       }
       case 'measure': { const q = snap(p); draft = { type: 'measure', a: q, b: q }; drag = { mode: 'measure' }; break; }
+      case 'sketch': {
+        const pr = e.pointerType === 'pen' && e.pressure > 0 ? clamp(0.6 + e.pressure * 1.1, 0.5, 1.8) : 1;
+        draft = { type: 'sketch', pts: [[r1(p.x), r1(p.y)]], size: r1((pui.sketchSize || 4) * pr) };
+        drag = { mode: 'sketch' };
+        break;
+      }
       case 'furn': case 'sym': {
         if (!placing) { toast('Elige primero un elemento en el panel de la derecha', 'warn'); break; }
         pushUndo();
@@ -1204,7 +1250,11 @@ const Plan = (() => {
   }
 
   function onMove(e) {
-    if (pointers.has(e.pointerId)) pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.has(e.pointerId)) {
+      const prev = pointers.get(e.pointerId);
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, type: e.pointerType });
+      if (tapGesture && Math.hypot(e.clientX - prev.x, e.clientY - prev.y) > 8) tapGesture.moved = true;
+    }
     if (pinch && pointers.size >= 2) {
       const [a, b] = [...pointers.values()], r = svg.getBoundingClientRect();
       const ns = clamp(pinch.view.s * (Math.hypot(a.x - b.x, a.y - b.y) / pinch.d), MIN_S, MAX_S);
@@ -1226,6 +1276,11 @@ const Plan = (() => {
     if (drag.mode === 'pan') { view.x = drag.vx + e.clientX - drag.sx; view.y = drag.vy + e.clientY - drag.sy; return; }
     if (drag.mode === 'rect') { draft.b = snap(p); const q = draft.b; snapInd = q.snapped ? q : null; return; }
     if (drag.mode === 'measure') { let q = snap(p); if (orthoOn(e)) q = ortho(draft.a, q); draft.b = q; return; }
+    if (drag.mode === 'sketch') {
+      const last = draft.pts[draft.pts.length - 1];
+      if (!last || Math.hypot(p.x - last[0], p.y - last[1]) > 2 / view.s) draft.pts.push([r1(p.x), r1(p.y)]);
+      return;
+    }
     const el = byId(drag.id); if (!el) return;
     const o = drag.orig, g = pui.snap ? pui.grid : 0;
     let dx = p.x - drag.start.x, dy = p.y - drag.start.y;
@@ -1241,7 +1296,7 @@ const Plan = (() => {
           el.x1 = o.x1 + dx; el.y1 = o.y1 + dy; el.x2 = o.x2 + dx; el.y2 = o.y2 + dy;
           drag.links.forEach((l) => { const w = byId(l.id); if (w) { w['x' + l.end] = l.ox + dx; w['y' + l.end] = l.oy + dy; } });
           break;
-        case 'room': el.points = o.points.map(([x, y]) => [x + dx, y + dy]); break;
+        case 'room': case 'sketch': el.points = o.points.map(([x, y]) => [x + dx, y + dy]); break;
         case 'door': case 'window': {
           const w = byId(el.wallId); if (!w) break;
           const a = { x: w.x1, y: w.y1 }, b = { x: w.x2, y: w.y2 }, L = wlen(w);
@@ -1294,9 +1349,24 @@ const Plan = (() => {
   function onUp(e) {
     pointers.delete(e.pointerId);
     if (pointers.size < 2) pinch = null;
+    if (pointers.size === 0 && tapGesture) {
+      const tg = tapGesture; tapGesture = null;
+      if (!tg.moved && Date.now() - tg.t0 < 340) {
+        if (tg.max === 2) { doUndo(); toast('Deshecho (2 dedos)', 'info'); return; }
+        if (tg.max >= 3) { doRedo(); toast('Rehecho (3 dedos)', 'info'); return; }
+      }
+    }
     if (!drag) return;
     const d = drag; drag = null;
     svg.classList.remove('panning');
+    if (d.mode === 'sketch') {
+      if (draft && draft.pts.length >= 2) {
+        pushUndo();
+        els().push({ id: uid(), type: 'sketch', points: draft.pts, color: pui.sketchColor || '#ef4444', size: draft.size || pui.sketchSize || 4, note: '' });
+        draft = null; commit(); return;
+      }
+      draft = null; requestRender(); return;
+    }
     if (d.mode === 'rect') finishRect(draft ? draft.type : tool);
     else if ((d.mode === 'move' || d.mode === 'handle') && d.pushed) {
       const el = byId(d.id);
@@ -1409,6 +1479,7 @@ const Plan = (() => {
     else if (tool === 'furn') h += furnLibrary();
     else if (tool === 'sym') h += symLibrary();
     else if (tool === 'duct') h += ductToolOpts() + summary();
+    else if (tool === 'sketch') h += sketchToolOpts() + summary();
     else if (tool === 'wall' || tool === 'wallrect') h += wallToolOpts() + summary();
     else h += summary();
     panel.innerHTML = h;
@@ -1418,6 +1489,15 @@ const Plan = (() => {
     const a = document.activeElement, key = a && a.dataset ? a.dataset.p : null;
     renderPanel();
     if (key) { const n = panel.querySelector(`[data-p="${key}"]`); if (n) n.focus(); }
+  }
+
+  function sketchToolOpts() {
+    const cols = ['#ef4444', '#f97316', '#eab308', '#10b981', '#0ea5e9', '#8b5cf6', '#1e293b'];
+    return `<div class="psec"><h4>${icon('edit', 16)} Boceto libre (Apple Pencil)</h4>
+      <div class="swatches">${cols.map((c) => `<button class="sw ${pui.sketchColor === c ? 'on' : ''}" style="--c:${c}" data-a="pickSketchCol" data-c="${c}"></button>`).join('')}</div>
+      <div class="chips">${[2, 4, 7, 12].map((sz) => `<button class="chip ${pui.sketchSize === sz ? 'on' : ''}" data-a="pickSketchSz" data-v="${sz}">${sz} px</button>`).join('')}</div>
+      <p class="phint">${icon('hint', 14)} En iPad con <b>Modo Pencil</b> activo: el Apple Pencil dibuja, 1 dedo mueve el plano, 2 dedos tocan para Deshacer y 3 dedos para Rehacer.</p>
+    </div>`;
   }
 
   function ductToolOpts() {
@@ -1564,6 +1644,11 @@ const Plan = (() => {
         return head('text', 'Texto') + `<div class="psec">${F.text('Texto', 'text', el.text)}
           <div class="pgrid">${F.num('Tamaño', 'size', el.size || 20)}<label class="pf"><span>Color</span><input type="color" data-p="color" value="${el.color || '#1f2937'}"></label></div></div>
           ${actions(B.dup, B.del)}`;
+      case 'sketch':
+        return head('edit', 'Trazo / Boceto') + `<div class="psec">
+          <div class="pgrid">${F.num('Grosor', 'size', el.size || 4, 'px')}<label class="pf"><span>Color</span><input type="color" data-p="color" value="${el.color || '#ef4444'}"></label></div>
+          ${F.area('Nota', 'note', el.note, 'Anotación opcional…')}</div>
+          ${actions(B.dup, B.del)}`;
       case 'pin': {
         const taskOpts = { '': '— Sin vincular a tarea —' };
         S().tasks.forEach((t) => { taskOpts[t.id] = `${t.title} (${Tasks.statusOf(t.status).label})`; });
@@ -1701,6 +1786,19 @@ const Plan = (() => {
         }
         case 'togglePanel': setMobilePanel(!root.classList.contains('panel-open')); break;
         case 'openPanel': setMobilePanel(true); break;
+        case 'toggleDeskPanel': pui.panelHidden = !pui.panelHidden; savePui(); syncTop(); requestRender(); break;
+        case 'wallLenPrompt': {
+          if (!draft || draft.type !== 'wall') break;
+          const v = num(prompt('Longitud exacta del muro en centímetros (ej. 350 para 3,50 m):', '300'), 0);
+          if (v > 0) {
+            draft.typed = String(v);
+            const q = typedEnd();
+            addWall(draft.a, q);
+            draft.a = q; draft.typed = '';
+            requestRender();
+          }
+          break;
+        }
         case 'finishDraft': if (draft && draft.type === 'poly') closePoly(); else { draft = null; updateSelBar(); requestRender(); } break;
         case 'cancelDraft': draft = null; placing = null; updateSelBar(); renderPanel(); requestRender(); break;
         case 'rotPlacing': if (placing && placing.t === 'furn') { placing.angle = ((placing.angle || 0) + 90) % 360; requestRender(); } break;
@@ -1764,6 +1862,8 @@ const Plan = (() => {
         case 'color': if (el) { pushUndo(); el.color = b.dataset.c; commit(); } break;
         case 'selectEl': sel = b.dataset.id; setTool('select', true); renderPanel(); requestRender(); break;
         case 'wthick': pui.wallThick = +b.dataset.v; savePui(); renderPanel(); break;
+        case 'pickSketchCol': pui.sketchColor = b.dataset.c; savePui(); renderPanel(); break;
+        case 'pickSketchSz': pui.sketchSize = +b.dataset.v; savePui(); renderPanel(); break;
         case 'pickFurn': { const i = +b.dataset.i; placing = { t: 'furn', i, def: FURN[i], angle: placing && placing.t === 'furn' ? placing.angle : 0 }; renderPanel(); if (window.innerWidth <= 900) setMobilePanel(false); break; }
         case 'pickSym': placing = { t: 'sym', kind: b.dataset.k }; renderPanel(); if (window.innerWidth <= 900) setMobilePanel(false); break;
         case 'pickDuct': {

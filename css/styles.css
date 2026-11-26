@@ -434,7 +434,9 @@ summary::-webkit-details-marker { display: none; }
 .dd-menu .chk:hover, .dd-menu button:hover { background: var(--surface-2); }
 
 .plan-body { flex: 1; display: grid; grid-template-columns: 58px 1fr 320px; min-height: 0; }
-.plan-tools { background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 10px 0; overflow-y: auto; }
+#view-plano.panel-hidden .plan-body { grid-template-columns: 58px 1fr 0; }
+#view-plano.panel-hidden .plan-panel { display: none; }
+.plan-tools { background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 10px 0; overflow-y: auto; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .plan-tools button {
   position: relative; width: 42px; height: 42px; flex-shrink: 0; border-radius: 10px; border: 0; background: transparent; color: var(--text-2);
   display: grid; place-items: center; transition: background .12s, color .12s;
@@ -444,7 +446,7 @@ summary::-webkit-details-marker { display: none; }
 .plan-tools kbd { position: absolute; right: 1px; bottom: 1px; font-size: 8.5px; padding: 0 3px; line-height: 1.35; border: 0; background: transparent; color: inherit; opacity: .55; }
 .tsep { width: 26px; height: 1px; background: var(--border); margin: 5px 0; flex-shrink: 0; }
 .plan-canvas { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
-#planSvg { display: block; width: 100%; height: 100%; touch-action: none; user-select: none; cursor: crosshair; font-family: var(--font); }
+#planSvg { display: block; width: 100%; height: 100%; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; cursor: crosshair; font-family: var(--font); }
 #planSvg.tool-select { cursor: default; }
 #planSvg.tool-select [data-id] { cursor: move; }
 #planSvg .handle { cursor: grab; }
@@ -788,7 +790,21 @@ button.save-ind.warn .ic { color: var(--warning); }
   .loan-grid { grid-template-columns: 1fr; }
   .amort-pills { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .dash-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .plan-body { grid-template-columns: 58px 1fr 290px; }
+  .plan-body { grid-template-columns: 56px 1fr 270px; }
+}
+/* iPad horizontal (901px–1194px): compactar sidebar a iconos en Planos para dar +180px al lienzo */
+@media (min-width: 901px) and (max-width: 1194px) {
+  body[data-view="plano"] .app { grid-template-columns: 64px 1fr; }
+  body[data-view="plano"] .sidebar { padding: 14px 8px; align-items: center; }
+  body[data-view="plano"] .brand-txt, body[data-view="plano"] .nav a b, body[data-view="plano"] .sidebar-foot { display: none; }
+  body[data-view="plano"] .nav a { justify-content: center; padding: 10px; width: 44px; height: 44px; position: relative; }
+  body[data-view="plano"] .nav-badge { position: absolute; top: 2px; right: 2px; min-width: 16px; height: 16px; font-size: 9px; padding: 0 4px; }
+}
+/* Dispositivos táctiles (iPad / tablet): botones y barras táctiles más cómodas */
+@media (pointer: coarse) {
+  .plan-fab-bar.show { display: flex; }
+  .plan-tools button { width: 44px; height: 44px; }
+  .icon-btn { min-width: 38px; min-height: 38px; }
 }
 @media (max-width: 900px) {
   :root { --sidebar: 0px; }
