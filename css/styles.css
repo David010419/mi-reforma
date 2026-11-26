@@ -744,6 +744,7 @@ button.save-ind.warn .ic { color: var(--warning); }
 .r3d-hint { position: absolute; right: 10px; bottom: 10px; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 8px; background: rgba(15, 23, 42, .62); color: #fff; pointer-events: none; }
 .r3d-controls { display: grid; grid-template-columns: 1fr 1fr auto; gap: 14px; align-items: center; margin: 12px 0; }
 .r3d-controls input[type="range"] { width: 100%; accent-color: var(--accent); }
+.r3d-layers { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 10px 12px; margin-bottom: 12px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--border); font-size: 13px; }
 .r3d-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .ai-key-box { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; padding: 12px; border-radius: 11px; background: var(--surface-2); border: 1px solid var(--border); }
 .ai-result img { box-shadow: var(--shadow); }

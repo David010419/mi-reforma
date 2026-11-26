@@ -19,9 +19,10 @@ const Plan = (() => {
   };
   const ROOM_COLORS = ['#fde68a', '#bfdbfe', '#bbf7d0', '#fbcfe8', '#ddd6fe', '#fed7aa', '#a5f3fc', '#e5e7eb', '#fecaca', '#d9f99d'];
   const SYM_GROUPS = {
-    elec: { label: 'Electricidad', color: '#f59e0b' },
-    fonta: { label: 'Fontanería y gas', color: '#0ea5e9' },
-    clima: { label: 'Clima y ventilación', color: '#ef4444' },
+    elec: { label: 'Iluminación y electricidad', color: '#f59e0b' },
+    fonta: { label: 'Fontanería y agua', color: '#0ea5e9' },
+    clima: { label: 'Aire acondicionado y conductos', color: '#ef4444' },
+    domo: { label: 'Domótica y control', color: '#8b5cf6' },
   };
   const SYMBOLS = {
     enchufe: { label: 'Enchufe', group: 'elec', g: 'E', h: 30, wall: true },
@@ -32,6 +33,7 @@ const Plan = (() => {
     conmutador: { label: 'Conmutador', group: 'elec', g: 'C', h: 110, wall: true },
     luz: { label: 'Punto de luz (techo)', group: 'elec', g: '', h: 260, wall: false },
     foco: { label: 'Foco empotrado', group: 'elec', g: '•', h: 260, wall: false },
+    tiraLed: { label: 'Tira LED / foseado', group: 'elec', g: 'LD', h: 255, wall: false },
     aplique: { label: 'Aplique de pared', group: 'elec', g: 'A', h: 180, wall: true },
     tv: { label: 'Toma TV', group: 'elec', g: 'TV', h: 30, wall: true },
     red: { label: 'Toma red / datos', group: 'elec', g: 'RJ', h: 30, wall: true },
@@ -42,17 +44,44 @@ const Plan = (() => {
     desague: { label: 'Desagüe', group: 'fonta', g: 'D', h: 0, wall: false },
     llave: { label: 'Llave de paso', group: 'fonta', g: 'LL', h: 40, wall: true },
     gas: { label: 'Toma de gas', group: 'fonta', g: 'G', h: 50, wall: true },
-    calentador: { label: 'Termo / caldera', group: 'fonta', g: 'K', h: 150, wall: true },
+    calentador: { label: 'Termo / aerotermia', group: 'fonta', g: 'K', h: 150, wall: true },
+    maqInt: { label: 'Máquina interior AA (conductos)', group: 'clima', g: 'MI', h: 245, wall: false },
+    maqExt: { label: 'Máquina exterior AA (condensadora)', group: 'clima', g: 'ME', h: 100, wall: true },
+    rejImp: { label: 'Rejilla de impulsión', group: 'clima', g: 'RI', h: 240, wall: true },
+    rejRet: { label: 'Rejilla de retorno', group: 'clima', g: 'RR', h: 240, wall: false },
+    compuerta: { label: 'Compuerta motorizada (Airzone)', group: 'clima', g: 'AZ', h: 245, wall: false },
+    mandoCentral: { label: 'Mando centralizado AA', group: 'clima', g: 'MC', h: 150, wall: true },
+    termostatoZona: { label: 'Termostato de zona', group: 'clima', g: 'TZ', h: 150, wall: true },
+    aire: { label: 'Split AA pared', group: 'clima', g: 'AA', h: 220, wall: true },
     radiador: { label: 'Radiador', group: 'clima', g: 'R', h: 15, wall: true },
-    termostato: { label: 'Termostato', group: 'clima', g: 'T', h: 150, wall: true },
-    aire: { label: 'Aire acondicionado', group: 'clima', g: 'AA', h: 220, wall: true },
+    termostato: { label: 'Termostato general', group: 'clima', g: 'T', h: 150, wall: true },
     extractor: { label: 'Extracción / ventilación', group: 'clima', g: 'V', h: 240, wall: false },
     detector: { label: 'Detector humo', group: 'clima', g: 'DH', h: 260, wall: false },
-    persiana: { label: 'Interruptor persiana eléc.', group: 'elec', g: 'PE', h: 110, wall: true },
-    motorGaraje: { label: 'Motor puerta garaje', group: 'elec', g: 'MG', h: 240, wall: false },
-    cargadorEV: { label: 'Cargador coche eléctrico', group: 'elec', g: 'EV', h: 120, wall: true },
-    domotica: { label: 'Hub / cuadro domótica', group: 'elec', g: 'DM', h: 150, wall: true },
-    camara: { label: 'Cámara seguridad', group: 'elec', g: 'CM', h: 240, wall: true },
+    domotica: { label: 'Central / Hub domótica', group: 'domo', g: 'DM', h: 150, wall: true },
+    persiana: { label: 'Módulo / pulsador persiana eléc.', group: 'domo', g: 'PE', h: 110, wall: true },
+    motorGaraje: { label: 'Motor puerta garaje', group: 'domo', g: 'MG', h: 240, wall: false },
+    cargadorEV: { label: 'Cargador coche eléctrico', group: 'domo', g: 'EV', h: 120, wall: true },
+    camara: { label: 'Cámara seguridad', group: 'domo', g: 'CM', h: 240, wall: true },
+    sensorPres: { label: 'Sensor presencia / movimiento', group: 'domo', g: 'SP', h: 250, wall: false },
+    videoportero: { label: 'Videoportero / pantalla control', group: 'domo', g: 'VP', h: 150, wall: true },
+    wifi: { label: 'Punto acceso WiFi techo', group: 'domo', g: 'WF', h: 255, wall: false },
+  };
+  const DUCT_KINDS = {
+    impulsion: { label: 'Conducto impulsión AA', group: 'clima', color: '#06b6d4', w: 26, h: 245, dash: '' },
+    retorno: { label: 'Conducto retorno AA', group: 'clima', color: '#10b981', w: 26, h: 245, dash: '8 5' },
+    fria: { label: 'Tubería agua fría', group: 'fonta', color: '#0284c7', w: 5, h: 40, dash: '' },
+    caliente: { label: 'Tubería agua caliente', group: 'fonta', color: '#ef4444', w: 5, h: 45, dash: '' },
+    desague: { label: 'Tubería desagüe', group: 'fonta', color: '#64748b', w: 10, h: 5, dash: '6 4' },
+    elec: { label: 'Línea iluminación / eléctrica', group: 'elec', color: '#f59e0b', w: 4, h: 250, dash: '5 4' },
+    domo: { label: 'Bus / cableado domótica', group: 'domo', color: '#8b5cf6', w: 4, h: 240, dash: '3 4' },
+  };
+  const VIEW_PRESETS = {
+    todo: { label: 'Vista: Todo', layers: { rooms: true, walls: true, openings: true, furn: true, elec: true, fonta: true, clima: true, domo: true, dims: true, text: true, pins: true } },
+    distribucion: { label: 'Vista: Distribución y muebles', layers: { rooms: true, walls: true, openings: true, furn: true, elec: false, fonta: false, clima: false, domo: false, dims: true, text: true, pins: true } },
+    clima: { label: 'Vista: Aire Acondicionado (conductos)', layers: { rooms: true, walls: true, openings: true, furn: false, elec: false, fonta: false, clima: true, domo: false, dims: true, text: true, pins: false } },
+    elec: { label: 'Vista: Iluminación y Electricidad', layers: { rooms: true, walls: true, openings: true, furn: false, elec: true, fonta: false, clima: false, domo: false, dims: true, text: true, pins: false } },
+    fonta: { label: 'Vista: Fontanería y Agua', layers: { rooms: true, walls: true, openings: true, furn: false, elec: false, fonta: true, clima: false, domo: false, dims: true, text: true, pins: false } },
+    domo: { label: 'Vista: Domótica y Control', layers: { rooms: true, walls: true, openings: true, furn: false, elec: false, fonta: false, clima: false, domo: true, dims: true, text: true, pins: false } },
   };
   const FURN = [
     { kind: 'cama', name: 'Cama 180', w: 180, h: 200 }, { kind: 'cama', name: 'Cama 150', w: 150, h: 200 }, { kind: 'cama', name: 'Cama 135', w: 135, h: 190 }, { kind: 'cama', name: 'Cama 90', w: 90, h: 190 },
@@ -101,7 +130,8 @@ const Plan = (() => {
     { id: 'window', icon: 'window', label: 'Ventana', key: 'N' },
     { sep: true },
     { id: 'furn', icon: 'sofa', label: 'Mobiliario', key: 'F' },
-    { id: 'sym', icon: 'bolt', label: 'Electricidad, agua y clima', key: 'E' },
+    { id: 'sym', icon: 'bolt', label: 'AA, luz, agua y domótica', key: 'E' },
+    { id: 'duct', icon: 'trend', label: 'Trazar conductos / tuberías', key: 'K' },
     { sep: true },
     { id: 'dim', icon: 'dim', label: 'Cota', key: 'C' },
     { id: 'text', icon: 'text', label: 'Texto', key: 'T' },
@@ -118,16 +148,17 @@ const Plan = (() => {
     door: 'Acerca el cursor a un muro y haz clic para colocar la puerta · R gira la apertura tras colocarla',
     window: 'Acerca el cursor a un muro y haz clic para colocar la ventana',
     furn: 'Elige un mueble en el panel derecho y haz clic en el plano para colocarlo · R gira 90°',
-    sym: 'Elige un elemento en el panel y haz clic · los de pared se pegan solos al muro más cercano',
+    sym: 'Elige un elemento (AA, luz, agua, domótica) y toca el plano para colocarlo',
+    duct: 'Elige tipo de conducto/tubería en el panel y haz clic en inicio y cada esquina · Esc o Terminar para finalizar',
     dim: 'Clic en el punto inicial, clic en el final y un tercer clic para separar la cota',
     text: 'Haz clic donde quieras añadir un texto',
     pin: 'Haz clic en el plano para colocar un pin de tarea o incidencia',
     measure: 'Arrastra para medir una distancia (no se guarda)',
   };
   const PUIKEY = 'mi-reforma:ui:plan';
-  const DEF_LAYERS = { grid: true, rooms: true, walls: true, openings: true, furn: true, elec: true, fonta: true, clima: true, dims: true, text: true, pins: true };
+  const DEF_LAYERS = { grid: true, rooms: true, walls: true, openings: true, furn: true, elec: true, fonta: true, clima: true, domo: true, dims: true, text: true, pins: true };
   const savedPui = safeJSON(localStorage.getItem(PUIKEY)) || {};
-  const pui = Object.assign({ grid: 5, snap: true, ortho: true, autoDims: true, wallThick: 15, wallStatus: 'existente' }, savedPui);
+  const pui = Object.assign({ grid: 5, snap: true, ortho: true, autoDims: true, wallThick: 15, wallStatus: 'existente', viewPreset: 'todo', ductKind: 'impulsion', ductWidth: 26, ductHeight: 245 }, savedPui);
   pui.layers = Object.assign({}, DEF_LAYERS, savedPui.layers || {});
   const savePui = () => localStorage.setItem(PUIKEY, JSON.stringify(pui));
 
@@ -380,7 +411,9 @@ const Plan = (() => {
   function layerOn(e, L) {
     switch (e.type) {
       case 'room': return L.rooms; case 'wall': return L.walls; case 'door': case 'window': return L.openings;
-      case 'furn': return L.furn; case 'sym': return L[(SYMBOLS[e.kind] || SYMBOLS.enchufe).group];
+      case 'furn': return L.furn;
+      case 'sym': { const g = (SYMBOLS[e.kind] || SYMBOLS.enchufe).group; return L[g] !== false; }
+      case 'duct': { const g = (DUCT_KINDS[e.kind] || DUCT_KINDS.impulsion).group; return L[g] !== false; }
       case 'dim': return L.dims; case 'text': return L.text; case 'pin': return L.pins; default: return true;
     }
   }
@@ -433,6 +466,19 @@ const Plan = (() => {
       out += `<g pointer-events="none" text-anchor="middle"><text x="${c.x}" y="${c.y - px(3)}" font-size="${px(13)}" font-weight="800" fill="${th.text}" ${halo}>${esc(r.name || '')}</text>
         <text x="${c.x}" y="${c.y + px(12)}" font-size="${px(11)}" font-weight="600" fill="${th.text}" opacity=".8" ${halo}>${fmtNum(area, 2)} m²</text></g>`;
     });
+    // Conductos y tuberías
+    vis.filter((e) => e.type === 'duct').forEach((d) => {
+      const dk = DUCT_KINDS[d.kind] || DUCT_KINDS.impulsion;
+      const w = Math.max(px(2.5), d.width || dk.w);
+      const isBig = (d.width || dk.w) >= 14;
+      if (isBig) {
+        out += `<line x1="${d.x1}" y1="${d.y1}" x2="${d.x2}" y2="${d.y2}" stroke="${dk.color}" stroke-opacity=".24" stroke-width="${w}" stroke-linecap="butt" pointer-events="none"/>`;
+        out += `<line x1="${d.x1}" y1="${d.y1}" x2="${d.x2}" y2="${d.y2}" stroke="${dk.color}" stroke-width="${px(2)}" ${dk.dash ? `stroke-dasharray="${dk.dash}"` : ''} pointer-events="none"/>`;
+      } else {
+        out += `<line x1="${d.x1}" y1="${d.y1}" x2="${d.x2}" y2="${d.y2}" stroke="${dk.color}" stroke-width="${px(3)}" stroke-linecap="round" ${dk.dash ? `stroke-dasharray="${dk.dash}"` : ''} pointer-events="none"/>`;
+      }
+      out += `<line data-id="${d.id}" x1="${d.x1}" y1="${d.y1}" x2="${d.x2}" y2="${d.y2}" stroke="transparent" stroke-width="${Math.max(w, px(12))}"/>`;
+    });
     // Instalaciones
     vis.filter((e) => e.type === 'sym').forEach((y) => { out += `<g data-id="${y.id}" transform="translate(${y.x} ${y.y})">${symShape(y, s, th)}</g>`; });
     // Cotas
@@ -461,6 +507,7 @@ const Plan = (() => {
     list.forEach((e) => {
       switch (e.type) {
         case 'wall': add(e.x1, e.y1, e.thick / 2); add(e.x2, e.y2, e.thick / 2); break;
+        case 'duct': add(e.x1, e.y1, (e.width || 10) / 2); add(e.x2, e.y2, (e.width || 10) / 2); break;
         case 'room': e.points.forEach((p) => add(p[0], p[1])); break;
         case 'furn': add(e.x, e.y, Math.hypot(e.w, e.h) / 2); break;
         case 'sym': case 'text': case 'pin': add(e.x, e.y, 15); break;
@@ -511,14 +558,17 @@ const Plan = (() => {
           <button class="icon-btn" data-pa="redo" id="pRedo" title="Rehacer (Ctrl+Y)">${icon('redo', 17)}</button>
         </div>
         <div class="pt-group">
-          <button class="tgl" data-pt="snap" title="Imán: ajustar a rejilla y a puntos">${icon('magnet', 15)}<span>Imán</span></button>
-          <select id="pGrid" title="Paso de la rejilla de ajuste">${[1, 2, 5, 10, 25, 50].map((g) => `<option value="${g}">${g} cm</option>`).join('')}</select>
-          <button class="tgl" data-pt="ortho" title="Modo ortogonal (Shift lo alterna temporalmente)">${icon('ortho', 15)}<span>Orto</span></button>
-          <button class="tgl" data-pt="autoDims" title="Mostrar la longitud de cada muro">${icon('dim', 15)}<span>Medidas</span></button>
+          <select id="pViewPreset" title="Vista por especialidad (muestra solo las capas relevantes)">${Object.entries(VIEW_PRESETS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('')}<option value="custom">Vista: Personalizada</option></select>
           <details class="dropdown">
             <summary class="tgl">${icon('eye', 15)}<span>Capas</span></summary>
             <div class="dd-menu" id="pLayers"></div>
           </details>
+        </div>
+        <div class="pt-group">
+          <button class="tgl" data-pt="snap" title="Imán: ajustar a rejilla y a puntos">${icon('magnet', 15)}<span>Imán</span></button>
+          <select id="pGrid" title="Paso de la rejilla de ajuste">${[1, 2, 5, 10, 25, 50].map((g) => `<option value="${g}">${g} cm</option>`).join('')}</select>
+          <button class="tgl" data-pt="ortho" title="Modo ortogonal (Shift lo alterna temporalmente)">${icon('ortho', 15)}<span>Orto</span></button>
+          <button class="tgl" data-pt="autoDims" title="Mostrar la longitud de cada muro">${icon('dim', 15)}<span>Medidas</span></button>
         </div>
         <div class="pt-group">
           <button class="icon-btn" data-pa="zoomOut" title="Alejar (-)">${icon('zoomout', 17)}</button>
@@ -581,8 +631,9 @@ const Plan = (() => {
     $$('[data-pt]', root).forEach((b) => b.classList.toggle('on', !!pui[b.dataset.pt]));
     $('#pGrid').value = String(pui.grid);
     $('#pTheme').value = S().settings.planTheme in THEMES ? S().settings.planTheme : 'paper';
-    const names = { grid: 'Rejilla', rooms: 'Habitaciones', walls: 'Muros', openings: 'Puertas y ventanas', furn: 'Mobiliario', elec: 'Electricidad', fonta: 'Fontanería y gas', clima: 'Clima y ventilación', dims: 'Cotas y medidas', text: 'Textos', pins: 'Pines y tareas' };
+    const names = { grid: 'Rejilla', rooms: 'Habitaciones', walls: 'Muros', openings: 'Puertas y ventanas', furn: 'Mobiliario', elec: 'Iluminación y electricidad', fonta: 'Fontanería y agua', clima: 'Aire acondicionado y conductos', domo: 'Domótica y control', dims: 'Cotas y medidas', text: 'Textos', pins: 'Pines y tareas' };
     $('#pLayers').innerHTML = Object.keys(DEF_LAYERS).map((k) => `<label class="chk"><input type="checkbox" data-layer="${k}" ${pui.layers[k] ? 'checked' : ''}> ${names[k]}</label>`).join('');
+    const vp = $('#pViewPreset'); if (vp) vp.value = pui.viewPreset || 'todo';
     const bgB = $('#pBgBtn'); if (bgB) bgB.classList.toggle('on', !!cur.bgImage);
     const cmpB = $('#pCmpBtn'); if (cmpB) cmpB.classList.toggle('on', !!compareId);
     $('#pUndo').disabled = !undoStack.length; $('#pRedo').disabled = !redoStack.length;
@@ -593,7 +644,7 @@ const Plan = (() => {
     const bar = $('#pSelBar');
     if (!bar) return;
     const el = sel && byId(sel);
-    if (draft && (draft.type === 'wall' || draft.type === 'poly')) {
+    if (draft && (draft.type === 'wall' || draft.type === 'poly' || draft.type === 'duct')) {
       bar.innerHTML = `<button class="btn sm primary" data-pa="finishDraft">${icon('check', 15)} Terminar</button><button class="btn sm" data-pa="cancelDraft">${icon('x', 15)} Cancelar</button>`;
       bar.classList.add('show');
       return;
@@ -725,6 +776,11 @@ const Plan = (() => {
           o += label((el.x1 + el.x2) / 2, (el.y1 + el.y2) / 2, fmtLenU(wlen(el)), deg(Math.atan2(el.y2 - el.y1, el.x2 - el.x1)));
           o += handle(el.x1, el.y1, 'p1') + handle(el.x2, el.y2, 'p2');
           break;
+        case 'duct':
+          o += `<line x1="${el.x1}" y1="${el.y1}" x2="${el.x2}" y2="${el.y2}" stroke="${sc}" stroke-opacity=".4" stroke-width="${Math.max(el.width || 10, px(8))}" pointer-events="none"/>`;
+          o += label((el.x1 + el.x2) / 2, (el.y1 + el.y2) / 2, fmtLenU(wlen(el)), deg(Math.atan2(el.y2 - el.y1, el.x2 - el.x1)));
+          o += handle(el.x1, el.y1, 'p1') + handle(el.x2, el.y2, 'p2');
+          break;
         case 'room': {
           o += `<polygon points="${el.points.map((p) => p.join(',')).join(' ')}" fill="${sc}" fill-opacity=".06" stroke="${sc}" stroke-width="${px(2)}" stroke-dasharray="${px(6)} ${px(4)}" pointer-events="none"/>`;
           el.points.forEach((p, i) => {
@@ -787,6 +843,15 @@ const Plan = (() => {
             o += label((draft.a.x + b.x) / 2 + nx * (pui.wallThick / 2 + px(18)), (draft.a.y + b.y) / 2 + ny * (pui.wallThick / 2 + px(18)), txt, ang);
           }
           o += `<circle cx="${draft.a.x}" cy="${draft.a.y}" r="${px(4)}" fill="${sc}" pointer-events="none"/>`;
+          break;
+        }
+        case 'duct': {
+          let b = snap(cursor); if (orthoOn()) b = ortho(draft.a, b);
+          const dk = DUCT_KINDS[pui.ductKind] || DUCT_KINDS.impulsion, L = dist(draft.a, b);
+          o += `<line x1="${draft.a.x}" y1="${draft.a.y}" x2="${b.x}" y2="${b.y}" stroke="${dk.color}" stroke-opacity=".45" stroke-width="${Math.max(pui.ductWidth || dk.w, px(4))}" pointer-events="none"/>`;
+          o += `<line x1="${draft.a.x}" y1="${draft.a.y}" x2="${b.x}" y2="${b.y}" stroke="${dk.color}" stroke-width="${px(2)}" stroke-dasharray="${px(6)} ${px(4)}" pointer-events="none"/>`;
+          if (L > 0.5) o += label((draft.a.x + b.x) / 2, (draft.a.y + b.y) / 2 - px(14), fmtLenU(L), deg(Math.atan2(b.y - draft.a.y, b.x - draft.a.x)));
+          o += `<circle cx="${draft.a.x}" cy="${draft.a.y}" r="${px(4)}" fill="${dk.color}" pointer-events="none"/>`;
           break;
         }
         case 'room': case 'wallrect': {
@@ -1030,6 +1095,19 @@ const Plan = (() => {
         } else draft = { type: 'wall', a: { x: q.x, y: q.y }, start: { x: q.x, y: q.y }, typed: '' };
         break;
       }
+      case 'duct': {
+        let q = snap(p);
+        if (draft && draft.type === 'duct') {
+          if (orthoOn(e)) q = ortho(draft.a, q);
+          if (dist(q, draft.a) < 1) break;
+          const dk = DUCT_KINDS[pui.ductKind] || DUCT_KINDS.impulsion;
+          pushUndo();
+          els().push({ id: uid(), type: 'duct', kind: pui.ductKind, x1: r1(draft.a.x), y1: r1(draft.a.y), x2: r1(q.x), y2: r1(q.y), width: pui.ductWidth || dk.w, height: pui.ductHeight ?? dk.h, note: '' });
+          Store.save(); syncUndo();
+          draft.a = { x: q.x, y: q.y };
+        } else draft = { type: 'duct', a: { x: q.x, y: q.y } };
+        break;
+      }
       case 'room': case 'wallrect': { const q = snap(p); draft = { type: tool, a: q, b: q }; drag = { mode: 'rect' }; break; }
       case 'poly': {
         let q = snap(p);
@@ -1171,7 +1249,7 @@ const Plan = (() => {
           el.t = clamp(along, el.width / 2, L - el.width / 2) / L;
           break;
         }
-        case 'dim': el.x1 = o.x1 + dx; el.y1 = o.y1 + dy; el.x2 = o.x2 + dx; el.y2 = o.y2 + dy; break;
+        case 'dim': case 'duct': el.x1 = o.x1 + dx; el.y1 = o.y1 + dy; el.x2 = o.x2 + dx; el.y2 = o.y2 + dy; break;
         case 'sym': {
           const q = { x: o.x + (p.x - drag.start.x), y: o.y + (p.y - drag.start.y) };
           const d = SYMBOLS[el.kind] || {};
@@ -1196,7 +1274,7 @@ const Plan = (() => {
         break;
       }
       case 'room': if (h[0] === 'v') { const i = +h.slice(1), q = snap(p, { exclude: el.id }); el.points[i] = [q.x, q.y]; snapInd = q.snapped ? q : null; } break;
-      case 'dim':
+      case 'dim': case 'duct':
         if (h === 'p1' || h === 'p2') { const q = snap(p); el['x' + h[1]] = q.x; el['y' + h[1]] = q.y; }
         else if (h === 'off') el.offset = dimOffset({ x: el.x1, y: el.y1 }, { x: el.x2, y: el.y2 }, p);
         break;
@@ -1241,7 +1319,7 @@ const Plan = (() => {
     const c = clone(el); c.id = uid();
     const d = 30;
     switch (c.type) {
-      case 'wall': case 'dim': c.x1 += d; c.y1 += d; c.x2 += d; c.y2 += d; break;
+      case 'wall': case 'dim': case 'duct': c.x1 += d; c.y1 += d; c.x2 += d; c.y2 += d; break;
       case 'room': c.points = c.points.map(([x, y]) => [x + d, y + d]); c.name = (c.name || '') + ' (copia)'; break;
       case 'door': case 'window': { const w = byId(c.wallId); if (w) { const L = wlen(w); c.t = clamp(c.t * L + c.width + 20, c.width / 2, L - c.width / 2) / L; } break; }
       default: c.x += d; c.y += d;
@@ -1263,7 +1341,7 @@ const Plan = (() => {
     const el = sel && byId(sel); if (!el) return;
     pushUndo();
     switch (el.type) {
-      case 'wall': case 'dim': el.x1 += dx; el.y1 += dy; el.x2 += dx; el.y2 += dy; break;
+      case 'wall': case 'dim': case 'duct': el.x1 += dx; el.y1 += dy; el.x2 += dx; el.y2 += dy; break;
       case 'room': el.points = el.points.map(([x, y]) => [x + dx, y + dy]); break;
       case 'door': case 'window': { const w = byId(el.wallId); if (w) { const L = wlen(w); const step = (dx || dy); el.t = clamp(el.t * L + step, el.width / 2, L - el.width / 2) / L; } break; }
       default: el.x += dx; el.y += dy;
@@ -1329,6 +1407,7 @@ const Plan = (() => {
     if (el) h += propsFor(el);
     else if (tool === 'furn') h += furnLibrary();
     else if (tool === 'sym') h += symLibrary();
+    else if (tool === 'duct') h += ductToolOpts() + summary();
     else if (tool === 'wall' || tool === 'wallrect') h += wallToolOpts() + summary();
     else h += summary();
     panel.innerHTML = h;
@@ -1338,6 +1417,21 @@ const Plan = (() => {
     const a = document.activeElement, key = a && a.dataset ? a.dataset.p : null;
     renderPanel();
     if (key) { const n = panel.querySelector(`[data-p="${key}"]`); if (n) n.focus(); }
+  }
+
+  function ductToolOpts() {
+    return `<div class="psec"><h4>${icon('trend', 16)} Trazar conductos / tuberías</h4>
+      <div class="sym-list">${Object.entries(DUCT_KINDS).map(([k, d]) => `
+        <button class="sym-item ${pui.ductKind === k ? 'active' : ''}" data-a="pickDuct" data-k="${k}">
+          <span style="width:18px;height:6px;border-radius:3px;background:${d.color};display:block"></span>
+          <span>${d.label}</span><small>${d.w}cm · h${d.h}</small>
+        </button>`).join('')}</div>
+      <div class="pgrid">
+        <label class="pf"><span>Ancho</span><div class="inp-suf"><input type="number" data-do="ductWidth" value="${pui.ductWidth}" min="2"><em>cm</em></div></label>
+        <label class="pf"><span>Altura (Z)</span><div class="inp-suf"><input type="number" data-do="ductHeight" value="${pui.ductHeight}" min="0"><em>cm</em></div></label>
+      </div>
+      <p class="phint">${icon('hint', 14)} Haz clic en cada esquina del recorrido. Al terminar pulsa <kbd>Esc</kbd> o <b>Terminar</b>.</p>
+    </div>`;
   }
 
   function wallToolOpts() {
@@ -1445,6 +1539,17 @@ const Plan = (() => {
           <div class="pgrid">${F.num('Altura desde el suelo', 'height', el.height || 0)}${F.num('Ángulo', 'angle', el.angle || 0, '°', 90)}${F.num('X', 'x', el.x)}${F.num('Y', 'y', el.y)}</div>
           ${F.area('Notas', 'note', el.note, 'Circuito, potencia, mecanismo…')}</div>
           ${actions(B.rot, B.dup, B.del)}`;
+      }
+      case 'duct': {
+        const dk = DUCT_KINDS[el.kind] || DUCT_KINDS.impulsion, L = wlen(el);
+        const opts = {}; Object.entries(DUCT_KINDS).forEach(([k, v]) => { opts[k] = v.label; });
+        return head('trend', dk.label, fmtLenU(L)) + `<div class="psec"><div class="pgrid">
+          ${F.sel('Tipo', 'kind', el.kind || 'impulsion', opts, true)}
+          ${F.num('Ancho / diámetro', 'width', el.width || dk.w)}${F.num('Altura desde suelo (Z)', 'height', el.height ?? dk.h)}
+        </div>
+        <div class="pinfos">${F.info('Longitud tramo', fmtLenU(L))}</div>
+        ${F.area('Notas', 'note', el.note, 'Sección, aislamiento, circuito…')}</div>
+        ${actions(B.dup, B.del)}`;
       }
       case 'dim': {
         const L = dist({ x: el.x1, y: el.y1 }, { x: el.x2, y: el.y2 });
@@ -1605,9 +1710,15 @@ const Plan = (() => {
     root.addEventListener('change', (e) => {
       const t = e.target;
       if (t.id === 'pPlanSel') switchPlan(t.value);
+      else if (t.id === 'pViewPreset') {
+        const pr = VIEW_PRESETS[t.value];
+        pui.viewPreset = t.value;
+        if (pr) Object.assign(pui.layers, pr.layers);
+        savePui(); syncTop(); requestRender();
+      }
       else if (t.id === 'pGrid') { pui.grid = +t.value; savePui(); }
       else if (t.id === 'pTheme') { S().settings.planTheme = t.value; Store.save(); renderPanel(); requestRender(); }
-      else if (t.dataset.layer) { pui.layers[t.dataset.layer] = t.checked; savePui(); requestRender(); }
+      else if (t.dataset.layer) { pui.layers[t.dataset.layer] = t.checked; pui.viewPreset = 'custom'; savePui(); syncTop(); requestRender(); }
     });
     document.addEventListener('click', (e) => { $$('details.dropdown[open]').forEach((d) => { if (!d.contains(e.target)) d.open = false; }); });
 
@@ -1626,6 +1737,7 @@ const Plan = (() => {
       const t = e.target;
       if (t.dataset.pl) { plan()[t.dataset.pl] = t.value; Store.save(); syncTop(); renderPanel(); return; }
       if (t.dataset.wo) { pui[t.dataset.wo] = t.dataset.wo === 'wallThick' ? Math.max(1, num(t.value, 15)) : t.value; savePui(); requestRender(); setTimeout(renderPanelKeepFocus, 0); return; }
+      if (t.dataset.do) { pui[t.dataset.do] = Math.max(0, num(t.value, 20)); savePui(); requestRender(); return; }
       if (!t.dataset.p) return;
       const el = sel && byId(sel); if (!el) return;
       if (t.type === 'number' || t.tagName === 'SELECT') {
@@ -1652,6 +1764,12 @@ const Plan = (() => {
         case 'wthick': pui.wallThick = +b.dataset.v; savePui(); renderPanel(); break;
         case 'pickFurn': { const i = +b.dataset.i; placing = { t: 'furn', i, def: FURN[i], angle: placing && placing.t === 'furn' ? placing.angle : 0 }; renderPanel(); if (window.innerWidth <= 900) setMobilePanel(false); break; }
         case 'pickSym': placing = { t: 'sym', kind: b.dataset.k }; renderPanel(); if (window.innerWidth <= 900) setMobilePanel(false); break;
+        case 'pickDuct': {
+          const dk = DUCT_KINDS[b.dataset.k] || DUCT_KINDS.impulsion;
+          pui.ductKind = b.dataset.k; pui.ductWidth = dk.w; pui.ductHeight = dk.h;
+          pui.layers[dk.group] = true;
+          savePui(); renderPanel(); if (window.innerWidth <= 900) setMobilePanel(false); break;
+        }
         case 'openTask': App.openTask(b.dataset.t); break;
         case 'addTask': {
           if (!el) break;
@@ -1804,47 +1922,110 @@ const Plan = (() => {
       ctx.stroke();
     });
 
-    // 2. Muros extruidos
+    // 2 y 3. Muros recortados alrededor de puertas, ventanas y garaje (huecos reales sin solapamiento)
     const hFactor = state3d.wallCut;
-    const wallMap = new Map();
+    const opsByWall = new Map();
+    list.filter((e) => e.type === 'door' || e.type === 'window').forEach((o) => {
+      if (!opsByWall.has(o.wallId)) opsByWall.set(o.wallId, []);
+      opsByWall.get(o.wallId).push(o);
+    });
+    const segRect = (w, s0, s1, halfThick) => {
+      const L = wlen(w), ux = (w.x2 - w.x1) / L, uy = (w.y2 - w.y1) / L, nx = -uy * halfThick, ny = ux * halfThick;
+      const ax = w.x1 + ux * s0, ay = w.y1 + uy * s0, bx = w.x1 + ux * s1, by = w.y1 + uy * s1;
+      return [[ax + nx, ay + ny], [bx + nx, by + ny], [bx - nx, by - ny], [ax - nx, ay - ny]];
+    };
+
     list.filter((e) => e.type === 'wall').forEach((w) => {
-      wallMap.set(w.id, w);
       if (w.status === 'demoler' && state3d.hideDemo) return;
       const L = wlen(w); if (L < 1) return;
-      const nx = (-(w.y2 - w.y1) / L) * (w.thick / 2), ny = ((w.x2 - w.x1) / L) * (w.thick / 2);
-      const c2 = [[w.x1 + nx, w.y1 + ny], [w.x2 + nx, w.y2 + ny], [w.x2 - nx, w.y2 - ny], [w.x1 - nx, w.y1 - ny]];
-      const h = (w.height || 250) * hFactor;
+      const wh = (w.height || 250) * hFactor;
       const col = w.status === 'nuevo' ? '#fdba74' : w.status === 'demoler' ? '#fde047' : '#e2e8f0';
-      addBox(c2, 0, h, col, w.status === 'demoler' ? 0.45 : 1);
-    });
+      const alpha = w.status === 'demoler' ? 0.45 : 1;
+      const ht = w.thick / 2;
+      const ops = (opsByWall.get(w.id) || []).map((o) => {
+        const a = clamp(o.t * L - o.width / 2, 0, L);
+        const b = clamp(o.t * L + o.width / 2, a, L);
+        return { o, a, b };
+      }).sort((x, y) => x.a - y.a);
 
-    // 3. Puertas y ventanas en los muros
-    list.filter((e) => e.type === 'door' || e.type === 'window').forEach((o) => {
-      const w = wallMap.get(o.wallId); if (!w) return;
-      if (w.status === 'demoler' && state3d.hideDemo) return;
-      const g = openingGeom(o, w);
-      const rad = (g.a * Math.PI) / 180, ux = Math.cos(rad), uy = Math.sin(rad), nx = -uy, ny = ux;
-      const hw = o.width / 2, ht = w.thick / 2 + 1.5;
-      const c2 = [
-        [g.x - ux * hw + nx * ht, g.y - uy * hw + ny * ht],
-        [g.x + ux * hw + nx * ht, g.y + uy * hw + ny * ht],
-        [g.x + ux * hw - nx * ht, g.y + uy * hw - ny * ht],
-        [g.x - ux * hw - nx * ht, g.y - uy * hw - ny * ht],
-      ];
-      const z0 = o.type === 'window' ? (o.sill || 90) * hFactor : 0;
-      const z1 = Math.min((w.height || 250), (o.type === 'window' ? (o.sill || 90) + (o.height || 120) : (o.height || 210))) * hFactor;
-      const col = o.type === 'window' || o.kind === 'balconera' || o.kind === 'correderaDoble' ? '#7dd3fc' : o.kind === 'garaje' ? '#94a3b8' : '#b48a64';
-      addBox(c2, z0, z1, col, o.type === 'window' ? 0.8 : 1);
+      let cur = 0;
+      ops.forEach(({ o, a, b }) => {
+        if (a - cur > 1) addBox(segRect(w, cur, a, ht), 0, wh, col, alpha);
+        const isWin = o.type === 'window';
+        const sill = isWin ? Math.min(wh, (o.sill || 90) * hFactor) : 0;
+        const zTop = Math.min(wh, (isWin ? (o.sill || 90) + (o.height || 120) : (o.height || 210)) * hFactor);
+        // Antepecho bajo ventana y dintel sobre puerta/ventana
+        if (sill > 1) addBox(segRect(w, a, b, ht), 0, sill, col, alpha);
+        if (wh - zTop > 1) addBox(segRect(w, a, b, ht), zTop, wh, col, alpha);
+        // Contenido del hueco real (nunca tapado por el muro)
+        if (b - a > 2 && zTop - sill > 2) {
+          if (o.kind === 'hueco') {
+            // Hueco abierto sin hoja
+          } else if (o.kind === 'garaje') {
+            // Marco + 4 lamas metálicas seccionales + motor arriba
+            const innerT = Math.max(3, ht * 0.55);
+            const slats = 4, sh = (zTop - sill) / slats;
+            for (let k = 0; k < slats; k++) {
+              addBox(segRect(w, a + 2, b - 2, innerT), sill + k * sh + 1.5, sill + (k + 1) * sh - 1.5, k % 2 ? '#64748b' : '#7c8aa0', 1);
+            }
+          } else if (isWin || o.kind === 'balconera' || o.kind === 'correderaDoble') {
+            // Marco perimetral + cristal azulado translúcido + cajón persiana si tiene
+            const fT = Math.max(2.5, ht * 0.5), gT = Math.max(1.5, ht * 0.25);
+            addBox(segRect(w, a, a + 4, fT), sill, zTop, '#475569', 1);
+            addBox(segRect(w, b - 4, b, fT), sill, zTop, '#475569', 1);
+            addBox(segRect(w, a + 4, b - 4, gT), sill + 2, zTop - 2, '#38bdf8', 0.55);
+            if (o.shutter === 'manual' || o.shutter === 'electric') {
+              const boxH = Math.min(22 * hFactor, (zTop - sill) * 0.22);
+              addBox(segRect(w, a, b, ht * 0.9), zTop - boxH, zTop, o.shutter === 'electric' ? '#f59e0b' : '#64748b', 0.95);
+            }
+          } else {
+            // Puerta de madera / entrada remetida dentro del hueco con marco visible
+            const dT = Math.max(2.5, ht * 0.42);
+            const dCol = o.kind === 'blindada' ? '#7c2d12' : '#c08b5c';
+            addBox(segRect(w, a, a + 3.5, ht * 0.8), sill, zTop, '#78553a', 1);
+            addBox(segRect(w, b - 3.5, b, ht * 0.8), sill, zTop, '#78553a', 1);
+            addBox(segRect(w, a + 3.5, b - 3.5, dT), sill, zTop - 2, dCol, 1);
+          }
+        }
+        cur = Math.max(cur, b);
+      });
+      if (L - cur > 1) addBox(segRect(w, cur, L, ht), 0, wh, col, alpha);
     });
 
     // 4. Mobiliario en volumen 3D
-    list.filter((e) => e.type === 'furn' && e.kind !== 'norte').forEach((f) => {
-      const st = furn3DStyle(f.kind);
-      const hw = f.w / 2, hh = f.h / 2, a = f.angle || 0;
-      const pts = [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]].map(([x, y]) => {
-        const p = rotPt(x, y, a); return [f.x + p.x, f.y + p.y];
+    if (state3d.showFurn) {
+      list.filter((e) => e.type === 'furn' && e.kind !== 'norte').forEach((f) => {
+        const st = furn3DStyle(f.kind);
+        const hw = f.w / 2, hh = f.h / 2, a = f.angle || 0;
+        const pts = [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]].map(([x, y]) => {
+          const p = rotPt(x, y, a); return [f.x + p.x, f.y + p.y];
+        });
+        addBox(pts, 0, st.h * Math.max(0.45, hFactor), st.c, f.kind === 'pergola' ? 0.45 : 1);
       });
-      addBox(pts, 0, st.h * Math.max(0.45, hFactor), st.c, f.kind === 'pergola' ? 0.45 : 1);
+    }
+
+    // 5. Conductos, tuberías e instalaciones en 3D (según capas elegidas)
+    const grpVisible3d = (g) => (g === 'clima' && state3d.showClima) || (g === 'elec' && state3d.showElec) || (g === 'fonta' && state3d.showFonta) || (g === 'domo' && state3d.showDomo);
+    list.filter((e) => e.type === 'duct').forEach((d) => {
+      const dk = DUCT_KINDS[d.kind] || DUCT_KINDS.impulsion;
+      if (!grpVisible3d(dk.group)) return;
+      const L = wlen(d); if (L < 1) return;
+      const w = Math.max(6, d.width || dk.w);
+      const nx = (-(d.y2 - d.y1) / L) * (w / 2), ny = ((d.x2 - d.x1) / L) * (w / 2);
+      const pts = [[d.x1 + nx, d.y1 + ny], [d.x2 + nx, d.y2 + ny], [d.x2 - nx, d.y2 - ny], [d.x1 - nx, d.y1 - ny]];
+      const z0 = Math.max(0, ((d.height ?? dk.h) - (w >= 14 ? 14 : 4)) * hFactor);
+      const z1 = Math.max(z0 + 5, (d.height ?? dk.h) * hFactor);
+      addBox(pts, z0, z1, dk.color, 0.88);
+    });
+    list.filter((e) => e.type === 'sym').forEach((y) => {
+      const d = SYMBOLS[y.kind] || SYMBOLS.enchufe;
+      if (!grpVisible3d(d.group)) return;
+      const col = SYM_GROUPS[d.group].color;
+      const sz = y.kind === 'maqInt' ? [80, 50, 26] : y.kind === 'maqExt' ? [85, 35, 65] : (y.kind === 'rejImp' || y.kind === 'rejRet') ? [45, 16, 14] : [16, 16, 16];
+      const hw = sz[0] / 2, hh = sz[1] / 2, a = y.angle || 0;
+      const pts = [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]].map(([x, yy]) => { const p = rotPt(x, yy, a); return [y.x + p.x, y.y + p.y]; });
+      const zTop = Math.max(sz[2], (y.height ?? d.h) * hFactor);
+      addBox(pts, Math.max(0, zTop - sz[2]), zTop, col, 0.92);
     });
 
     // Ordenar caras por profundidad (painter's algorithm)
@@ -1893,7 +2074,14 @@ Respeta exactamente la posición de muros, puertas, ventanas y muebles del plano
   }
 
   function openRender3DModal() {
-    const state3d = { yaw: -35, pitch: 42, zoom: 1, wallCut: 0.72, hideDemo: true };
+    const state3d = {
+      yaw: -35, pitch: 42, zoom: 1, wallCut: 0.78, hideDemo: true,
+      showFurn: pui.layers.furn !== false,
+      showClima: pui.viewPreset === 'clima' || !!pui.layers.clima && pui.viewPreset !== 'distribucion',
+      showElec: pui.viewPreset === 'elec',
+      showFonta: pui.viewPreset === 'fonta',
+      showDomo: pui.viewPreset === 'domo',
+    };
     const GEM_KEY = 'mi-reforma:gemini:key';
     const st = stats(plan());
     Modal.open({
@@ -1910,9 +2098,16 @@ Respeta exactamente la posición de muros, puertas, ventanas y muebles del plano
             <div class="r3d-hint">Arrastra para rotar 360° e inclinar</div>
           </div>
           <div class="r3d-controls">
-            <label class="field"><span>Altura de muros</span><input type="range" id="r3dCut" min="0.2" max="1" step="0.05" value="0.72"></label>
+            <label class="field"><span>Altura de muros</span><input type="range" id="r3dCut" min="0.2" max="1" step="0.05" value="0.78"></label>
             <label class="field"><span>Zoom</span><input type="range" id="r3dZoom" min="0.6" max="1.8" step="0.05" value="1"></label>
-            <label class="chk"><input type="checkbox" id="r3dHideDemo" checked> Ocultar muros a demoler</label>
+            <label class="chk"><input type="checkbox" id="r3dHideDemo" checked> Ocultar demoler</label>
+          </div>
+          <div class="r3d-layers">
+            <label class="chk"><input type="checkbox" data-3dl="showFurn" ${state3d.showFurn ? 'checked' : ''}> Mobiliario</label>
+            <label class="chk"><input type="checkbox" data-3dl="showClima" ${state3d.showClima ? 'checked' : ''}> Aire Acondicionado y conductos</label>
+            <label class="chk"><input type="checkbox" data-3dl="showElec" ${state3d.showElec ? 'checked' : ''}> Iluminación / Electricidad</label>
+            <label class="chk"><input type="checkbox" data-3dl="showFonta" ${state3d.showFonta ? 'checked' : ''}> Fontanería / Agua</label>
+            <label class="chk"><input type="checkbox" data-3dl="showDomo" ${state3d.showDomo ? 'checked' : ''}> Domótica</label>
           </div>
           <div class="r3d-actions">
             <button class="btn sm" id="r3dReset">${icon('rotate', 14)} Reiniciar vista</button>
@@ -1967,10 +2162,11 @@ Respeta exactamente la posición de muros, puertas, ventanas y muebles del plano
         canvas.addEventListener('pointerup', () => { dragging = false; });
         canvas.addEventListener('pointercancel', () => { dragging = false; });
 
-        $('#r3dCut', card).addEventListener('input', (e) => { state3d.wallCut = num(e.target.value, 0.72); draw(); });
+        $('#r3dCut', card).addEventListener('input', (e) => { state3d.wallCut = num(e.target.value, 0.78); draw(); });
         $('#r3dZoom', card).addEventListener('input', (e) => { state3d.zoom = num(e.target.value, 1); draw(); });
         $('#r3dHideDemo', card).addEventListener('change', (e) => { state3d.hideDemo = e.target.checked; draw(); });
-        $('#r3dReset', card).addEventListener('click', () => { Object.assign(state3d, { yaw: -35, pitch: 42, zoom: 1, wallCut: 0.72 }); $('#r3dCut', card).value = 0.72; $('#r3dZoom', card).value = 1; draw(); });
+        $$('[data-3dl]', card).forEach((chk) => chk.addEventListener('change', () => { state3d[chk.dataset['3dl']] = chk.checked; draw(); }));
+        $('#r3dReset', card).addEventListener('click', () => { Object.assign(state3d, { yaw: -35, pitch: 42, zoom: 1, wallCut: 0.78 }); $('#r3dCut', card).value = 0.78; $('#r3dZoom', card).value = 1; draw(); });
         $('#r3dDownload', card).addEventListener('click', () => {
           canvas.toBlob((blob) => { download(`vista-3d-${plan().name.replace(/\s+/g, '_')}.png`, blob); toast('Vista 3D descargada', 'success'); }, 'image/png');
         });
