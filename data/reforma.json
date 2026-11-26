@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795724829887,
+  "updatedAt": 1795724832168,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -460,7 +460,7 @@
           "sill": 90,
           "kind": "corredera",
           "note": "",
-          "shutter": "electric"
+          "shutter": "none"
         }
       ],
       "bgImage": null
