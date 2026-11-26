@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795730412834,
+  "updatedAt": 1795730416109,
   "project": {
     "name": "Reforma de la vivienda",
     "address": "C/ Ejemplo 12",
@@ -484,22 +484,6 @@
           "floor": "",
           "ceiling": 250,
           "note": ""
-        },
-        {
-          "id": "mwy38encyy3ouc",
-          "type": "furn",
-          "kind": "muebleBajo",
-          "name": "Mueble bajo cocina",
-          "w": 60,
-          "h": 60,
-          "h3d": 0,
-          "z0": 0,
-          "x": 270,
-          "y": -45,
-          "angle": 0,
-          "note": "",
-          "sections": [],
-          "frontColor": "#3410ea"
         }
       ],
       "bgImage": null
