@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795735323204,
+  "updatedAt": 1795735354436,
   "project": {
     "name": "Jijona",
     "address": "Av Joan Fuster 8",
@@ -108,19 +108,6 @@
       "amount": 2800,
       "status": "Pagado",
       "invoice": "FAC-2026-102",
-      "remaining": null,
-      "notes": "",
-      "created": 1795722891112
-    },
-    {
-      "id": "mwxz1mjsreaho3",
-      "date": "2026-12-01",
-      "origin": "Disp. 2",
-      "category": "Electricidad",
-      "concept": "Instalaciones Luz · Material cuadro y cableado",
-      "amount": 1450,
-      "status": "Pendiente",
-      "invoice": "PRE-441",
       "remaining": null,
       "notes": "",
       "created": 1795722891112
