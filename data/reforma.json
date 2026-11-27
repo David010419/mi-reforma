@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795806074111,
+  "updatedAt": 1795806080091,
   "project": {
     "name": "Jijona",
     "address": "Av Joan Fuster 8",
@@ -1637,11 +1637,11 @@
           "kind": "escalera",
           "name": "Escalera",
           "w": 90,
-          "h": 100,
+          "h": 90,
           "h3d": 0,
           "z0": 0,
-          "x": 180.6,
-          "y": 204.9,
+          "x": 175.6,
+          "y": 249.9,
           "angle": 90,
           "note": ""
         }
