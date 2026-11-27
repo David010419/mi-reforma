@@ -4,7 +4,7 @@
    sombras suaves optimizadas para iPad, texturas y raycasting)
    ========================================================= */
 
-const Plan3D = (() => {
+var Plan3D = window.Plan3D = (() => {
   let glRenderer = null;
   const texCache = new Map();
   const canvasStates = new WeakMap();
@@ -813,8 +813,8 @@ const Plan3D = (() => {
     });
   }
 
-  function makeSceneKey(list, state3d, Obra) {
-    const cirKey = (Obra && state3d.nightMode) ? JSON.stringify(window.Store?.state?.electrical || {}) : '';
+  function makeSceneKey(list, state3d, helpers) {
+    const cirKey = state3d.nightMode ? JSON.stringify(helpers?.S?.()?.electrical || {}) : '';
     return JSON.stringify([
       list,
       !!state3d.hideDemo, !!state3d.showFurn, !!state3d.showClima, !!state3d.showElec, !!state3d.showFonta, !!state3d.showDomo,
@@ -858,7 +858,7 @@ const Plan3D = (() => {
       st = { key: '', scene: null, animTargets: [], camera: new THREE.PerspectiveCamera(58, W / H, 6, 9500) };
       canvasStates.set(canvas, st);
     }
-    const newKey = makeSceneKey(list, state3d, helpers.Obra);
+    const newKey = makeSceneKey(list, state3d, helpers);
     if (st.key !== newKey || !st.scene) {
       disposeScene(st.scene);
       const built = buildScene(list, state3d, helpers);
@@ -986,7 +986,7 @@ const Plan3D = (() => {
       if (state3d.showFonta) items.push(['#0284c7', 'Fontanería / Agua']);
       if (state3d.showDomo) items.push(['#8b5cf6', 'Domótica']);
       const lh = 20, pad = 12, bw = 185, bh = items.length * lh + pad * 2 + 16;
-      const x0 = 14, y0 = H - bh - 14;
+      const x0 = isFP ? (W - bw - 14) : 14, y0 = isFP ? 14 : (H - bh - 14);
       ctx.fillStyle = 'rgba(255,255,255,0.92)';
       ctx.strokeStyle = 'rgba(15,23,42,0.16)';
       ctx.lineWidth = 1;
