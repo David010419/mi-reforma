@@ -880,6 +880,7 @@ const Plan = (() => {
           <details class="dropdown right">
             <summary class="tgl" title="Más opciones del plano (calcar, comparar, rejilla, estilo)">${icon('settings', 15)}<span>Opciones</span></summary>
             <div class="dd-menu dd-opts">
+              <button data-pa="squareWalls">${icon('ortho', 15)} Enderezar y escuadrar muros a 90°</button>
               <button data-pa="copyRefsModal">${icon('layers', 15)} Copiar pilares y bajantes de otra planta…</button>
               <button data-pa="bgModal" id="pBgBtn">${icon('image', 15)} Calcar imagen de fondo…</button>
               <button data-pa="compareModal" id="pCmpBtn">${icon('compare', 15)} Comparar Antes / Después…</button>
@@ -1678,8 +1679,9 @@ const Plan = (() => {
         </div>
       </div>
       <div class="qp-foot">
-        <button type="button" class="btn sm ${canClose ? 'primary' : ''}" data-qa="closeRoom" ${canClose ? '' : 'disabled'} title="Cerrar muros con el inicio y crear estancia">${icon('check', 14)} Cerrar estancia</button>
-        <button type="button" class="btn sm" data-qa="newChain" title="Reiniciar cadena (o toca otro punto del plano)">${icon('pin', 14)} Nuevo inicio</button>
+        <button type="button" class="btn sm ${canClose ? 'primary' : ''}" data-qa="closeRoom" ${canClose ? '' : 'disabled'} title="Cerrar muros con el inicio y crear estancia">${icon('check', 14)} Cerrar</button>
+        <button type="button" class="btn sm" data-qa="newChain" title="Reiniciar cadena (o toca otro punto del plano)">${icon('pin', 14)} Inicio</button>
+        <button type="button" class="btn sm" data-qa="square" title="Enderezar y escuadrar todos los muros a 90°">${icon('ortho', 14)} 90°</button>
       </div>`;
   }
 
@@ -1715,28 +1717,43 @@ const Plan = (() => {
       quickState.pt = ws.length ? { x: ws[ws.length - 1].x2, y: ws[ws.length - 1].y2 } : { x: 100, y: 100 };
     }
     const chainWalls = (quickState.chainIds || []).map(byId).filter(Boolean);
-    const prev = chainWalls.length ? chainWalls[chainWalls.length - 1] : null;
+    const prevChain = chainWalls.length ? chainWalls[chainWalls.length - 1] : null;
     const tNew = pui.wallThick || 15;
     pushUndo();
 
     let startX = quickState.pt.x, startY = quickState.pt.y;
     let axisLen = intLen;
 
-    if (prev && Math.hypot(prev.x2 - startX, prev.y2 - startY) < 2) {
-      const Lp = wlen(prev) || 1, pux = (prev.x2 - prev.x1) / Lp, puy = (prev.y2 - prev.y1) / Lp;
+    // Detectar tanto el tramo previo de la cadena como cualquier muro existente con extremo libre en ese punto (para NO restarle grosor al añadir pared)
+    let prev = (prevChain && Math.hypot(prevChain.x2 - startX, prevChain.y2 - startY) < 2) ? prevChain : null;
+    let prevEnd = 2;
+    if (!prev) {
+      const freeHits = [];
+      els().forEach((w) => {
+        if (w.type !== 'wall' || w.status === 'demoler' || w.locked) return;
+        if (Math.hypot(w.x1 - startX, w.y1 - startY) < 2) freeHits.push({ w, end: 1 });
+        else if (Math.hypot(w.x2 - startX, w.y2 - startY) < 2) freeHits.push({ w, end: 2 });
+      });
+      if (freeHits.length === 1) { prev = freeHits[0].w; prevEnd = freeHits[0].end; }
+    }
+
+    if (prev) {
+      const Lp = wlen(prev) || 1;
+      const pux = (prevEnd === 2 ? (prev.x2 - prev.x1) : (prev.x1 - prev.x2)) / Lp;
+      const puy = (prevEnd === 2 ? (prev.y2 - prev.y1) : (prev.y1 - prev.y2)) / Lp;
       const cross = pux * uy - puy * ux;
       const dot = pux * ux + puy * uy;
       if (Math.abs(cross) > 0.2) {
         const turn = cross > 0 ? 1 : -1;
         if (!quickState.turnSign) quickState.turnSign = turn;
-        const sameTurn = turn === quickState.turnSign ? 1 : -1;
+        const sameTurn = prevChain ? (turn === quickState.turnSign ? 1 : -1) : 1;
         const absSin = Math.abs(cross);
         const shiftPrev = sameTurn * (((tNew / 2) - (prev.thick / 2) * dot) / absSin);
         const shiftNew = sameTurn * ((((prev.thick || 15) / 2) - (tNew / 2) * dot) / absSin);
-        prev.x2 = r1(prev.x2 + pux * shiftPrev);
-        prev.y2 = r1(prev.y2 + puy * shiftPrev);
-        startX = prev.x2;
-        startY = prev.y2;
+        prev['x' + prevEnd] = r1(prev['x' + prevEnd] + pux * shiftPrev);
+        prev['y' + prevEnd] = r1(prev['y' + prevEnd] + puy * shiftPrev);
+        startX = prev['x' + prevEnd];
+        startY = prev['y' + prevEnd];
         axisLen = Math.max(5, intLen + shiftNew);
       }
     }
@@ -1920,7 +1937,7 @@ const Plan = (() => {
             <option value="both">Repartir por igual hacia ambos extremos</option>
           </select>
         </label>
-        <label class="chk span2"><input type="checkbox" name="keepOrtho" checked> Mantener esquinas a 90° (desplazar muro perpendicular e igualar pared paralela)</label>
+        <label class="chk span2"><input type="checkbox" name="keepOrtho" checked> Respetar el resto de medidas y mantener ángulos rectos (90°)</label>
       </form>`,
       foot: `<button class="btn" data-modal-close>Cancelar</button><button class="btn primary" id="wdSaveBtn">${icon('check', 15)} Aplicar medida interior</button>`,
       onOpen(card) {
@@ -1952,10 +1969,50 @@ const Plan = (() => {
   /* ---------- Creación ---------- */
   function nextRoomName() { return 'Habitación ' + (els().filter((e) => e.type === 'room').length + 1); }
   function nextRoomColor() { return ROOM_COLORS[els().filter((e) => e.type === 'room').length % ROOM_COLORS.length]; }
-  function addWall(a, b) {
+  function addWall(a, b, opts = {}) {
     pushUndo();
-    els().push({ id: uid(), type: 'wall', x1: r1(a.x), y1: r1(a.y), x2: r1(b.x), y2: r1(b.y), thick: pui.wallThick, status: pui.wallStatus, height: 250, note: '' });
+    let ax = r1(a.x), ay = r1(a.y), bx = r1(b.x), by = r1(b.y);
+    const L = Math.hypot(bx - ax, by - ay);
+    if (L < 1) return null;
+    const ux = (bx - ax) / L, uy = (by - ay) / L;
+    const tNew = pui.wallThick || 15;
+
+    // Si nace en el extremo libre de un único muro perpendicular existente, compensar tNew/2 para NO alterar la medida interior de ese muro previo
+    const freeStart = [];
+    els().forEach((w) => {
+      if (w.type !== 'wall' || w.status === 'demoler' || w.locked) return;
+      if (Math.hypot(w.x1 - ax, w.y1 - ay) < 2) freeStart.push({ w, end: 1 });
+      else if (Math.hypot(w.x2 - ax, w.y2 - ay) < 2) freeStart.push({ w, end: 2 });
+    });
+    if (freeStart.length === 1) {
+      const { w: wp, end: ep } = freeStart[0];
+      const Lp = wlen(wp) || 1;
+      const pux = (ep === 2 ? (wp.x2 - wp.x1) : (wp.x1 - wp.x2)) / Lp;
+      const puy = (ep === 2 ? (wp.y2 - wp.y1) : (wp.y1 - wp.y2)) / Lp;
+      const cross = Math.abs(pux * uy - puy * ux);
+      const dot = pux * ux + puy * uy;
+      if (cross > 0.25 && Math.abs(dot) < 0.85) {
+        const shiftP = ((tNew / 2) - ((wp.thick || 15) / 2) * dot) / cross;
+        wp['x' + ep] = r1(wp['x' + ep] + pux * shiftP);
+        wp['y' + ep] = r1(wp['y' + ep] + puy * shiftP);
+        ax = wp['x' + ep];
+        ay = wp['y' + ep];
+        if (opts.preserveTypedLen) {
+          const shiftN = (((wp.thick || 15) / 2) - (tNew / 2) * dot) / cross;
+          bx = r1(ax + ux * (opts.preserveTypedLen + shiftN));
+          by = r1(ay + uy * (opts.preserveTypedLen + shiftN));
+        } else if (Math.abs(ux) > 0.99) {
+          ay = wp['y' + ep];
+        } else if (Math.abs(uy) > 0.99) {
+          ax = wp['x' + ep];
+        }
+      }
+    }
+
+    const nw = { id: uid(), type: 'wall', x1: ax, y1: ay, x2: bx, y2: by, thick: tNew, status: pui.wallStatus, height: 250, freeAngle: !!opts.freeAngle, note: '' };
+    els().push(nw);
     Store.save();
+    return nw;
   }
   function closePoly() {
     if (!draft || draft.type !== 'poly' || draft.pts.length < 3) { draft = null; requestRender(); return; }
@@ -2053,13 +2110,31 @@ const Plan = (() => {
         break;
       }
       case 'wall': {
-        let q = snap(p);
+        const rawSnap = snap(p);
+        let q = rawSnap;
         if (draft && draft.type === 'wall') {
-          if (draft.typed) q = typedEnd(); else if (orthoOn(e)) q = ortho(draft.a, q);
+          const isOrtho = orthoOn(e);
+          const typedVal = draft.typed ? num(draft.typed, 0) : 0;
+          if (draft.typed) q = typedEnd();
+          else if (isOrtho) {
+            // Si cierra sobre una esquina existente casi alineada (<= 25 cm), escuadrar la esquina previa para que ambos muros queden a 90° exactos
+            if (rawSnap.kind === 'end' && dist(rawSnap, draft.a) > 20) {
+              const dx = Math.abs(rawSnap.x - draft.a.x), dy = Math.abs(rawSnap.y - draft.a.y);
+              if (dx > dy && dy > 0.05 && dy <= 25) {
+                linksAt(draft.a).forEach((l) => { const ow = byId(l.id); if (ow && !ow.locked && Math.abs(ow.x1 - ow.x2) < 1) ow['y' + l.end] = rawSnap.y; });
+                draft.a.y = rawSnap.y;
+              } else if (dy >= dx && dx > 0.05 && dx <= 25) {
+                linksAt(draft.a).forEach((l) => { const ow = byId(l.id); if (ow && !ow.locked && Math.abs(ow.y1 - ow.y2) < 1) ow['x' + l.end] = rawSnap.x; });
+                draft.a.x = rawSnap.x;
+              }
+            }
+            q = ortho(draft.a, rawSnap);
+          }
           if (dist(q, draft.a) < 1) break;
-          addWall(draft.a, q);
-          if (dist(q, draft.start) < 0.5) { draft = null; renderPanel(); }
-          else { draft.a = { x: q.x, y: q.y }; draft.typed = ''; }
+          const created = addWall(draft.a, q, { freeAngle: !isOrtho, preserveTypedLen: typedVal > 0 ? typedVal : 0 });
+          const nextPt = created ? { x: created.x2, y: created.y2 } : { x: q.x, y: q.y };
+          if (dist(nextPt, draft.start) < (pui.wallThick || 15) + 2) { draft = null; renderPanel(); }
+          else { draft.a = nextPt; draft.typed = ''; }
         } else draft = { type: 'wall', a: { x: q.x, y: q.y }, start: { x: q.x, y: q.y }, typed: '' };
         break;
       }
@@ -2256,10 +2331,20 @@ const Plan = (() => {
     snapInd = null;
     if (drag.mode === 'move') {
       switch (el.type) {
-        case 'wall':
-          el.x1 = o.x1 + dx; el.y1 = o.y1 + dy; el.x2 = o.x2 + dx; el.y2 = o.y2 + dy;
-          drag.links.forEach((l) => { const w = byId(l.id); if (w) { w['x' + l.end] = l.ox + dx; w['y' + l.end] = l.oy + dy; } });
+        case 'wall': {
+          // Con Orto activo (salvo Alt), un muro se desliza solo en perpendicular a su eje para no descuadrar los muros conectados a 90°
+          let mdx = dx, mdy = dy;
+          if (orthoOn(e) && !e.altKey) {
+            const Lw = Math.hypot(o.x2 - o.x1, o.y2 - o.y1) || 1;
+            const nx = -(o.y2 - o.y1) / Lw, ny = (o.x2 - o.x1) / Lw;
+            const proj = dx * nx + dy * ny;
+            mdx = r1(nx * proj);
+            mdy = r1(ny * proj);
+          }
+          el.x1 = r1(o.x1 + mdx); el.y1 = r1(o.y1 + mdy); el.x2 = r1(o.x2 + mdx); el.y2 = r1(o.y2 + mdy);
+          drag.links.forEach((l) => { const w = byId(l.id); if (w) { w['x' + l.end] = r1(l.ox + mdx); w['y' + l.end] = r1(l.oy + mdy); } });
           break;
+        }
         case 'room': case 'sketch': el.points = o.points.map(([x, y]) => [x + dx, y + dy]); break;
         case 'door': case 'window': {
           const w = byId(el.wallId); if (!w) break;
@@ -2293,9 +2378,22 @@ const Plan = (() => {
       case 'wall': {
         const end = h === 'p1' ? 1 : 2, other = end === 1 ? { x: o.x2, y: o.y2 } : { x: o.x1, y: o.y1 };
         let q = snap(p, { exclude: el.id });
-        if (orthoOn(e) && !q.snapped) q = ortho(other, q);
-        el['x' + end] = q.x; el['y' + end] = q.y;
-        drag.links.forEach((l) => { const w = byId(l.id); if (w) { w['x' + l.end] = q.x; w['y' + l.end] = q.y; } });
+        const keepO = orthoOn(e) && !e.altKey && !el.freeAngle;
+        if (keepO) {
+          // Mantener estrictamente el eje ortogonal del muro aunque el imán enganche un punto desplazado
+          const odx = Math.abs(o.x2 - o.x1), ody = Math.abs(o.y2 - o.y1);
+          if (odx > 2 || ody > 2) q = odx >= ody ? { x: q.x, y: other.y, snapped: q.snapped, kind: q.kind } : { x: other.x, y: q.y, snapped: q.snapped, kind: q.kind };
+          else q = ortho(other, q);
+        }
+        if (!e.altKey && keepO) {
+          // Restaurar desde instantánea inicial del arrastre y aplicar propagación rígida 90° sin descuadrar otros muros
+          plan().elements = JSON.parse(drag.snapshot);
+          const curEl = byId(el.id);
+          if (curEl) moveWallEnd(curEl, end, q.x, q.y, { keepOrtho: true });
+        } else {
+          el['x' + end] = q.x; el['y' + end] = q.y;
+          drag.links.forEach((l) => { const w = byId(l.id); if (w) { w['x' + l.end] = q.x; w['y' + l.end] = q.y; } });
+        }
         snapInd = q.snapped ? q : null;
         break;
       }
@@ -2446,103 +2544,283 @@ const Plan = (() => {
     });
     commit(); toast('Muro dividido en dos', 'success');
   }
-  function wallAnchorWeight(w, end) {
-    const px = w['x' + end], py = w['y' + end];
-    let weight = 0;
-    els().forEach((o) => {
-      if (o.type !== 'wall' || o.id === w.id || o.status === 'demoler') return;
-      const Lo = wlen(o); if (Lo < 1) return;
-      const t = clamp(projT({ x: px, y: py }, { x: o.x1, y: o.y1 }, { x: o.x2, y: o.y2 }), 0, 1);
-      const qx = o.x1 + (o.x2 - o.x1) * t, qy = o.y1 + (o.y2 - o.y1) * t;
-      if (Math.hypot(px - qx, py - qy) > (o.thick || 15) / 2 + 2) return;
-      if (o.locked) weight += 100;
-      // Encuentro en T contra un muro continuo (fachada o medianera) pesa mucho más que una esquina simple
-      if (t * Lo > 8 && (1 - t) * Lo > 8) weight += 12;
-      else weight += 1;
-    });
-    return weight;
+  /* ---------- Propagación rígida a 90°: editar una pared respeta todas las demás medidas ---------- */
+  function buildWallMovePlan(w, end, wux, wuy) {
+    const ox = w['x' + end], oy = w['y' + end];
+    const fixedEnd = end === 1 ? 2 : 1;
+    const fx = w['x' + fixedEnd], fy = w['y' + fixedEnd];
+    const walls = els().filter((e) => e.type === 'wall' && e.id !== w.id && e.status !== 'demoler');
+    const ptTouchesWall = (px, py, m) => {
+      const Lm = wlen(m); if (Lm < 1) return false;
+      const t = clamp(projT({ x: px, y: py }, { x: m.x1, y: m.y1 }, { x: m.x2, y: m.y2 }), 0, 1);
+      const qx = m.x1 + (m.x2 - m.x1) * t, qy = m.y1 + (m.y2 - m.y1) * t;
+      return Math.hypot(px - qx, py - qy) <= (m.thick || 15) / 2 + 2;
+    };
+
+    // 1. ¿Es una rama abierta (sin volver a conectar con el extremo fijo de w)? Si es abierta, trasladar toda la rama en bloque = 0 muros alterados
+    const compWalls = new Set();
+    const compPts = [[ox, oy]];
+    const qOpen = [[ox, oy]];
+    let touchesFixed = false, touchesLocked = false;
+    while (qOpen.length) {
+      const [px, py] = qOpen.shift();
+      if (Math.hypot(px - fx, py - fy) <= 2.5) { touchesFixed = true; break; }
+      for (const m of walls) {
+        if (compWalls.has(m.id)) continue;
+        if (!ptTouchesWall(px, py, m)) continue;
+        if (m.locked) touchesLocked = true;
+        if (ptTouchesWall(fx, fy, m)) touchesFixed = true;
+        compWalls.add(m.id);
+        for (const [mx, my] of [[m.x1, m.y1], [m.x2, m.y2]]) {
+          if (!compPts.some(([cx, cy]) => Math.hypot(cx - mx, cy - my) <= 1.5)) {
+            compPts.push([mx, my]);
+            qOpen.push([mx, my]);
+          }
+        }
+      }
+    }
+    if (!touchesFixed && !touchesLocked) {
+      return {
+        valid: true, kind: 'open', cost: compWalls.size * 0.01,
+        fullWalls: compWalls, movePts: compPts,
+      };
+    }
+
+    // 2. Si pertenece a un perímetro cerrado, propagar rígidamente por todos los muros NO paralelos a w (solo absorben el cambio muros paralelos a w)
+    const movePts = [[ox, oy]];
+    const rigidWalls = new Set();
+    const qOrtho = [[ox, oy]];
+    const addPt = (nx0, ny0) => {
+      if (!movePts.some(([cx, cy]) => Math.hypot(cx - nx0, cy - ny0) <= 1.5)) {
+        movePts.push([nx0, ny0]);
+        qOrtho.push([nx0, ny0]);
+      }
+    };
+    while (qOrtho.length) {
+      const [px, py] = qOrtho.shift();
+      for (const m of walls) {
+        const Lm = wlen(m); if (Lm < 1) continue;
+        const d1 = Math.hypot(px - m.x1, py - m.y1), d2 = Math.hypot(px - m.x2, py - m.y2);
+        const touchesEnd = d1 <= 2.5 || d2 <= 2.5;
+        const touchesBody = ptTouchesWall(px, py, m);
+        if (!touchesEnd && !touchesBody) continue;
+        const mux = (m.x2 - m.x1) / Lm, muy = (m.y2 - m.y1) / Lm;
+        const isParallel = Math.abs(wux * mux + wuy * muy) > 0.92;
+        if (!isParallel) {
+          // Muro perpendicular/angulado: mover entero en bloque para no inclinarlo ni cambiar su medida
+          if (!rigidWalls.has(m.id)) {
+            rigidWalls.add(m.id);
+            addPt(m.x1, m.y1);
+            addPt(m.x2, m.y2);
+            // Incluir cualquier encuentro en T que apoye sobre este muro rígido
+            for (const m2 of walls) {
+              if (m2.id === m.id) continue;
+              if (ptTouchesWall(m2.x1, m2.y1, m)) addPt(m2.x1, m2.y1);
+              if (ptTouchesWall(m2.x2, m2.y2, m)) addPt(m2.x2, m2.y2);
+            }
+          }
+        }
+      }
+    }
+    const hitsFixed = movePts.some(([px, py]) => Math.hypot(px - fx, py - fy) <= 2.5);
+    let hitsLocked = [...rigidWalls].some((id) => byId(id)?.locked);
+    let absorbers = 0, rigidLen = 0;
+    rigidWalls.forEach((id) => { const rw = byId(id); if (rw) rigidLen += wlen(rw); });
+    for (const m of walls) {
+      if (rigidWalls.has(m.id)) continue;
+      const m1 = movePts.some(([px, py]) => Math.hypot(px - m.x1, py - m.y1) <= 2.5);
+      const m2 = movePts.some(([px, py]) => Math.hypot(px - m.x2, py - m.y2) <= 2.5);
+      if (m1 !== m2) {
+        absorbers++;
+        if (m.locked) hitsLocked = true;
+      }
+    }
+    if (hitsFixed || hitsLocked) return { valid: false, cost: Infinity };
+    return {
+      valid: true, kind: 'ortho', cost: 100 + absorbers * 25 + rigidLen * 0.02,
+      fullWalls: rigidWalls, movePts,
+    };
   }
+
   function moveWallEnd(w, end, nx, ny, opts = {}) {
     const ox = w['x' + end], oy = w['y' + end];
+    const fixedEnd = end === 1 ? 2 : 1;
+    const fx = w['x' + fixedEnd], fy = w['y' + fixedEnd];
     const tx = r1(nx), ty = r1(ny);
     const dx = tx - ox, dy = ty - oy;
     if (Math.hypot(dx, dy) < 0.01) return;
-    const Lw = wlen(w) || 1, wux = (w.x2 - w.x1) / Lw, wuy = (w.y2 - w.y1) / Lw;
-    const links = linksAt({ x: ox, y: oy }, w.id);
-    const shiftedPts = [[ox, oy]];
+
+    if (!opts.keepOrtho) {
+      const links = linksAt({ x: ox, y: oy }, w.id);
+      w['x' + end] = tx; w['y' + end] = ty;
+      links.forEach((l) => { const o = byId(l.id); if (o && !o.locked) { o['x' + l.end] = tx; o['y' + l.end] = ty; } });
+      return;
+    }
+
+    const dL = Math.hypot(tx - fx, ty - fy) || 1;
+    const wux = (tx - fx) / dL, wuy = (ty - fy) / dL;
+    const planMove = opts.plan || buildWallMovePlan(w, end, wux, wuy);
+
     w['x' + end] = tx; w['y' + end] = ty;
-    links.forEach((l) => {
-      const o = byId(l.id); if (!o) return;
-      const Lo = wlen(o) || 1, oux = (o.x2 - o.x1) / Lo, ouy = (o.y2 - o.y1) / Lo;
-      const otherEnd = l.end === 1 ? 2 : 1;
-      const ox2 = o['x' + otherEnd], oy2 = o['y' + otherEnd];
-      o['x' + l.end] = tx; o['y' + l.end] = ty;
-      // Si se pide mantener ortogonalidad (90°), desplazar en paralelo el muro perpendicular y alargar su pared opuesta paralela
-      if (opts.keepOrtho && !o.locked && Math.abs(wux * oux + wuy * ouy) < 0.14) {
-        const otherLinks = linksAt({ x: ox2, y: oy2 }, o.id);
-        const midWallHit = els().some((m) => {
-          if (m.type !== 'wall' || m.id === o.id || m.status === 'demoler') return false;
-          if (otherLinks.some((ol) => ol.id === m.id)) return false;
-          const Lm = wlen(m); if (Lm < 1) return false;
-          const mux = (m.x2 - m.x1) / Lm, muy = (m.y2 - m.y1) / Lm;
-          // Si el muro continuo m es paralelo al desplazamiento (ej. fachada vertical al mover altura del tabique), el encuentro en T desliza limpio sobre m manteniendo 90°
-          if (Math.abs(wux * mux + wuy * muy) > 0.94) return false;
-          const tm = clamp(projT({ x: ox2, y: oy2 }, { x: m.x1, y: m.y1 }, { x: m.x2, y: m.y2 }), 0, 1);
-          return tm * Lm > 8 && (1 - tm) * Lm > 8 && Math.hypot(ox2 - (m.x1 + (m.x2 - m.x1) * tm), oy2 - (m.y1 + (m.y2 - m.y1) * tm)) < (m.thick || 15) / 2 + 2;
-        });
-        const canSlide = !midWallHit && otherLinks.every((ol) => {
-          const ow = byId(ol.id); if (!ow || ow.locked) return false;
-          const Low = wlen(ow) || 1, owx = (ow.x2 - ow.x1) / Low, owy = (ow.y2 - ow.y1) / Low;
-          return Math.abs(wux * owx + wuy * owy) > 0.86;
-        });
-        if (canSlide) {
-          o['x' + otherEnd] = r1(ox2 + dx);
-          o['y' + otherEnd] = r1(oy2 + dy);
-          shiftedPts.push([ox2, oy2]);
-          otherLinks.forEach((ol) => {
-            const ow = byId(ol.id);
-            if (ow) { ow['x' + ol.end] = r1(ox2 + dx); ow['y' + ol.end] = r1(oy2 + dy); }
-          });
+    if (!planMove || !planMove.valid) {
+      const links = linksAt({ x: ox, y: oy }, w.id);
+      links.forEach((l) => { const o = byId(l.id); if (o && !o.locked) { o['x' + l.end] = tx; o['y' + l.end] = ty; } });
+      return;
+    }
+
+    const movedWallSet = planMove.fullWalls || new Set();
+    const pts = planMove.movePts || [[ox, oy]];
+    const nearMovedPt = (px, py, tol = 2.5) => pts.some(([mx, my]) => Math.hypot(px - mx, py - my) <= tol);
+
+    els().forEach((e) => {
+      if (e.id === w.id || e.locked) return;
+      if (e.type === 'wall') {
+        if (movedWallSet.has(e.id)) {
+          e.x1 = r1(e.x1 + dx); e.y1 = r1(e.y1 + dy);
+          e.x2 = r1(e.x2 + dx); e.y2 = r1(e.y2 + dy);
+        } else {
+          if (nearMovedPt(e.x1, e.y1) && Math.hypot(e.x1 - fx, e.y1 - fy) > 2.5) { e.x1 = r1(e.x1 + dx); e.y1 = r1(e.y1 + dy); }
+          if (nearMovedPt(e.x2, e.y2) && Math.hypot(e.x2 - fx, e.y2 - fy) > 2.5) { e.x2 = r1(e.x2 + dx); e.y2 = r1(e.y2 + dy); }
         }
+      } else if (e.type === 'room' && Array.isArray(e.points)) {
+        const tol = (w.thick || 15) + 5;
+        e.points.forEach((pt) => {
+          if (nearMovedPt(pt[0], pt[1], tol) && Math.hypot(pt[0] - fx, pt[1] - fy) > tol * 0.6) {
+            pt[0] = r1(pt[0] + dx); pt[1] = r1(pt[1] + dy);
+          }
+        });
+      } else if (planMove.kind === 'open' && (e.type === 'sym' || e.type === 'pin' || e.type === 'text')) {
+        if (nearMovedPt(e.x, e.y, 28)) { e.x = r1(e.x + dx); e.y = r1(e.y + dy); }
       }
     });
-    // Mantener unidos los vértices de habitaciones adyacentes a las esquinas desplazadas
-    const tol = (w.thick || 15) + 5;
-    els().forEach((r) => {
-      if (r.type !== 'room' || !Array.isArray(r.points)) return;
-      r.points.forEach((pt) => {
-        if (shiftedPts.some(([sx, sy]) => Math.hypot(pt[0] - sx, pt[1] - sy) <= tol)) {
-          pt[0] = r1(pt[0] + dx); pt[1] = r1(pt[1] + dy);
-        }
-      });
-    });
   }
+
+  function snapWallAxisOrtho(w) {
+    if (w.freeAngle) return { ux: (w.x2 - w.x1) / (wlen(w) || 1), uy: (w.y2 - w.y1) / (wlen(w) || 1) };
+    const dx = w.x2 - w.x1, dy = w.y2 - w.y1, L = Math.hypot(dx, dy) || 1;
+    if (Math.abs(dy) <= Math.max(8, L * 0.14)) return { ux: dx >= 0 ? 1 : -1, uy: 0 };
+    if (Math.abs(dx) <= Math.max(8, L * 0.14)) return { ux: 0, uy: dy >= 0 ? 1 : -1 };
+    return { ux: dx / L, uy: dy / L };
+  }
+
+  function resizeWallAxis(w, newAxis, anchor = 'auto', keepOrtho = true) {
+    const { ux, uy } = keepOrtho ? snapWallAxisOrtho(w) : { ux: (w.x2 - w.x1) / (wlen(w) || 1), uy: (w.y2 - w.y1) / (wlen(w) || 1) };
+    let mode = anchor, chosenPlan = null;
+    if (mode === 'auto' && keepOrtho) {
+      const p2 = buildWallMovePlan(w, 2, ux, uy);
+      const p1 = buildWallMovePlan(w, 1, -ux, -uy);
+      if (p1.cost < p2.cost) { mode = 'end'; chosenPlan = p1; }
+      else { mode = 'start'; chosenPlan = p2; }
+    }
+    if (mode === 'end') {
+      if (keepOrtho && !w.freeAngle) { if (uy === 0) w.y1 = w.y2; else if (ux === 0) w.x1 = w.x2; }
+      moveWallEnd(w, 1, w.x2 - ux * newAxis, w.y2 - uy * newAxis, { keepOrtho, plan: chosenPlan });
+    } else if (mode === 'both') {
+      const mx = (w.x1 + w.x2) / 2, my = (w.y1 + w.y2) / 2;
+      moveWallEnd(w, 1, mx - ux * (newAxis / 2), my - uy * (newAxis / 2), { keepOrtho });
+      moveWallEnd(w, 2, mx + ux * (newAxis / 2), my + uy * (newAxis / 2), { keepOrtho });
+    } else {
+      if (keepOrtho && !w.freeAngle) { if (uy === 0) w.y2 = w.y1; else if (ux === 0) w.x2 = w.x1; }
+      moveWallEnd(w, 2, w.x1 + ux * newAxis, w.y1 + uy * newAxis, { keepOrtho, plan: chosenPlan });
+    }
+  }
+
   function resizeWallInterior(w, targetInt, anchor = 'auto', keepOrtho = true) {
     const wm = wallMetrics(w, els());
     const newAxis = Math.max(2, targetInt - wm.intDelta);
-    const L = wlen(w) || 1, ux = (w.x2 - w.x1) / L, uy = (w.y2 - w.y1) / L;
-    let mode = anchor;
-    if (mode === 'auto') {
-      mode = wallAnchorWeight(w, 2) > wallAnchorWeight(w, 1) ? 'end' : 'start';
-    }
-    const opts = { keepOrtho };
-    if (mode === 'end') {
-      moveWallEnd(w, 1, w.x2 - ux * newAxis, w.y2 - uy * newAxis, opts);
-    } else if (mode === 'both') {
-      const mx = (w.x1 + w.x2) / 2, my = (w.y1 + w.y2) / 2;
-      moveWallEnd(w, 1, mx - ux * (newAxis / 2), my - uy * (newAxis / 2), opts);
-      moveWallEnd(w, 2, mx + ux * (newAxis / 2), my + uy * (newAxis / 2), opts);
-    } else {
-      moveWallEnd(w, 2, w.x1 + ux * newAxis, w.y1 + uy * newAxis, opts);
-    }
+    resizeWallAxis(w, newAxis, anchor, keepOrtho);
   }
+
+  function squarePlanWalls() {
+    const walls = els().filter((e) => e.type === 'wall' && e.status !== 'demoler' && !e.locked && !e.freeAngle);
+    if (!walls.length) { toast('No hay muros que escuadrar en este plano', 'info'); return; }
+    pushUndo();
+    // 1. Unificar vértices muy próximos (<= 8 cm) para reparar esquinas casi cerradas
+    const nodes = [];
+    const findNode = (x, y) => {
+      let n = nodes.find((nd) => Math.hypot(nd.x - x, nd.y - y) <= 8);
+      if (!n) { n = { x, y, refs: [] }; nodes.push(n); }
+      return n;
+    };
+    walls.forEach((w) => {
+      const n1 = findNode(w.x1, w.y1); n1.refs.push({ w, end: 1 });
+      const n2 = findNode(w.x2, w.y2); n2.refs.push({ w, end: 2 });
+    });
+
+    // 2. Clasificar muros en horizontales y verticales (dentro de 15° de tolerancia) y agrupar ejes X e Y conectados
+    const hGroups = [], vGroups = [];
+    const ufMake = (n) => Array.from({ length: n }, (_, i) => i);
+    const ufFind = (p, i) => { while (p[i] !== i) { p[i] = p[p[i]]; i = p[i]; } return i; };
+    const ufUnion = (p, a, b) => { const ra = ufFind(p, a), rb = ufFind(p, b); if (ra !== rb) p[rb] = ra; };
+    const pX = ufMake(nodes.length), pY = ufMake(nodes.length);
+    const wX = new Array(nodes.length).fill(1), wY = new Array(nodes.length).fill(1);
+    let fixedCount = 0;
+
+    walls.forEach((w) => {
+      const i1 = nodes.findIndex((nd) => nd.refs.some((r) => r.w === w && r.end === 1));
+      const i2 = nodes.findIndex((nd) => nd.refs.some((r) => r.w === w && r.end === 2));
+      if (i1 < 0 || i2 < 0 || i1 === i2) return;
+      const dx = Math.abs(w.x2 - w.x1), dy = Math.abs(w.y2 - w.y1), L = Math.hypot(dx, dy) || 1;
+      if (dx >= dy && dy / L < 0.26) {
+        if (dy > 0.05) fixedCount++;
+        ufUnion(pY, i1, i2);
+        wY[i1] += L; wY[i2] += L;
+      } else if (dy > dx && dx / L < 0.26) {
+        if (dx > 0.05) fixedCount++;
+        ufUnion(pX, i1, i2);
+        wX[i1] += L; wX[i2] += L;
+      }
+    });
+
+    const byRootX = new Map(), byRootY = new Map();
+    nodes.forEach((nd, i) => {
+      const rx = ufFind(pX, i), ry = ufFind(pY, i);
+      if (!byRootX.has(rx)) byRootX.set(rx, []);
+      if (!byRootY.has(ry)) byRootY.set(ry, []);
+      byRootX.get(rx).push(i);
+      byRootY.get(ry).push(i);
+    });
+    byRootX.forEach((idxs) => {
+      if (idxs.length < 2) return;
+      let sum = 0, wt = 0;
+      idxs.forEach((i) => { sum += nodes[i].x * wX[i]; wt += wX[i]; });
+      const avgX = r1(sum / wt);
+      idxs.forEach((i) => { nodes[i].newX = avgX; });
+    });
+    byRootY.forEach((idxs) => {
+      if (idxs.length < 2) return;
+      let sum = 0, wt = 0;
+      idxs.forEach((i) => { sum += nodes[i].y * wY[i]; wt += wY[i]; });
+      const avgY = r1(sum / wt);
+      idxs.forEach((i) => { nodes[i].newY = avgY; });
+    });
+    void hGroups; void vGroups;
+
+    nodes.forEach((nd) => {
+      const nx = nd.newX !== undefined ? nd.newX : r1(nd.x);
+      const ny = nd.newY !== undefined ? nd.newY : r1(nd.y);
+      const dx = nx - nd.x, dy = ny - nd.y;
+      nd.refs.forEach(({ w, end }) => { w['x' + end] = nx; w['y' + end] = ny; });
+      if (Math.hypot(dx, dy) > 0.05) {
+        els().forEach((r) => {
+          if (r.type !== 'room' || !Array.isArray(r.points)) return;
+          r.points.forEach((pt) => {
+            if (Math.hypot(pt[0] - nd.x, pt[1] - nd.y) <= 20) { pt[0] = r1(pt[0] + dx); pt[1] = r1(pt[1] + dy); }
+          });
+        });
+      }
+    });
+    commit();
+    toast(fixedCount ? `Plano escuadrado: ${fixedCount} muros alineados a 90° exactos` : 'Todos los muros ya están a 90° exactos', 'success');
+  }
+
   function setProp(el, k, v) {
     const n = num(v, NaN);
     switch (k) {
       case 'lengthInt': if (el.type === 'wall' && n > 0) resizeWallInterior(el, n, 'auto', true); return;
-      case 'lengthExt': if (el.type === 'wall' && n > 0) { const wm = wallMetrics(el, els()); const newAxis = Math.max(2, n - wm.extDelta); const a = Math.atan2(el.y2 - el.y1, el.x2 - el.x1); const fix2 = wallAnchorWeight(el, 2) > wallAnchorWeight(el, 1); if (fix2) moveWallEnd(el, 1, el.x2 - Math.cos(a) * newAxis, el.y2 - Math.sin(a) * newAxis, { keepOrtho: true }); else moveWallEnd(el, 2, el.x1 + Math.cos(a) * newAxis, el.y1 + Math.sin(a) * newAxis, { keepOrtho: true }); } return;
-      case 'length': if (el.type === 'wall' && n > 0) { const a = Math.atan2(el.y2 - el.y1, el.x2 - el.x1); const fix2 = wallAnchorWeight(el, 2) > wallAnchorWeight(el, 1); if (fix2) moveWallEnd(el, 1, el.x2 - Math.cos(a) * n, el.y2 - Math.sin(a) * n, { keepOrtho: true }); else moveWallEnd(el, 2, el.x1 + Math.cos(a) * n, el.y1 + Math.sin(a) * n, { keepOrtho: true }); } return;
-      case 'wangle': if (el.type === 'wall' && Number.isFinite(n)) { const L = wlen(el), a = (-n * Math.PI) / 180; moveWallEnd(el, 2, el.x1 + Math.cos(a) * L, el.y1 + Math.sin(a) * L); } return;
+      case 'lengthExt': if (el.type === 'wall' && n > 0) { const wm = wallMetrics(el, els()); resizeWallAxis(el, Math.max(2, n - wm.extDelta), 'auto', true); } return;
+      case 'length': if (el.type === 'wall' && n > 0) resizeWallAxis(el, n, 'auto', true); return;
+      case 'wangle': if (el.type === 'wall' && Number.isFinite(n)) { const L = wlen(el), a = (-n * Math.PI) / 180; el.freeAngle = (Math.abs(n % 90) > 0.2); moveWallEnd(el, 2, el.x1 + Math.cos(a) * L, el.y1 + Math.sin(a) * L, { keepOrtho: false }); } return;
       case 'pos': { const w = byId(el.wallId); if (w && Number.isFinite(n)) { const L = wlen(w); el.t = clamp(n + el.width / 2, el.width / 2, L - el.width / 2) / L; } return; }
       case 'width': if (n > 0) { el.width = n; const w = byId(el.wallId); if (w) { const L = wlen(w); el.width = Math.min(n, L); el.t = clamp(el.t * L, el.width / 2, L - el.width / 2) / L; } } return;
       case 'angle': if (Number.isFinite(n)) el.angle = ((n % 360) + 360) % 360; return;
@@ -2658,6 +2936,7 @@ const Plan = (() => {
       <div class="pactions">
         <button type="button" class="btn sm ${chainN >= 2 ? 'primary' : ''}" data-a="qCloseRoom" ${chainN >= 2 ? '' : 'disabled'}>${icon('check', 14)} Cerrar estancia (${chainN})</button>
         <button type="button" class="btn sm" data-a="qResetOrigin">${icon('pin', 14)} Nuevo inicio</button>
+        <button type="button" class="btn sm" data-a="squareWalls" title="Enderezar cualquier muro ligeramente inclinado a 90° exactos">${icon('ortho', 14)} Escuadrar 90°</button>
       </div>
       <div class="pinfos">${F.info('Punto activo', `X ${fmtLen(qp.x)} · Y ${fmtLen(qp.y)}`)}</div>
     </div>
@@ -2680,6 +2959,7 @@ const Plan = (() => {
         <label class="pf"><span>Estado</span><select data-wo="wallStatus">${Object.entries(WALL_STATUS).map(([k, l]) => `<option value="${k}" ${k === pui.wallStatus ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
       </div>
       <button type="button" class="btn sm primary" data-a="goQuickTool">${icon('quickwall', 15)} Abrir Construcción rápida (pared + medida)</button>
+      <button type="button" class="btn sm" data-a="squareWalls">${icon('ortho', 15)} Enderezar y escuadrar muros a 90°</button>
       <p class="phint">${icon('hint', 14)} Mientras dibujas, teclea la <b>medida interior</b> (en cm) y pulsa <kbd>Enter</kbd>, o toca cualquier cota en el plano para editarla.</p>
     </div>`;
   }
@@ -3049,6 +3329,7 @@ const Plan = (() => {
         case 'dupPlan': openPlanModal(true); break;
         case 'bgModal': openBgModal(); break;
         case 'copyRefsModal': openCopyRefsModal(); break;
+        case 'squareWalls': squarePlanWalls(); break;
         case 'compareModal': openCompareModal(); break;
         case 'edit3d': toggleInline3D(); break;
         case 'render3d': openRender3DModal(false); break;
@@ -3253,6 +3534,7 @@ const Plan = (() => {
           const inp = $('#qpLenInp', qPad);
           quickAddSeg(+b.dataset.dx, +b.dataset.dy, inp ? inp.value : quickState.len);
         } else if (b.dataset.qa === 'closeRoom') quickCloseRoom();
+        else if (b.dataset.qa === 'square') squarePlanWalls();
         else if (b.dataset.qa === 'newChain') {
           quickState.chainIds = []; quickState.turnSign = 0;
           syncQuickPad(); renderPanel(); requestRender();
@@ -3334,6 +3616,7 @@ const Plan = (() => {
         case 'split': if (el) splitWall(el); break;
         case 'flipWallSide': if (el && el.type === 'wall') { pushUndo(); const wm = wallMetrics(el, els()); el.intSide = -(wm.intSide || 1); el.intSideManual = true; commit(); } break;
         case 'goQuickTool': setTool('quick'); break;
+        case 'squareWalls': squarePlanWalls(); break;
         case 'qdir': quickAddSeg(+b.dataset.dx, +b.dataset.dy, quickState.len); break;
         case 'qCloseRoom': quickCloseRoom(); break;
         case 'qResetOrigin': quickState.chainIds = []; quickState.turnSign = 0; syncQuickPad(); renderPanel(); requestRender(); toast('Toca el plano para elegir el nuevo punto inicial', 'info'); break;
