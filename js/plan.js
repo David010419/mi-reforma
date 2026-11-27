@@ -289,14 +289,15 @@ const Plan = (() => {
       let hasPlus = false, hasMinus = false, trimPlus = 0, trimMinus = 0;
       for (const o of walls) {
         const Lo = wlen(o); if (Lo < 1) continue;
-        const to = clamp(projT({ x: px0, y: py0 }, { x: o.x1, y: o.y1 }, { x: o.x2, y: o.y2 }), 0, 1);
-        const qx = o.x1 + (o.x2 - o.x1) * to, qy = o.y1 + (o.y2 - o.y1) * to;
-        if (Math.hypot(px0 - qx, py0 - qy) > 2.5) continue;
-        const t2 = o.thick || 15;
-        const branches = [[o.x1 - qx, o.y1 - qy], [o.x2 - qx, o.y2 - qy]];
-        for (const [bx, by] of branches) {
-          const bL = Math.hypot(bx, by); if (bL <= 4) continue;
-          const vx = bx / bL, vy = by / bL;
+        const oux = (o.x2 - o.x1) / Lo, ouy = (o.y2 - o.y1) / Lo;
+        const t2 = o.thick || 15, capTol = t2 / 2 + 1.5;
+        const along = (px0 - o.x1) * oux + (py0 - o.y1) * ouy;
+        const perp = Math.abs(-(px0 - o.x1) * ouy + (py0 - o.y1) * oux);
+        if (perp > capTol || along < -capTol || along > Lo + capTol) continue;
+        const dirs = [];
+        if (along > t1 / 2 + 1) dirs.push([-oux, -ouy]);
+        if (Lo - along > t1 / 2 + 1) dirs.push([oux, ouy]);
+        for (const [vx, vy] of dirs) {
           const sinT = vx * nx + vy * ny, cosT = vx * ix + vy * iy;
           const absSin = Math.abs(sinT);
           if (absSin < 0.2) continue;
@@ -319,35 +320,48 @@ const Plan = (() => {
     const pPlus = { x: mx + nx * probe, y: my + ny * probe };
     const pMinus = { x: mx - nx * probe, y: my - ny * probe };
     const rooms = list.filter((e) => e.type === 'room' && e.points && e.points.length >= 3);
-    const inPlus = rooms.some((r) => pointInPoly(pPlus.x, pPlus.y, r.points));
-    const inMinus = rooms.some((r) => pointInPoly(pMinus.x, pMinus.y, r.points));
+    const roomsPlus = rooms.filter((r) => pointInPoly(pPlus.x, pPlus.y, r.points));
+    const roomsMinus = rooms.filter((r) => pointInPoly(pMinus.x, pMinus.y, r.points));
+    const inPlus = roomsPlus.length > 0, inMinus = roomsMinus.length > 0;
 
-    const enclosure = (pt) => {
-      let dirs = 0;
+    const rayInfo = (pt) => {
+      let dirs = 0, distSum = 0;
       const rays = [[1, 0], [-1, 0], [0, 1], [0, -1]];
       for (const [rx, ry] of rays) {
         const ex = pt.x + rx * 9000, ey = pt.y + ry * 9000;
-        let hit = false;
+        let bestT = Infinity;
         for (const o of walls) {
-          if (segIntersect(pt.x, pt.y, ex, ey, o.x1, o.y1, o.x2, o.y2)) { hit = true; break; }
+          const h = segIntersect(pt.x, pt.y, ex, ey, o.x1, o.y1, o.x2, o.y2);
+          if (h && h.t < bestT) bestT = h.t;
         }
-        if (!hit && segIntersect(pt.x, pt.y, ex, ey, w.x1, w.y1, w.x2, w.y2)) hit = true;
-        if (hit) dirs++;
+        const hw = segIntersect(pt.x, pt.y, ex, ey, w.x1, w.y1, w.x2, w.y2);
+        if (hw && hw.t < bestT) bestT = hw.t;
+        if (bestT < Infinity) { dirs++; distSum += bestT * 9000; }
       }
-      return dirs;
+      return { dirs, distSum };
     };
-    const encPlus = walls.length >= 2 ? enclosure(pPlus) : 0;
-    const encMinus = walls.length >= 2 ? enclosure(pMinus) : 0;
-    const isPartition = (inPlus && inMinus) || (encPlus >= 3 && encMinus >= 3);
+    const rPlus = walls.length >= 2 ? rayInfo(pPlus) : { dirs: 0, distSum: 0 };
+    const rMinus = walls.length >= 2 ? rayInfo(pMinus) : { dirs: 0, distSum: 0 };
+    const isPartition = (inPlus && inMinus) || (rPlus.dirs >= 3 && rMinus.dirs >= 3);
 
-    let intSide = w.intSide === 1 || w.intSide === -1 ? w.intSide : 0;
+    let intSide = w.intSideManual && (w.intSide === 1 || w.intSide === -1) ? w.intSide : 0;
     if (!intSide) {
-      if (inPlus !== inMinus) intSide = inPlus ? 1 : -1;
-      else if (encPlus !== encMinus) intSide = encPlus > encMinus ? 1 : -1;
-      else if (Math.abs(sidePlus - sideMinus) > 0.4) intSide = sidePlus <= sideMinus ? 1 : -1;
-      else if (walls.length) {
-        const cx = walls.reduce((s, o) => s + (o.x1 + o.x2) / 2, (w.x1 + w.x2) / 2) / (walls.length + 1);
-        const cy = walls.reduce((s, o) => s + (o.y1 + o.y2) / 2, (w.y1 + w.y2) / 2) / (walls.length + 1);
+      // Si las esquinas recortan un lado más que el otro, el lado cóncavo (más corto) es SIEMPRE la cara interior real de esa esquina/estancia
+      if (Math.abs(sidePlus - sideMinus) > 0.3) {
+        intSide = sidePlus < sideMinus ? 1 : -1;
+      } else if (inPlus !== inMinus) {
+        intSide = inPlus ? 1 : -1;
+      } else if (inPlus && inMinus) {
+        const minAPlus = Math.min(...roomsPlus.map((r) => polyArea(r.points)));
+        const minAMinus = Math.min(...roomsMinus.map((r) => polyArea(r.points)));
+        intSide = minAPlus <= minAMinus ? 1 : -1;
+      } else if (rPlus.dirs !== rMinus.dirs) {
+        intSide = rPlus.dirs > rMinus.dirs ? 1 : -1;
+      } else if (rPlus.dirs >= 2 && Math.abs(rPlus.distSum - rMinus.distSum) > 5) {
+        intSide = rPlus.distSum <= rMinus.distSum ? 1 : -1;
+      } else if (walls.length) {
+        const cx = walls.reduce((s, o) => s + (o.x1 + o.x2) / 2, mx) / (walls.length + 1);
+        const cy = walls.reduce((s, o) => s + (o.y1 + o.y2) / 2, my) / (walls.length + 1);
         intSide = ((cx - mx) * nx + (cy - my) * ny) >= 0 ? 1 : -1;
       } else intSide = 1;
     }
@@ -1461,7 +1475,19 @@ const Plan = (() => {
       if (d < bd) { bd = d; best = { x: q.x, y: q.y, snapped: true, kind: 'line' }; }
     });
     if (best) return best;
-    return { x: Math.round(p.x / g) * g, y: Math.round(p.y / g) * g, snapped: false };
+    // Alineación ortogonal magnética con esquinas de muros existentes (permite cerrar cuadrados exactos incluso fuera de múltiplos de 5 cm)
+    let gx = Math.round(p.x / g) * g, gy = Math.round(p.y / g) * g, aligned = false;
+    const aTol = 8 / view.s;
+    let bestAx = aTol, bestAy = aTol;
+    els().forEach((w) => {
+      if (w.type !== 'wall' || w.id === opt.exclude) return;
+      for (const [wx, wy] of [[w.x1, w.y1], [w.x2, w.y2]]) {
+        const dx = Math.abs(p.x - wx), dy = Math.abs(p.y - wy);
+        if (dx < bestAx) { bestAx = dx; gx = wx; aligned = true; }
+        if (dy < bestAy) { bestAy = dy; gy = wy; aligned = true; }
+      }
+    });
+    return { x: gx, y: gy, snapped: aligned, kind: 'align' };
   }
   const orthoOn = (e) => pui.ortho !== !!(e ? e.shiftKey : lastShift);
   function ortho(from, q) { return Math.abs(q.x - from.x) >= Math.abs(q.y - from.y) ? Object.assign({}, q, { y: from.y }) : Object.assign({}, q, { x: from.x }); }
@@ -1709,7 +1735,6 @@ const Plan = (() => {
         const shiftNew = sameTurn * ((((prev.thick || 15) / 2) - (tNew / 2) * dot) / absSin);
         prev.x2 = r1(prev.x2 + pux * shiftPrev);
         prev.y2 = r1(prev.y2 + puy * shiftPrev);
-        prev.intSide = quickState.turnSign;
         startX = prev.x2;
         startY = prev.y2;
         axisLen = Math.max(5, intLen + shiftNew);
@@ -1722,9 +1747,8 @@ const Plan = (() => {
       x2: r1(startX + ux * axisLen), y2: r1(startY + uy * axisLen),
       thick: tNew, status: pui.wallStatus, height: 250, note: '',
     };
-    if (quickState.turnSign) nw.intSide = quickState.turnSign;
 
-    // Si es el primer muro de la cadena y nace apoyado contra un muro ya existente, compensar grosor inicial
+    // Si es el primer muro de la cadena y nace apoyado contra un muro perpendicular existente, compensar grosor inicial
     if (!prev) {
       const wm0 = wallMetrics(nw, [...els(), nw]);
       if (Math.abs(wm0.intDelta) > 0.2) {
@@ -1738,20 +1762,26 @@ const Plan = (() => {
     quickState.chainIds.push(nw.id);
     quickState.pt = { x: nw.x2, y: nw.y2 };
 
-    // Auto-cierre limpio si el tramo vuelve al origen de la cadena (>= 3 muros)
+    // Auto-cierre limpio si el tramo vuelve al origen de la cadena (>= 3 muros), manteniendo FIJO el punto inicial (w0.x1, w0.y1)
     const allChain = quickState.chainIds.map(byId).filter(Boolean);
     if (allChain.length >= 3) {
       const w0 = allChain[0];
       const closeDist = Math.hypot(nw.x2 - w0.x1, nw.y2 - w0.y1);
       if (closeDist <= (w0.thick || 15) + tNew + 4) {
+        const anchorX = w0.x1, anchorY = w0.y1;
         const L0 = wlen(w0) || 1, u0x = (w0.x2 - w0.x1) / L0, u0y = (w0.y2 - w0.y1) / L0;
         const crossClose = ux * u0y - uy * u0x;
         if (Math.abs(crossClose) > 0.2) {
           const signC = ((crossClose > 0 ? 1 : -1) === (quickState.turnSign || 1)) ? 1 : -1;
-          w0.x1 = r1(w0.x1 - u0x * signC * (tNew / 2));
-          w0.y1 = r1(w0.y1 - u0y * signC * (tNew / 2));
+          const sx = u0x * signC * (tNew / 2), sy = u0y * signC * (tNew / 2);
+          w0.x2 = r1(w0.x2 + sx); w0.y2 = r1(w0.y2 + sy);
+          for (let i = 1; i < allChain.length; i++) {
+            allChain[i].x1 = r1(allChain[i].x1 + sx); allChain[i].y1 = r1(allChain[i].y1 + sy);
+            allChain[i].x2 = r1(allChain[i].x2 + sx); allChain[i].y2 = r1(allChain[i].y2 + sy);
+          }
         }
-        nw.x2 = w0.x1; nw.y2 = w0.y1;
+        w0.x1 = anchorX; w0.y1 = anchorY;
+        nw.x2 = anchorX; nw.y2 = anchorY;
         const pts = buildInnerPolyFromChain(allChain, quickState.turnSign || 1);
         if (pts && polyArea(pts) > 400) {
           const rName = (quickState.roomName || '').trim() || nextRoomName();
@@ -1776,34 +1806,42 @@ const Plan = (() => {
     if (chainWalls.length < 2) { toast('Añade al menos 2 tramos antes de cerrar la estancia', 'warn'); return; }
     pushUndo();
     const w0 = chainWalls[0], wLast = chainWalls[chainWalls.length - 1];
+    const anchorX = w0.x1, anchorY = w0.y1;
     const tClose = pui.wallThick || 15;
     const L0 = wlen(w0) || 1, u0x = (w0.x2 - w0.x1) / L0, u0y = (w0.y2 - w0.y1) / L0;
     const LL = wlen(wLast) || 1, uLx = (wLast.x2 - wLast.x1) / LL, uLy = (wLast.y2 - wLast.y1) / LL;
     const sign = quickState.turnSign || 1;
 
-    // Extender inicio del primer muro y final del último muro para que el muro de cierre respete todas las caras interiores
-    const targetStartX = r1(w0.x1 - u0x * (tClose / 2));
-    const targetStartY = r1(w0.y1 - u0y * (tClose / 2));
-    const dxC = targetStartX - wLast.x2, dyC = targetStartY - wLast.y2;
-    const dClose = Math.hypot(dxC, dyC);
-    if (dClose > 4) {
-      const uCx = dxC / dClose, uCy = dyC / dClose;
-      const crossLast = uLx * uCy - uLy * uCx;
+    // Mantener FIJO el punto inicial (anchorX, anchorY) desplazando los vértices intermedios +tClose/2 en dirección u0
+    const rawDx = anchorX - wLast.x2, rawDy = anchorY - wLast.y2, rawDist = Math.hypot(rawDx, rawDy);
+    if (rawDist > 4) {
+      const uCx = rawDx / rawDist, uCy = rawDy / rawDist;
+      const cross0 = uCx * u0y - uCy * u0x;
+      if (Math.abs(cross0) > 0.2) {
+        const s0 = ((cross0 > 0 ? 1 : -1) === sign) ? 1 : -1;
+        const sx = u0x * s0 * (tClose / 2), sy = u0y * s0 * (tClose / 2);
+        w0.x2 = r1(w0.x2 + sx); w0.y2 = r1(w0.y2 + sy);
+        for (let i = 1; i < chainWalls.length; i++) {
+          chainWalls[i].x1 = r1(chainWalls[i].x1 + sx); chainWalls[i].y1 = r1(chainWalls[i].y1 + sy);
+          chainWalls[i].x2 = r1(chainWalls[i].x2 + sx); chainWalls[i].y2 = r1(chainWalls[i].y2 + sy);
+        }
+      }
+      const crossLast = uLx * uCx ? (uLx * uCy - uLy * uCx) : (uLx * uCy - uLy * uCx);
       if (Math.abs(crossLast) > 0.2) {
         const sL = ((crossLast > 0 ? 1 : -1) === sign) ? 1 : -1;
         wLast.x2 = r1(wLast.x2 + uLx * sL * (tClose / 2));
         wLast.y2 = r1(wLast.y2 + uLy * sL * (tClose / 2));
       }
-      w0.x1 = targetStartX; w0.y1 = targetStartY;
+      w0.x1 = anchorX; w0.y1 = anchorY;
       const wClose = {
         id: uid(), type: 'wall',
-        x1: wLast.x2, y1: wLast.y2, x2: w0.x1, y2: w0.y1,
-        thick: tClose, status: pui.wallStatus, height: 250, intSide: sign, note: '',
+        x1: wLast.x2, y1: wLast.y2, x2: anchorX, y2: anchorY,
+        thick: tClose, status: pui.wallStatus, height: 250, note: '',
       };
       els().push(wClose);
       chainWalls.push(wClose);
     } else {
-      wLast.x2 = w0.x1; wLast.y2 = w0.y1;
+      wLast.x2 = anchorX; wLast.y2 = anchorY;
     }
 
     const pts = buildInnerPolyFromChain(chainWalls, sign);
@@ -1823,27 +1861,36 @@ const Plan = (() => {
   function quickCreateRoomBox(name, intW, intH) {
     const iw = Math.max(30, num(intW, 360)), ih = Math.max(30, num(intH, 300));
     const t = pui.wallThick || 15, ht = t / 2;
-    let ox = 100, oy = 100;
+    let x1 = 100, y1 = 100;
     if (quickState.pt) {
-      ox = quickState.pt.x; oy = quickState.pt.y;
+      x1 = r1(quickState.pt.x); y1 = r1(quickState.pt.y);
     } else {
       const bb = bbox(els());
-      if (bb) { ox = r1(bb.x2 + 60); oy = r1(bb.y1 + ht); }
+      if (bb) { x1 = r1(bb.x2 + 60); y1 = r1(bb.y1); }
     }
-    // Ejes desplazados ht hacia fuera para que la luz interior sea exactamente iw × ih
-    const x1 = r1(ox - ht), y1 = r1(oy - ht), x2 = r1(ox + iw + ht), y2 = r1(oy + ih + ht);
+    // Ejes desde (x1, y1) con paso (iw + t) × (ih + t): sin medios centímetros y con luz interior exacta iw × ih
+    const x2 = r1(x1 + iw + t), y2 = r1(y1 + ih + t);
     pushUndo();
-    const W = (ax, ay, bx, by) => ({ id: uid(), type: 'wall', x1: ax, y1: ay, x2: bx, y2: by, thick: t, status: pui.wallStatus, height: 250, intSide: 1, note: '' });
-    els().push(W(x1, y1, x2, y1), W(x2, y1, x2, y2), W(x2, y2, x1, y2), W(x1, y2, x1, y1));
+    const hasDupWall = (ax, ay, bx, by) => els().some((e) => e.type === 'wall' && e.status !== 'demoler' && (
+      (Math.hypot(e.x1 - ax, e.y1 - ay) < 2 && Math.hypot(e.x2 - bx, e.y2 - by) < 2) ||
+      (Math.hypot(e.x1 - bx, e.y1 - by) < 2 && Math.hypot(e.x2 - ax, e.y2 - ay) < 2)
+    ));
+    const addEdge = (ax, ay, bx, by) => {
+      if (!hasDupWall(ax, ay, bx, by)) els().push({ id: uid(), type: 'wall', x1: ax, y1: ay, x2: bx, y2: by, thick: t, status: pui.wallStatus, height: 250, note: '' });
+    };
+    addEdge(x1, y1, x2, y1);
+    addEdge(x2, y1, x2, y2);
+    addEdge(x2, y2, x1, y2);
+    addEdge(x1, y2, x1, y1);
     const rName = (name || '').trim() || nextRoomName();
     const r = {
       id: uid(), type: 'room', name: rName,
-      points: [[r1(ox), r1(oy)], [r1(ox + iw), r1(oy)], [r1(ox + iw), r1(oy + ih)], [r1(ox), r1(oy + ih)]],
+      points: [[r1(x1 + ht), r1(y1 + ht)], [r1(x2 - ht), r1(y1 + ht)], [r1(x2 - ht), r1(y2 - ht)], [r1(x1 + ht), r1(y2 - ht)]],
       color: nextRoomColor(), floor: '', ceiling: 250, note: '',
     };
     els().push(r);
-    // Colocar el siguiente origen justo a la derecha compartiendo tabique por si quiere encadenar otra habitación
-    quickState.pt = { x: r1(x2 + ht), y: r1(oy) };
+    // Siguiente estancia adosada compartiendo el eje derecho x2
+    quickState.pt = { x: x2, y: y1 };
     quickState.chainIds = [];
     quickState.turnSign = 0;
     quickState.roomName = '';
@@ -1865,13 +1912,15 @@ const Plan = (() => {
           <small class="muted" id="wdPreview">Equivale a <b>${fmtNum(wm.int / 100, 2)} m</b> interiores · Cara exterior resultante: <b>${fmtLenU(wm.ext)}</b> (grosor ${w.thick} cm)</small>
         </label>
         <label class="field span2">
-          <span>Cómo ajustar las esquinas al cambiar la medida</span>
+          <span>Punto fijo al redimensionar</span>
           <select name="anchor">
-            <option value="start">Fijar punto inicial y desplazar el extremo final</option>
-            <option value="end">Fijar extremo final y desplazar el punto inicial</option>
+            <option value="auto">Automático (fijar muro principal / fachada)</option>
+            <option value="start">Fijar extremo 1 y mover extremo 2</option>
+            <option value="end">Fijar extremo 2 y mover extremo 1</option>
             <option value="both">Repartir por igual hacia ambos extremos</option>
           </select>
         </label>
+        <label class="chk span2"><input type="checkbox" name="keepOrtho" checked> Mantener esquinas a 90° (desplazar muro perpendicular e igualar pared paralela)</label>
       </form>`,
       foot: `<button class="btn" data-modal-close>Cancelar</button><button class="btn primary" id="wdSaveBtn">${icon('check', 15)} Aplicar medida interior</button>`,
       onOpen(card) {
@@ -1887,8 +1936,9 @@ const Plan = (() => {
           const v = num(inp.value, 0);
           if (v < 5) return;
           const anchor = form.querySelector('[name="anchor"]').value;
+          const keepOrtho = form.querySelector('[name="keepOrtho"]').checked;
           pushUndo();
-          resizeWallInterior(w, v, anchor);
+          resizeWallInterior(w, v, anchor, keepOrtho);
           Modal.close();
           commit();
           toast(`Medida interior ajustada a ${fmtLenU(v)}`, 'success');
@@ -2396,41 +2446,102 @@ const Plan = (() => {
     });
     commit(); toast('Muro dividido en dos', 'success');
   }
-  function moveWallEnd(w, end, nx, ny) {
+  function wallAnchorWeight(w, end) {
+    const px = w['x' + end], py = w['y' + end];
+    let weight = 0;
+    els().forEach((o) => {
+      if (o.type !== 'wall' || o.id === w.id || o.status === 'demoler') return;
+      const Lo = wlen(o); if (Lo < 1) return;
+      const t = clamp(projT({ x: px, y: py }, { x: o.x1, y: o.y1 }, { x: o.x2, y: o.y2 }), 0, 1);
+      const qx = o.x1 + (o.x2 - o.x1) * t, qy = o.y1 + (o.y2 - o.y1) * t;
+      if (Math.hypot(px - qx, py - qy) > (o.thick || 15) / 2 + 2) return;
+      if (o.locked) weight += 100;
+      // Encuentro en T contra un muro continuo (fachada o medianera) pesa mucho más que una esquina simple
+      if (t * Lo > 8 && (1 - t) * Lo > 8) weight += 12;
+      else weight += 1;
+    });
+    return weight;
+  }
+  function moveWallEnd(w, end, nx, ny, opts = {}) {
     const ox = w['x' + end], oy = w['y' + end];
-    const dx = r1(nx) - ox, dy = r1(ny) - oy;
+    const tx = r1(nx), ty = r1(ny);
+    const dx = tx - ox, dy = ty - oy;
+    if (Math.hypot(dx, dy) < 0.01) return;
+    const Lw = wlen(w) || 1, wux = (w.x2 - w.x1) / Lw, wuy = (w.y2 - w.y1) / Lw;
     const links = linksAt({ x: ox, y: oy }, w.id);
-    w['x' + end] = r1(nx); w['y' + end] = r1(ny);
-    links.forEach((l) => { const o = byId(l.id); if (o) { o['x' + l.end] = r1(nx); o['y' + l.end] = r1(ny); } });
-    // Mantener unidos los vértices de habitaciones adyacentes a esa esquina
-    const tol = (w.thick || 15) + 4;
+    const shiftedPts = [[ox, oy]];
+    w['x' + end] = tx; w['y' + end] = ty;
+    links.forEach((l) => {
+      const o = byId(l.id); if (!o) return;
+      const Lo = wlen(o) || 1, oux = (o.x2 - o.x1) / Lo, ouy = (o.y2 - o.y1) / Lo;
+      const otherEnd = l.end === 1 ? 2 : 1;
+      const ox2 = o['x' + otherEnd], oy2 = o['y' + otherEnd];
+      o['x' + l.end] = tx; o['y' + l.end] = ty;
+      // Si se pide mantener ortogonalidad (90°), desplazar en paralelo el muro perpendicular y alargar su pared opuesta paralela
+      if (opts.keepOrtho && !o.locked && Math.abs(wux * oux + wuy * ouy) < 0.14) {
+        const otherLinks = linksAt({ x: ox2, y: oy2 }, o.id);
+        const midWallHit = els().some((m) => {
+          if (m.type !== 'wall' || m.id === o.id || m.status === 'demoler') return false;
+          if (otherLinks.some((ol) => ol.id === m.id)) return false;
+          const Lm = wlen(m); if (Lm < 1) return false;
+          const mux = (m.x2 - m.x1) / Lm, muy = (m.y2 - m.y1) / Lm;
+          // Si el muro continuo m es paralelo al desplazamiento (ej. fachada vertical al mover altura del tabique), el encuentro en T desliza limpio sobre m manteniendo 90°
+          if (Math.abs(wux * mux + wuy * muy) > 0.94) return false;
+          const tm = clamp(projT({ x: ox2, y: oy2 }, { x: m.x1, y: m.y1 }, { x: m.x2, y: m.y2 }), 0, 1);
+          return tm * Lm > 8 && (1 - tm) * Lm > 8 && Math.hypot(ox2 - (m.x1 + (m.x2 - m.x1) * tm), oy2 - (m.y1 + (m.y2 - m.y1) * tm)) < (m.thick || 15) / 2 + 2;
+        });
+        const canSlide = !midWallHit && otherLinks.every((ol) => {
+          const ow = byId(ol.id); if (!ow || ow.locked) return false;
+          const Low = wlen(ow) || 1, owx = (ow.x2 - ow.x1) / Low, owy = (ow.y2 - ow.y1) / Low;
+          return Math.abs(wux * owx + wuy * owy) > 0.86;
+        });
+        if (canSlide) {
+          o['x' + otherEnd] = r1(ox2 + dx);
+          o['y' + otherEnd] = r1(oy2 + dy);
+          shiftedPts.push([ox2, oy2]);
+          otherLinks.forEach((ol) => {
+            const ow = byId(ol.id);
+            if (ow) { ow['x' + ol.end] = r1(ox2 + dx); ow['y' + ol.end] = r1(oy2 + dy); }
+          });
+        }
+      }
+    });
+    // Mantener unidos los vértices de habitaciones adyacentes a las esquinas desplazadas
+    const tol = (w.thick || 15) + 5;
     els().forEach((r) => {
       if (r.type !== 'room' || !Array.isArray(r.points)) return;
       r.points.forEach((pt) => {
-        if (Math.hypot(pt[0] - ox, pt[1] - oy) <= tol) { pt[0] = r1(pt[0] + dx); pt[1] = r1(pt[1] + dy); }
+        if (shiftedPts.some(([sx, sy]) => Math.hypot(pt[0] - sx, pt[1] - sy) <= tol)) {
+          pt[0] = r1(pt[0] + dx); pt[1] = r1(pt[1] + dy);
+        }
       });
     });
   }
-  function resizeWallInterior(w, targetInt, anchor = 'start') {
+  function resizeWallInterior(w, targetInt, anchor = 'auto', keepOrtho = true) {
     const wm = wallMetrics(w, els());
     const newAxis = Math.max(2, targetInt - wm.intDelta);
     const L = wlen(w) || 1, ux = (w.x2 - w.x1) / L, uy = (w.y2 - w.y1) / L;
-    if (anchor === 'end') {
-      moveWallEnd(w, 1, w.x2 - ux * newAxis, w.y2 - uy * newAxis);
-    } else if (anchor === 'both') {
+    let mode = anchor;
+    if (mode === 'auto') {
+      mode = wallAnchorWeight(w, 2) > wallAnchorWeight(w, 1) ? 'end' : 'start';
+    }
+    const opts = { keepOrtho };
+    if (mode === 'end') {
+      moveWallEnd(w, 1, w.x2 - ux * newAxis, w.y2 - uy * newAxis, opts);
+    } else if (mode === 'both') {
       const mx = (w.x1 + w.x2) / 2, my = (w.y1 + w.y2) / 2;
-      moveWallEnd(w, 1, mx - ux * (newAxis / 2), my - uy * (newAxis / 2));
-      moveWallEnd(w, 2, mx + ux * (newAxis / 2), my + uy * (newAxis / 2));
+      moveWallEnd(w, 1, mx - ux * (newAxis / 2), my - uy * (newAxis / 2), opts);
+      moveWallEnd(w, 2, mx + ux * (newAxis / 2), my + uy * (newAxis / 2), opts);
     } else {
-      moveWallEnd(w, 2, w.x1 + ux * newAxis, w.y1 + uy * newAxis);
+      moveWallEnd(w, 2, w.x1 + ux * newAxis, w.y1 + uy * newAxis, opts);
     }
   }
   function setProp(el, k, v) {
     const n = num(v, NaN);
     switch (k) {
-      case 'lengthInt': if (el.type === 'wall' && n > 0) resizeWallInterior(el, n, 'start'); return;
-      case 'lengthExt': if (el.type === 'wall' && n > 0) { const wm = wallMetrics(el, els()); const newAxis = Math.max(2, n - wm.extDelta); const a = Math.atan2(el.y2 - el.y1, el.x2 - el.x1); moveWallEnd(el, 2, el.x1 + Math.cos(a) * newAxis, el.y1 + Math.sin(a) * newAxis); } return;
-      case 'length': if (el.type === 'wall' && n > 0) { const a = Math.atan2(el.y2 - el.y1, el.x2 - el.x1); moveWallEnd(el, 2, el.x1 + Math.cos(a) * n, el.y1 + Math.sin(a) * n); } return;
+      case 'lengthInt': if (el.type === 'wall' && n > 0) resizeWallInterior(el, n, 'auto', true); return;
+      case 'lengthExt': if (el.type === 'wall' && n > 0) { const wm = wallMetrics(el, els()); const newAxis = Math.max(2, n - wm.extDelta); const a = Math.atan2(el.y2 - el.y1, el.x2 - el.x1); const fix2 = wallAnchorWeight(el, 2) > wallAnchorWeight(el, 1); if (fix2) moveWallEnd(el, 1, el.x2 - Math.cos(a) * newAxis, el.y2 - Math.sin(a) * newAxis, { keepOrtho: true }); else moveWallEnd(el, 2, el.x1 + Math.cos(a) * newAxis, el.y1 + Math.sin(a) * newAxis, { keepOrtho: true }); } return;
+      case 'length': if (el.type === 'wall' && n > 0) { const a = Math.atan2(el.y2 - el.y1, el.x2 - el.x1); const fix2 = wallAnchorWeight(el, 2) > wallAnchorWeight(el, 1); if (fix2) moveWallEnd(el, 1, el.x2 - Math.cos(a) * n, el.y2 - Math.sin(a) * n, { keepOrtho: true }); else moveWallEnd(el, 2, el.x1 + Math.cos(a) * n, el.y1 + Math.sin(a) * n, { keepOrtho: true }); } return;
       case 'wangle': if (el.type === 'wall' && Number.isFinite(n)) { const L = wlen(el), a = (-n * Math.PI) / 180; moveWallEnd(el, 2, el.x1 + Math.cos(a) * L, el.y1 + Math.sin(a) * L); } return;
       case 'pos': { const w = byId(el.wallId); if (w && Number.isFinite(n)) { const L = wlen(w); el.t = clamp(n + el.width / 2, el.width / 2, L - el.width / 2) / L; } return; }
       case 'width': if (n > 0) { el.width = n; const w = byId(el.wallId); if (w) { const L = wlen(w); el.width = Math.min(n, L); el.t = clamp(el.t * L, el.width / 2, L - el.width / 2) / L; } } return;
@@ -3221,7 +3332,7 @@ const Plan = (() => {
         case 'unlockAllSel': toggleLockSel(false); break;
         case 'unlockAll': pushUndo(); els().forEach((x) => { x.locked = false; }); commit(); toast('Todos los elementos desbloqueados', 'success'); break;
         case 'split': if (el) splitWall(el); break;
-        case 'flipWallSide': if (el && el.type === 'wall') { pushUndo(); const wm = wallMetrics(el, els()); el.intSide = -(wm.intSide || 1); commit(); } break;
+        case 'flipWallSide': if (el && el.type === 'wall') { pushUndo(); const wm = wallMetrics(el, els()); el.intSide = -(wm.intSide || 1); el.intSideManual = true; commit(); } break;
         case 'goQuickTool': setTool('quick'); break;
         case 'qdir': quickAddSeg(+b.dataset.dx, +b.dataset.dy, quickState.len); break;
         case 'qCloseRoom': quickCloseRoom(); break;
