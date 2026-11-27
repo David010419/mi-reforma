@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795794199778,
+  "updatedAt": 1795794217411,
   "project": {
     "name": "Jijona",
     "address": "Av Joan Fuster 8",
@@ -485,6 +485,20 @@
           "sections": [
             {
               "id": "mwy3x0qtljp3gd",
+              "kind": "cajon",
+              "h": 20,
+              "anim": true,
+              "cutlery": false
+            },
+            {
+              "id": "mwz5ie3qf3fwuc",
+              "kind": "cajon",
+              "h": 20,
+              "anim": true,
+              "cutlery": false
+            },
+            {
+              "id": "mwz5ifa3nuu332",
               "kind": "cajon",
               "h": 20,
               "anim": true,
