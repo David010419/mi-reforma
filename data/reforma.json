@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795806394915,
+  "updatedAt": 1795806398704,
   "project": {
     "name": "Jijona",
     "address": "Av Joan Fuster 8",
@@ -1763,8 +1763,12 @@
               -751
             ],
             [
-              265,
-              -445
+              290,
+              -473
+            ],
+            [
+              635,
+              -385
             ],
             [
               195,
