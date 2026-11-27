@@ -66,15 +66,28 @@ const Plan = (() => {
     videoportero: { label: 'Videoportero / pantalla control', group: 'domo', g: 'VP', h: 150, wall: true },
     wifi: { label: 'Punto acceso WiFi techo', group: 'domo', g: 'WF', h: 255, wall: false },
   };
-  const DUCT_KINDS = {
-    impulsion: { label: 'Conducto impulsión AA', group: 'clima', color: '#06b6d4', w: 26, h: 245, dash: '' },
-    retorno: { label: 'Conducto retorno AA', group: 'clima', color: '#10b981', w: 26, h: 245, dash: '8 5' },
-    fria: { label: 'Tubería agua fría', group: 'fonta', color: '#0284c7', w: 5, h: 40, dash: '' },
-    caliente: { label: 'Tubería agua caliente', group: 'fonta', color: '#ef4444', w: 5, h: 45, dash: '' },
-    desague: { label: 'Tubería desagüe', group: 'fonta', color: '#64748b', w: 10, h: 5, dash: '6 4' },
-    elec: { label: 'Línea iluminación / eléctrica', group: 'elec', color: '#f59e0b', w: 4, h: 250, dash: '5 4' },
-    domo: { label: 'Bus / cableado domótica', group: 'domo', color: '#8b5cf6', w: 4, h: 240, dash: '3 4' },
+  const DUCT_ROUTES = {
+    techo: { label: 'Por techo / falso techo', short: 'Techo', z: 242 },
+    suelo: { label: 'Por suelo / solera', short: 'Suelo', z: 5 },
+    pared: { label: 'Por pared / roza', short: 'Pared', z: 110 },
   };
+  const DUCT_VIS = {
+    empotrado: 'Empotrado / oculto en obra (solo vista técnica)',
+    visto: 'Visto / en superficie (visible en 3D)',
+    oculto: 'No mostrar (ocultar en el plano)',
+  };
+  const DUCT_KINDS = {
+    impulsion: { label: 'Conducto impulsión AA', group: 'clima', color: '#06b6d4', w: 26, h: 242, route: 'techo', dash: '' },
+    retorno: { label: 'Conducto retorno AA', group: 'clima', color: '#10b981', w: 26, h: 242, route: 'techo', dash: '8 5' },
+    tuboClima: { label: 'Línea frigorífica AA (cobre)', group: 'clima', color: '#0ea5e9', w: 6, h: 242, route: 'techo', dash: '6 3' },
+    fria: { label: 'Tubería agua fría', group: 'fonta', color: '#0284c7', w: 5, h: 6, route: 'suelo', dash: '' },
+    caliente: { label: 'Tubería agua caliente', group: 'fonta', color: '#ef4444', w: 5, h: 8, route: 'suelo', dash: '' },
+    desague: { label: 'Tubería desagüe', group: 'fonta', color: '#64748b', w: 10, h: 4, route: 'suelo', dash: '6 4' },
+    elec: { label: 'Línea iluminación / eléctrica', group: 'elec', color: '#f59e0b', w: 4, h: 245, route: 'techo', dash: '5 4' },
+    domo: { label: 'Bus / cableado domótica', group: 'domo', color: '#8b5cf6', w: 4, h: 240, route: 'techo', dash: '3 4' },
+    datos: { label: 'Cable red Ethernet / TV', group: 'domo', color: '#6366f1', w: 4, h: 6, route: 'suelo', dash: '2 4' },
+  };
+  const inferDuctRoute = (d) => d.route || ((d.height ?? (DUCT_KINDS[d.kind]?.h ?? 240)) <= 35 ? 'suelo' : (d.height ?? 240) >= 195 ? 'techo' : 'pared');
   const VIEW_PRESETS = {
     todo: { label: 'Vista: Todo', layers: { rooms: true, walls: true, openings: true, furn: true, elec: true, fonta: true, clima: true, domo: true, dims: true, text: true, pins: true } },
     distribucion: { label: 'Vista: Distribución y muebles', layers: { rooms: true, walls: true, openings: true, furn: true, elec: false, fonta: false, clima: false, domo: false, dims: true, text: true, pins: true } },
@@ -194,9 +207,9 @@ const Plan = (() => {
     measure: 'Arrastra para medir una distancia (no se guarda)',
   };
   const PUIKEY = 'mi-reforma:ui:plan';
-  const DEF_LAYERS = { grid: true, rooms: true, walls: true, openings: true, furn: true, elec: true, fonta: true, clima: true, domo: true, dims: true, text: true, pins: true, sketch: true };
+  const DEF_LAYERS = { grid: true, rooms: true, walls: true, openings: true, furn: true, elec: true, fonta: true, clima: true, domo: true, instTecho: true, instSuelo: true, instEmpotrado: true, dims: true, text: true, pins: true, sketch: true };
   const savedPui = safeJSON(localStorage.getItem(PUIKEY)) || {};
-  const pui = Object.assign({ grid: 5, snap: true, ortho: true, autoDims: true, wallThick: 15, wallStatus: 'existente', viewPreset: 'todo', ductKind: 'impulsion', ductWidth: 26, ductHeight: 245, pencilOnly: false, sketchColor: '#ef4444', sketchSize: 4, panelHidden: false }, savedPui);
+  const pui = Object.assign({ grid: 5, snap: true, ortho: true, autoDims: true, wallThick: 15, wallStatus: 'existente', viewPreset: 'todo', ductKind: 'impulsion', ductWidth: 26, ductHeight: 242, ductRoute: 'techo', ductVis: 'empotrado', pencilOnly: false, sketchColor: '#ef4444', sketchSize: 4, panelHidden: false }, savedPui);
   pui.layers = Object.assign({}, DEF_LAYERS, savedPui.layers || {});
   const savePui = () => localStorage.setItem(PUIKEY, JSON.stringify(pui));
 
@@ -484,11 +497,28 @@ const Plan = (() => {
   }
 
   function layerOn(e, L) {
+    if (e.installVis === 'oculto') return false;
     switch (e.type) {
       case 'room': return L.rooms; case 'wall': return L.walls; case 'door': case 'window': return L.openings;
       case 'furn': return L.furn;
-      case 'sym': { const g = (SYMBOLS[e.kind] || SYMBOLS.enchufe).group; return L[g] !== false; }
-      case 'duct': { const g = (DUCT_KINDS[e.kind] || DUCT_KINDS.impulsion).group; return L[g] !== false; }
+      case 'sym': {
+        const d = SYMBOLS[e.kind] || SYMBOLS.enchufe;
+        if (L[d.group] === false) return false;
+        const rt = e.route || ((e.height ?? d.h ?? 110) >= 195 ? 'techo' : 'suelo');
+        if (rt === 'techo' && L.instTecho === false) return false;
+        if (rt !== 'techo' && L.instSuelo === false) return false;
+        if (e.installVis === 'empotrado' && L.instEmpotrado === false) return false;
+        return true;
+      }
+      case 'duct': {
+        const g = (DUCT_KINDS[e.kind] || DUCT_KINDS.impulsion).group;
+        if (L[g] === false) return false;
+        const rt = inferDuctRoute(e);
+        if (rt === 'techo' && L.instTecho === false) return false;
+        if (rt !== 'techo' && L.instSuelo === false) return false;
+        if ((e.installVis || 'empotrado') === 'empotrado' && L.instEmpotrado === false) return false;
+        return true;
+      }
       case 'dim': return L.dims; case 'text': return L.text; case 'pin': return L.pins; case 'sketch': return L.sketch !== false; default: return true;
     }
   }
@@ -560,16 +590,27 @@ const Plan = (() => {
       out += `<g pointer-events="none" text-anchor="middle"><text x="${c.x}" y="${c.y - px(4)}" font-size="${px(13)}" font-weight="800" fill="${th.text}" ${halo}>${esc(r.name || '')}</text>
         <text x="${c.x}" y="${c.y + px(11)}" font-size="${px(11)}" font-weight="700" fill="${th.text}" opacity=".82" ${halo}>${fmtNum(area, 2)} m²${r.floor ? ' · ' + esc(r.floor) : ''}</text></g>`;
     });
-    // Conductos y tuberías
+    // Conductos, tuberías y cableados (con distinción visual Techo/Suelo y Visto/Empotrado)
     vis.filter((e) => e.type === 'duct').forEach((d) => {
       const dk = DUCT_KINDS[d.kind] || DUCT_KINDS.impulsion;
       const w = Math.max(px(2.5), d.width || dk.w);
       const isBig = (d.width || dk.w) >= 14;
+      const rt = inferDuctRoute(d);
+      const isVisto = d.installVis === 'visto';
+      const dashPat = isVisto ? '' : (dk.dash || (rt === 'techo' ? `${px(7)} ${px(4)}` : `${px(3)} ${px(3)}`));
       if (isBig) {
-        out += `<line x1="${d.x1}" y1="${d.y1}" x2="${d.x2}" y2="${d.y2}" stroke="${dk.color}" stroke-opacity=".24" stroke-width="${w}" stroke-linecap="butt" pointer-events="none"/>`;
-        out += `<line x1="${d.x1}" y1="${d.y1}" x2="${d.x2}" y2="${d.y2}" stroke="${dk.color}" stroke-width="${px(2)}" ${dk.dash ? `stroke-dasharray="${dk.dash}"` : ''} pointer-events="none"/>`;
+        out += `<line x1="${d.x1}" y1="${d.y1}" x2="${d.x2}" y2="${d.y2}" stroke="${dk.color}" stroke-opacity="${isVisto ? '.42' : '.22'}" stroke-width="${w}" stroke-linecap="butt" pointer-events="none"/>`;
+        out += `<line x1="${d.x1}" y1="${d.y1}" x2="${d.x2}" y2="${d.y2}" stroke="${dk.color}" stroke-width="${px(isVisto ? 2.6 : 1.8)}" ${dashPat ? `stroke-dasharray="${dashPat}"` : ''} pointer-events="none"/>`;
       } else {
-        out += `<line x1="${d.x1}" y1="${d.y1}" x2="${d.x2}" y2="${d.y2}" stroke="${dk.color}" stroke-width="${px(3)}" stroke-linecap="round" ${dk.dash ? `stroke-dasharray="${dk.dash}"` : ''} pointer-events="none"/>`;
+        if (isVisto) out += `<line x1="${d.x1}" y1="${d.y1}" x2="${d.x2}" y2="${d.y2}" stroke="#0f172a" stroke-opacity=".28" stroke-width="${px(5.2)}" stroke-linecap="round" pointer-events="none"/>`;
+        out += `<line x1="${d.x1}" y1="${d.y1}" x2="${d.x2}" y2="${d.y2}" stroke="${dk.color}" stroke-width="${px(isVisto ? 3.4 : 2.6)}" stroke-linecap="round" ${dashPat ? `stroke-dasharray="${dashPat}"` : ''} pointer-events="none"/>`;
+      }
+      const Lw = wlen(d);
+      if (Lw * s > 68) {
+        const mx = (d.x1 + d.x2) / 2, my = (d.y1 + d.y2) / 2;
+        const tag = (rt === 'techo' ? 'Techo' : rt === 'suelo' ? 'Suelo' : 'Pared') + (isVisto ? ' · Visto' : '');
+        const ra = readable(deg(Math.atan2(d.y2 - d.y1, d.x2 - d.x1)));
+        out += `<text x="${mx}" y="${my}" transform="rotate(${ra} ${mx} ${my})" text-anchor="middle" dominant-baseline="central" font-size="${px(9)}" font-weight="700" fill="${dk.color}" paint-order="stroke" stroke="${th.bg}" stroke-width="${px(3)}" stroke-linejoin="round" pointer-events="none">${tag}</text>`;
       }
       out += `<line data-id="${d.id}" x1="${d.x1}" y1="${d.y1}" x2="${d.x2}" y2="${d.y2}" stroke="transparent" stroke-width="${Math.max(w, px(12))}"/>`;
     });
@@ -773,7 +814,7 @@ const Plan = (() => {
     $$('[data-pt]', root).forEach((b) => b.classList.toggle('on', !!pui[b.dataset.pt]));
     $('#pGrid').value = String(pui.grid);
     $('#pTheme').value = S().settings.planTheme in THEMES ? S().settings.planTheme : 'paper';
-    const names = { grid: 'Rejilla', rooms: 'Habitaciones', walls: 'Muros', openings: 'Puertas y ventanas', furn: 'Mobiliario', elec: 'Iluminación y electricidad', fonta: 'Fontanería y agua', clima: 'Aire acondicionado y conductos', domo: 'Domótica y control', dims: 'Cotas y medidas', text: 'Textos', pins: 'Pines y tareas', sketch: 'Bocetos (Apple Pencil)' };
+    const names = { grid: 'Rejilla', rooms: 'Habitaciones', walls: 'Muros', openings: 'Puertas y ventanas', furn: 'Mobiliario', elec: 'Iluminación y electricidad', fonta: 'Fontanería y agua', clima: 'Aire acondicionado y conductos', domo: 'Domótica y control', instTecho: 'Instalaciones por techo', instSuelo: 'Instalaciones por suelo / pared', instEmpotrado: 'Ver tramos empotrados (ocultos)', dims: 'Cotas y medidas', text: 'Textos', pins: 'Pines y tareas', sketch: 'Bocetos (Apple Pencil)' };
     $('#pLayers').innerHTML = Object.keys(DEF_LAYERS).map((k) => `<label class="chk"><input type="checkbox" data-layer="${k}" ${pui.layers[k] ? 'checked' : ''}> ${names[k]}</label>`).join('');
     const vp = $('#pViewPreset'); if (vp) vp.value = pui.viewPreset || 'todo';
     const bgB = $('#pBgBtn'); if (bgB) bgB.classList.toggle('on', !!cur.bgImage);
@@ -897,6 +938,9 @@ const Plan = (() => {
     inline3d.showElec = !!pui.layers.elec;
     inline3d.showFonta = !!pui.layers.fonta;
     inline3d.showDomo = !!pui.layers.domo;
+    inline3d.showTecho = pui.layers.instTecho !== false;
+    inline3d.showSuelo = pui.layers.instSuelo !== false;
+    inline3d.showEmpotrado = pui.layers.instEmpotrado !== false;
     inline3d.showNotes = !!pui.layers.text || !!pui.layers.pins;
     inline3d.showLegend = false;
     inline3d.animDoors = sim2d.doors || 0;
@@ -1521,7 +1565,7 @@ const Plan = (() => {
           if (dist(q, draft.a) < 1) break;
           const dk = DUCT_KINDS[pui.ductKind] || DUCT_KINDS.impulsion;
           pushUndo();
-          els().push({ id: uid(), type: 'duct', kind: pui.ductKind, x1: r1(draft.a.x), y1: r1(draft.a.y), x2: r1(q.x), y2: r1(q.y), width: pui.ductWidth || dk.w, height: pui.ductHeight ?? dk.h, note: '' });
+          els().push({ id: uid(), type: 'duct', kind: pui.ductKind, route: pui.ductRoute || dk.route || 'techo', installVis: pui.ductVis || 'empotrado', x1: r1(draft.a.x), y1: r1(draft.a.y), x2: r1(q.x), y2: r1(q.y), width: pui.ductWidth || dk.w, height: pui.ductHeight ?? dk.h, note: '' });
           Store.save(); syncUndo();
           draft.a = { x: q.x, y: q.y };
         } else draft = { type: 'duct', a: { x: q.x, y: q.y } };
@@ -1916,6 +1960,15 @@ const Plan = (() => {
       case 'kind':
         el.kind = v;
         if (el.type === 'sym' && SYMBOLS[v]) el.height = SYMBOLS[v].h;
+        if (el.type === 'duct' && DUCT_KINDS[v]) {
+          el.width = DUCT_KINDS[v].w;
+          el.route = DUCT_KINDS[v].route || 'techo';
+          el.height = DUCT_KINDS[v].h;
+        }
+        return;
+      case 'route':
+        el.route = v;
+        if (DUCT_ROUTES[v]) el.height = DUCT_ROUTES[v].z;
         return;
       default: el[k] = v;
     }
@@ -1967,17 +2020,20 @@ const Plan = (() => {
   }
 
   function ductToolOpts() {
-    return `<div class="psec"><h4>${icon('trend', 16)} Trazar conductos / tuberías</h4>
+    const rt = pui.ductRoute || 'techo', vis = pui.ductVis || 'empotrado';
+    return `<div class="psec"><h4>${icon('trend', 16)} Trazar conductos, tuberías y cables</h4>
       <div class="sym-list">${Object.entries(DUCT_KINDS).map(([k, d]) => `
         <button class="sym-item ${pui.ductKind === k ? 'active' : ''}" data-a="pickDuct" data-k="${k}">
           <span style="width:18px;height:6px;border-radius:3px;background:${d.color};display:block"></span>
-          <span>${d.label}</span><small>${d.w}cm · h${d.h}</small>
+          <span>${d.label}</span><small>${DUCT_ROUTES[d.route || 'techo'].short}</small>
         </button>`).join('')}</div>
       <div class="pgrid">
-        <label class="pf"><span>Ancho</span><div class="inp-suf"><input type="number" data-do="ductWidth" value="${pui.ductWidth}" min="2"><em>cm</em></div></label>
+        <label class="pf full"><span>Por dónde discurre</span><select data-do="ductRoute">${Object.entries(DUCT_ROUTES).map(([k, r]) => `<option value="${k}" ${rt === k ? 'selected' : ''}>${r.label}</option>`).join('')}</select></label>
+        <label class="pf full"><span>Visibilidad en obra / 3D</span><select data-do="ductVis"><option value="empotrado" ${vis === 'empotrado' ? 'selected' : ''}>Empotrado / oculto (falso techo o suelo)</option><option value="visto" ${vis === 'visto' ? 'selected' : ''}>Visto / en superficie (visible en 3D)</option></select></label>
+        <label class="pf"><span>Ancho / Ø</span><div class="inp-suf"><input type="number" data-do="ductWidth" value="${pui.ductWidth}" min="2"><em>cm</em></div></label>
         <label class="pf"><span>Altura (Z)</span><div class="inp-suf"><input type="number" data-do="ductHeight" value="${pui.ductHeight}" min="0"><em>cm</em></div></label>
       </div>
-      <p class="phint">${icon('hint', 14)} Haz clic en cada esquina del recorrido. Al terminar pulsa <kbd>Esc</kbd> o <b>Terminar</b>.</p>
+      <p class="phint">${icon('hint', 14)} Toca inicio y cada esquina del recorrido. Pulsa <kbd>Esc</kbd> o <b>Terminar</b> al acabar.</p>
     </div>`;
   }
 
@@ -2158,10 +2214,14 @@ const Plan = (() => {
         (S().electrical?.circuits || []).forEach((c) => { cirOpts[c.id] = `${c.code} · ${c.name} (${c.amps}A)`; });
         const defW = Obra.DEFAULT_WATTS[el.kind] || 0;
         const live = Obra.isCircuitLive(Obra.inferCircuitId(el));
+        const symRt = el.route || ((el.height ?? d.h ?? 110) >= 195 ? 'techo' : (el.height ?? d.h ?? 110) <= 35 ? 'suelo' : 'pared');
+        const routeOpts = {}; Object.entries(DUCT_ROUTES).forEach(([k, r]) => { routeOpts[k] = r.label; });
         return head(d.group === 'fonta' ? 'drop' : 'bolt', d.label, SYM_GROUPS[d.group].label) + `<div class="psec">
           ${F.sel('Tipo', 'kind', el.kind, opts, true)}
           <div class="pgrid">
-            ${F.num('Altura desde suelo', 'height', el.height || 0)}${F.num('Potencia', 'watts', el.watts ?? defW, 'W')}
+            ${F.sel('Ubicación (techo / suelo / pared)', 'route', symRt, routeOpts, true)}
+            ${F.sel('Visibilidad', 'installVis', el.installVis || 'visto', DUCT_VIS, true)}
+            ${F.num('Altura desde suelo', 'height', el.height ?? d.h ?? 0)}${F.num('Potencia', 'watts', el.watts ?? defW, 'W')}
             ${F.sel('Circuito (Cuadro CGE)', 'circuitId', el.circuitId || '', cirOpts, true)}
             ${F.num('Ángulo', 'angle', el.angle || 0, '°', 90)}
           </div>
@@ -2173,11 +2233,15 @@ const Plan = (() => {
       case 'duct': {
         const dk = DUCT_KINDS[el.kind] || DUCT_KINDS.impulsion, L = wlen(el);
         const opts = {}; Object.entries(DUCT_KINDS).forEach(([k, v]) => { opts[k] = v.label; });
-        return head('trend', dk.label, fmtLenU(L)) + `<div class="psec"><div class="pgrid">
-          ${F.sel('Tipo', 'kind', el.kind || 'impulsion', opts, true)}
+        const routeOpts = {}; Object.entries(DUCT_ROUTES).forEach(([k, r]) => { routeOpts[k] = r.label; });
+        const curRoute = inferDuctRoute(el);
+        return head('trend', dk.label, `${DUCT_ROUTES[curRoute].short} · ${fmtLenU(L)}`) + `<div class="psec"><div class="pgrid">
+          ${F.sel('Tipo de tubo / cable / conducto', 'kind', el.kind || 'impulsion', opts, true)}
+          ${F.sel('Por dónde va (techo / suelo / pared)', 'route', curRoute, routeOpts, true)}
+          ${F.sel('Visibilidad', 'installVis', el.installVis || 'empotrado', DUCT_VIS, true)}
           ${F.num('Ancho / diámetro', 'width', el.width || dk.w)}${F.num('Altura desde suelo (Z)', 'height', el.height ?? dk.h)}
         </div>
-        <div class="pinfos">${F.info('Longitud tramo', fmtLenU(L))}</div>
+        <div class="pinfos">${F.info('Longitud tramo', fmtLenU(L))}${F.info('Trazado', DUCT_ROUTES[curRoute].label)}</div>
         ${F.area('Notas', 'note', el.note, 'Sección, aislamiento, circuito…')}</div>
         ${actions(B.dup, B.del)}`;
       }
@@ -2237,7 +2301,9 @@ const Plan = (() => {
         ${Object.keys(st.walls).length ? Object.entries(st.walls).map(([k, v]) => F.info(WALL_STATUS[k] || k, `${fmtNum(v.len)} m · ${fmtNum(v.area)} m²`)).join('') : '<p class="phint">Sin muros todavía.</p>'}
       </div>
       <div class="psec"><h4>${icon('door', 16)} Carpintería</h4>${F.info('Puertas', st.doors)}${F.info('Ventanas', st.windows)}${F.info('Muebles', st.furn)}</div>
-      <div class="psec"><h4>${icon('bolt', 16)} Instalaciones</h4>${symGroups || '<p class="phint">Añade enchufes, puntos de luz, tomas de agua… con la herramienta <kbd>E</kbd>.</p>'}</div>
+      <div class="psec"><h4>${icon('bolt', 16)} Instalaciones</h4>${symGroups || '<p class="phint">Añade enchufes, puntos de luz, tomas de agua… con la herramienta <kbd>E</kbd> o traza tubos/cables con <kbd>K</kbd>.</p>'}
+        ${(() => { const hN = els().filter((x) => x.installVis === 'oculto').length; return hN ? `<div class="pinfos" style="margin-top:6px"><div class="pinfo"><span>${icon('eye', 13)} Tramos ocultos (${hN})</span><button class="link-btn" data-a="unhideInstall">Mostrar todos</button></div></div>` : ''; })()}
+      </div>
       <details class="psec shortcuts"><summary>${icon('info', 16)} Atajos de teclado</summary>
         <div class="kbd-list">
           ${TOOLS.filter((t) => !t.sep).map((t) => `<div><kbd>${t.key}</kbd><span>${t.label}</span></div>`).join('')}
@@ -2529,7 +2595,15 @@ const Plan = (() => {
       const t = e.target;
       if (t.dataset.pl) { plan()[t.dataset.pl] = t.value; Store.save(); syncTop(); renderPanel(); return; }
       if (t.dataset.wo) { pui[t.dataset.wo] = t.dataset.wo === 'wallThick' ? Math.max(1, num(t.value, 15)) : t.value; savePui(); requestRender(); setTimeout(renderPanelKeepFocus, 0); return; }
-      if (t.dataset.do) { pui[t.dataset.do] = Math.max(0, num(t.value, 20)); savePui(); requestRender(); return; }
+      if (t.dataset.do) {
+        if (t.dataset.do === 'ductRoute') {
+          pui.ductRoute = t.value;
+          if (DUCT_ROUTES[t.value]) pui.ductHeight = DUCT_ROUTES[t.value].z;
+          savePui(); renderPanel(); requestRender(); return;
+        }
+        if (t.dataset.do === 'ductVis') { pui.ductVis = t.value; savePui(); requestRender(); return; }
+        pui[t.dataset.do] = Math.max(0, num(t.value, 20)); savePui(); requestRender(); return;
+      }
       if (t.dataset.sf) {
         const el = sel && byId(sel); if (!el || !Array.isArray(el.sections)) return;
         const idx = +t.closest('[data-sidx]').dataset.sidx;
@@ -2600,9 +2674,15 @@ const Plan = (() => {
           break;
         }
         case 'pickSym': placing = { t: 'sym', kind: b.dataset.k }; renderPanel(); if (window.innerWidth <= 900) setMobilePanel(false); break;
+        case 'unhideInstall':
+          pushUndo();
+          els().forEach((x) => { if (x.installVis === 'oculto') x.installVis = x.type === 'duct' ? 'empotrado' : 'visto'; });
+          commit();
+          toast('Tramos e instalaciones ocultos mostrados de nuevo', 'success');
+          break;
         case 'pickDuct': {
           const dk = DUCT_KINDS[b.dataset.k] || DUCT_KINDS.impulsion;
-          pui.ductKind = b.dataset.k; pui.ductWidth = dk.w; pui.ductHeight = dk.h;
+          pui.ductKind = b.dataset.k; pui.ductWidth = dk.w; pui.ductRoute = dk.route || 'techo'; pui.ductHeight = dk.h;
           pui.layers[dk.group] = true;
           savePui(); renderPanel(); if (window.innerWidth <= 900) setMobilePanel(false); break;
         }
@@ -2749,6 +2829,9 @@ Respeta exactamente la posición de muros, puertas, ventanas y muebles del plano
       showElec: pui.viewPreset === 'elec',
       showFonta: pui.viewPreset === 'fonta',
       showDomo: pui.viewPreset === 'domo',
+      showTecho: pui.layers.instTecho !== false,
+      showSuelo: pui.layers.instSuelo !== false,
+      showEmpotrado: true,
       showLegend: true,
       showNotes: true,
     }, pui.layers3d || {});
@@ -2818,10 +2901,13 @@ Respeta exactamente la posición de muros, puertas, ventanas y muebles del plano
           </div>
           <div class="r3d-layers">
             <label class="chk"><input type="checkbox" data-3dl="showFurn" ${state3d.showFurn ? 'checked' : ''}> Mobiliario</label>
-            <label class="chk"><input type="checkbox" data-3dl="showClima" ${state3d.showClima ? 'checked' : ''}> Aire Acondicionado y conductos</label>
-            <label class="chk"><input type="checkbox" data-3dl="showElec" ${state3d.showElec ? 'checked' : ''}> Iluminación / Electricidad</label>
-            <label class="chk"><input type="checkbox" data-3dl="showFonta" ${state3d.showFonta ? 'checked' : ''}> Fontanería / Agua</label>
+            <label class="chk"><input type="checkbox" data-3dl="showClima" ${state3d.showClima ? 'checked' : ''}> AA / Conductos</label>
+            <label class="chk"><input type="checkbox" data-3dl="showElec" ${state3d.showElec ? 'checked' : ''}> Electricidad</label>
+            <label class="chk"><input type="checkbox" data-3dl="showFonta" ${state3d.showFonta ? 'checked' : ''}> Fontanería</label>
             <label class="chk"><input type="checkbox" data-3dl="showDomo" ${state3d.showDomo ? 'checked' : ''}> Domótica</label>
+            <label class="chk"><input type="checkbox" data-3dl="showTecho" ${state3d.showTecho !== false ? 'checked' : ''}> Por techo</label>
+            <label class="chk"><input type="checkbox" data-3dl="showSuelo" ${state3d.showSuelo !== false ? 'checked' : ''}> Por suelo / pared</label>
+            <label class="chk"><input type="checkbox" data-3dl="showEmpotrado" ${state3d.showEmpotrado !== false ? 'checked' : ''}> Ver empotradas</label>
             <label class="chk"><input type="checkbox" data-3dl="showLegend" ${state3d.showLegend ? 'checked' : ''}> Leyenda</label>
             <label class="chk"><input type="checkbox" data-3dl="showNotes" ${state3d.showNotes ? 'checked' : ''}> Anotaciones</label>
           </div>
