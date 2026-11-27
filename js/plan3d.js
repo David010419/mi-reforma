@@ -1,25 +1,34 @@
 'use strict';
 /* =========================================================
-   Motor 3D Arquitectónico WebGL (Three.js con Z-Buffer real,
-   iluminación PBR, sombras suaves, texturas procedurales y raycasting)
+   Motor 3D Arquitectónico WebGL (Three.js local con Z-Buffer real,
+   sombras suaves optimizadas para iPad, texturas y raycasting)
    ========================================================= */
 
 const Plan3D = (() => {
   let glRenderer = null;
   const texCache = new Map();
   const canvasStates = new WeakMap();
+  const isTouchDevice = () => typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
 
   function ensureRenderer(w, h) {
     if (!window.THREE) return null;
     if (!glRenderer) {
-      glRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
+      glRenderer = new THREE.WebGLRenderer({
+        antialias: true,
+        alpha: false,
+        preserveDrawingBuffer: true,
+        powerPreference: 'high-performance',
+      });
       glRenderer.shadowMap.enabled = true;
       glRenderer.shadowMap.type = THREE.PCFSoftShadowMap;
-      glRenderer.outputColorSpace = THREE.SRGBColorSpace;
+      if ('outputColorSpace' in glRenderer && THREE.SRGBColorSpace) {
+        glRenderer.outputColorSpace = THREE.SRGBColorSpace;
+      }
       glRenderer.toneMapping = THREE.ACESFilmicToneMapping;
-      glRenderer.toneMappingExposure = 1.06;
+      glRenderer.toneMappingExposure = 1.05;
     }
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const maxDpr = isTouchDevice() ? 1.5 : 2;
+    const dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
     const tw = Math.max(64, Math.round(w * dpr)), th = Math.max(64, Math.round(h * dpr));
     if (glRenderer.domElement.width !== tw || glRenderer.domElement.height !== th) {
       glRenderer.setSize(w, h, false);
@@ -28,10 +37,13 @@ const Plan3D = (() => {
     return glRenderer;
   }
 
-  /* ---------- Texturas procedurales de alta resolución ---------- */
-  function getProceduralTexture(kind, baseHex = '#ffffff') {
-    const key = `${kind || 'liso'}:${baseHex}`;
+  /* ---------- Texturas procedurales cacheadas en GPU ---------- */
+  function getProceduralTexture(kind, baseHex = '#ffffff', repX = 1, repY = 1) {
+    const rkx = Math.max(0.25, Math.round(repX * 4) / 4);
+    const rky = Math.max(0.25, Math.round(repY * 4) / 4);
+    const key = `${kind || 'liso'}:${baseHex}:${rkx}:${rky}`;
     if (texCache.has(key)) return texCache.get(key);
+
     const c = document.createElement('canvas');
     c.width = 256; c.height = 256;
     const g = c.getContext('2d');
@@ -50,8 +62,8 @@ const Plan3D = (() => {
       }
       g.strokeStyle = 'rgba(95,52,18,0.09)';
       g.lineWidth = 1;
-      for (let i = 0; i < 48; i++) {
-        const yy = (i * 5.3) % 256;
+      for (let i = 0; i < 40; i++) {
+        const yy = (i * 6.4) % 256;
         g.beginPath(); g.moveTo(0, yy); g.bezierCurveTo(85, yy + 3, 170, yy - 3, 256, yy + 1); g.stroke();
       }
     } else if (kind === 'azulejo') {
@@ -83,7 +95,7 @@ const Plan3D = (() => {
         g.stroke();
       }
     } else if (kind === 'microcemento') {
-      for (let i = 0; i < 90; i++) {
+      for (let i = 0; i < 70; i++) {
         g.fillStyle = i % 2 ? 'rgba(15,23,42,0.03)' : 'rgba(255,255,255,0.04)';
         g.beginPath(); g.arc((i * 73) % 256, (i * 41) % 256, 18 + (i % 16), 0, Math.PI * 2); g.fill();
       }
@@ -102,7 +114,7 @@ const Plan3D = (() => {
     } else if (kind === 'cesped') {
       g.fillStyle = '#4ade80';
       g.fillRect(0, 0, 256, 256);
-      for (let i = 0; i < 400; i++) {
+      for (let i = 0; i < 320; i++) {
         g.strokeStyle = i % 2 ? 'rgba(21,128,61,0.45)' : 'rgba(134,239,172,0.45)';
         const x = (i * 53) % 256, y = (i * 97) % 256;
         g.beginPath(); g.moveTo(x, y); g.lineTo(x + 2, y - 6); g.stroke();
@@ -112,8 +124,8 @@ const Plan3D = (() => {
     const tex = new THREE.CanvasTexture(c);
     tex.wrapS = THREE.RepeatWrapping;
     tex.wrapT = THREE.RepeatWrapping;
-    tex.colorSpace = THREE.SRGBColorSpace;
-    tex.anisotropy = 4;
+    tex.repeat.set(rkx, rky);
+    if ('colorSpace' in tex && THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace;
     texCache.set(key, tex);
     return tex;
   }
@@ -121,18 +133,14 @@ const Plan3D = (() => {
   function makeMat(hex, texKind = 'liso', opts = {}) {
     const roughness = opts.roughness ?? (texKind === 'marmol' || texKind === 'azulejo' || texKind === 'metro' ? 0.25 : texKind === 'madera' ? 0.55 : 0.72);
     const metalness = opts.metalness ?? 0.04;
+    const hasTex = texKind && texKind !== 'liso' && typeof document !== 'undefined';
     const params = {
-      color: (texKind && texKind !== 'liso') ? 0xffffff : new THREE.Color(hex || '#e2e8f0'),
+      color: hasTex ? 0xffffff : new THREE.Color(hex || '#e2e8f0'),
       roughness,
       metalness,
     };
-    if (texKind && texKind !== 'liso') {
-      const baseTex = getProceduralTexture(texKind, hex || '#e2e8f0');
-      const cloned = baseTex.clone();
-      cloned.needsUpdate = true;
-      const repX = (opts.repX || 120) / 120, repY = (opts.repY || 120) / 120;
-      cloned.repeat.set(repX, repY);
-      params.map = cloned;
+    if (hasTex) {
+      params.map = getProceduralTexture(texKind, hex || '#e2e8f0', (opts.repX || 120) / 120, (opts.repY || 120) / 120);
     }
     if (opts.transparent) {
       params.transparent = true;
@@ -165,12 +173,11 @@ const Plan3D = (() => {
   }
 
   /* ---------- Construcción de Mobiliario Detallado en 3D ---------- */
-  function buildFurniture3D(f, hFactor, helpers, animTargets) {
+  function buildFurniture3D(f, helpers, animTargets) {
     const { furn3DStyle, num } = helpers;
     const st = furn3DStyle(f.kind);
-    const fHScale = Math.max(0.55, hFactor);
-    const fH = (f.h3d || st.h || 75) * fHScale;
-    const fZ0 = (f.z0 ?? st.z0 ?? 0) * hFactor;
+    const fH = f.h3d || st.h || 75;
+    const fZ0 = f.z0 ?? st.z0 ?? 0;
     const W = Math.max(6, f.w || 60), D = Math.max(4, f.h || 60);
     const hw = W / 2, hd = D / 2;
     const mainHex = f.frontColor || st.c || '#e5e0d8';
@@ -192,32 +199,27 @@ const Plan3D = (() => {
     const matWood = makeMat('#c8a97e', 'madera', { repX: 80, repY: 80 });
     const matGlass = makeMat('#bae6fd', 'liso', { roughness: 0.08, metalness: 0.15, transparent: true, opacity: 0.34 });
 
-    // 1. Escalera con peldaños, contrahuellas y barandilla
     if (f.kind === 'escalera') {
       const steps = Math.max(6, Math.min(18, Math.round(W / 26)));
-      const maxH = 250 * Math.max(0.6, hFactor);
+      const maxH = 250;
       const sw = W / steps, sh = maxH / steps;
       for (let i = 0; i < steps; i++) {
-        const sx = -hw + (i + 0.5) * sw;
-        const curH = (i + 1) * sh;
+        const sx = -hw + (i + 0.5) * sw, curH = (i + 1) * sh;
         boxMesh(root, sw - 0.3, Math.max(3, sh * 0.95), D, makeMat('#e2e8f0', 'liso'), sx, curH - sh * 0.5, 0);
         boxMesh(root, sw + 1.5, 3.2, D + 1, f.frontColor ? matMain : matWood, sx, curH, 0);
       }
-      // Barandilla lateral de cristal/metal
       for (let p = 0; p <= 3; p++) {
         const u = p / 3;
-        boxMesh(root, 2.5, 90 * fHScale, 2.5, matDark, -hw + 6 + u * (W - 12), u * maxH + 45 * fHScale, hd - 2);
+        boxMesh(root, 2.5, 90, 2.5, matDark, -hw + 6 + u * (W - 12), u * maxH + 45, hd - 2);
       }
       tagPick(root);
-      return { group: root, boxSize: [W, maxH, D] };
+      return { group: root };
     }
 
-    // 2. Mamparas de ducha de cristal templado
     if (st.glass) {
       boxMesh(root, 2.8, fH, D, matDark, -hw + 1.4, fH / 2, 0);
       if (f.kind === 'mampara') {
         boxMesh(root, W - 3, fH - 2, Math.min(2, D * 0.4), matGlass, 1.5, fH / 2, 0, { cast: false });
-        // Brazo estabilizador superior
         boxMesh(root, 2.2, 2.2, 45, matChrome, hw - 8, fH - 4, -22);
       } else if (f.kind === 'mamparaCorredera') {
         boxMesh(root, 2.8, fH, D, matDark, hw - 1.4, fH / 2, 0);
@@ -237,23 +239,20 @@ const Plan3D = (() => {
         animTargets.push((s) => { piv.rotation.y = -(s.animDoors || 0) * 1.25; });
       }
       tagPick(root);
-      return { group: root, boxSize: [W, fH, Math.max(8, D)] };
+      return { group: root };
     }
 
-    // 3. Módulos de cocina y muebles de baño configurables (casco hueco real + cajones/puertas animados)
     if (Array.isArray(f.sections) && f.sections.length) {
-      const plinth = (f.plinth ?? (fZ0 > 0 ? 0 : 10)) * fHScale;
+      const plinth = f.plinth ?? (fZ0 > 0 ? 0 : 10);
       const bodyH = Math.max(12, fH - plinth);
-      const bt = 1.8; // grosor tablero
+      const bt = 1.8;
       const matCarcass = makeMat('#e2e8f0', 'liso', { roughness: 0.65 });
       if (plinth > 1) boxMesh(root, W - 3, plinth, Math.max(4, D - 6), matDark, 0, plinth / 2, -2);
-      // Casco hueco real (laterales, trasera, base y techo) -> NUNCA tapa los frentes ni el interior
       boxMesh(root, bt, bodyH, D - 2, matCarcass, -hw + bt / 2, plinth + bodyH / 2, -1);
       boxMesh(root, bt, bodyH, D - 2, matCarcass, hw - bt / 2, plinth + bodyH / 2, -1);
       boxMesh(root, W - bt * 2, bodyH, bt, matCarcass, 0, plinth + bodyH / 2, -hd + bt / 2);
       boxMesh(root, W - bt * 2, bt, D - 2, matCarcass, 0, plinth + bt / 2, -1);
       boxMesh(root, W - bt * 2, bt, D - 2, matCarcass, 0, plinth + bodyH - bt / 2, -1);
-      // Encimera automática en módulos bajos de cocina
       if (fZ0 === 0 && f.kind !== 'despensa' && f.kind !== 'muebleAlto' && fH <= 105) {
         const topMat = f.kind === 'muebleBano' ? matWhite : makeMat('#f8fafc', 'marmol', { roughness: 0.22, repX: W, repY: D });
         boxMesh(root, W + 1.5, 2.8, D + 2, topMat, 0, fH + 1.4, 1);
@@ -262,7 +261,7 @@ const Plan3D = (() => {
       let curY = plinth;
       const maxPull = Math.min(40, D * 0.72);
       f.sections.forEach((s) => {
-        const sh = Math.max(5, num(s.h, 20) * fHScale);
+        const sh = Math.max(5, num(s.h, 20));
         const yA = curY, yB = Math.min(fH, curY + sh);
         curY = yB;
         const secH = yB - yA - 0.8;
@@ -277,8 +276,7 @@ const Plan3D = (() => {
           boxMesh(root, W - 14, 1.6, 2.5, matChrome, 0, yB - 5, hd + 1.4);
         } else if (['cajon', 'cacerolero', 'cubertero', 'cajonInt'].includes(s.kind)) {
           const dGrp = new THREE.Group();
-          const boxD = Math.max(10, D - 8), boxH = Math.min(secH - 3, 14 * fHScale);
-          // Cajón interior hueco (base + laterales + trasera)
+          const boxD = Math.max(10, D - 8), boxH = Math.min(secH - 3, 14);
           boxMesh(dGrp, W - 7, 1.4, boxD, matWood, 0, yA + 2, hd - 2 - boxD / 2);
           boxMesh(dGrp, 1.4, boxH, boxD, matCarcass, -hw + 4.2, yA + 2 + boxH / 2, hd - 2 - boxD / 2);
           boxMesh(dGrp, 1.4, boxH, boxD, matCarcass, hw - 4.2, yA + 2 + boxH / 2, hd - 2 - boxD / 2);
@@ -290,7 +288,6 @@ const Plan3D = (() => {
               boxMesh(dGrp, 1, Math.min(6, boxH - 1), boxD - 4, matChrome, cx, yA + 4.5, hd - 2 - boxD / 2);
             }
           }
-          // Frente del cajón situado exactamente en +hd (delante del casco)
           const fHgt = (f.handleType === 'gola' || f.handleType === 'unero') ? secH - 2.2 : secH;
           boxMesh(dGrp, W - 0.8, fHgt, 2, matMain, 0, yA + fHgt / 2 + 0.4, hd);
           if (f.handleType === 'gola' || f.handleType === 'unero') {
@@ -327,10 +324,9 @@ const Plan3D = (() => {
         }
       });
       tagPick(root);
-      return { group: root, boxSize: [W, fH + 3, D] };
+      return { group: root };
     }
 
-    // 4. Modelos arquitectónicos detallados por tipo de mobiliario
     switch (f.kind) {
       case 'sofa': case 'sofaL': {
         const seatH = fH * 0.46;
@@ -342,12 +338,12 @@ const Plan3D = (() => {
         break;
       }
       case 'cama': case 'cuna': {
-        boxMesh(root, W, 22 * fHScale, D, matWood, 0, 14 * fHScale, 0);
-        boxMesh(root, W + 4, 98 * fHScale, 8, matWood, 0, 49 * fHScale, -hd + 4);
-        boxMesh(root, W - 6, 18 * fHScale, D - 12, matWhite, 0, 32 * fHScale, 4);
-        boxMesh(root, W - 4, 8 * fHScale, D * 0.62, matMain, 0, 38 * fHScale, hd * 0.28);
+        boxMesh(root, W, 22, D, matWood, 0, 14, 0);
+        boxMesh(root, W + 4, 98, 8, matWood, 0, 49, -hd + 4);
+        boxMesh(root, W - 6, 18, D - 12, matWhite, 0, 32, 4);
+        boxMesh(root, W - 4, 8, D * 0.62, matMain, 0, 38, hd * 0.28);
         const pillows = W > 115 ? [-W * 0.23, W * 0.23] : [0];
-        pillows.forEach((px) => boxMesh(root, Math.min(52, W * 0.4), 9 * fHScale, 30, matWhite, px, 43 * fHScale, -hd + 26));
+        pillows.forEach((px) => boxMesh(root, Math.min(52, W * 0.4), 9, 30, matWhite, px, 43, -hd + 26));
         break;
       }
       case 'mesa': case 'escritorio': case 'mesaCentro': {
@@ -359,9 +355,8 @@ const Plan3D = (() => {
         break;
       }
       case 'mesaRedonda': {
-        const cyl = new THREE.CylinderGeometry(hw, hw, 4, 32);
-        addMesh(root, cyl, f.frontColor ? matMain : matWood, 0, fH - 2, 0);
-        addMesh(root, new THREE.CylinderGeometry(6, 18, fH - 4, 24), matDark, 0, (fH - 4) / 2, 0);
+        addMesh(root, new THREE.CylinderGeometry(hw, hw, 4, 28), f.frontColor ? matMain : matWood, 0, fH - 2, 0);
+        addMesh(root, new THREE.CylinderGeometry(6, 18, fH - 4, 20), matDark, 0, (fH - 4) / 2, 0);
         break;
       }
       case 'silla': case 'sillaOficina': case 'taburete': {
@@ -380,8 +375,8 @@ const Plan3D = (() => {
       }
       case 'inodoro': case 'bide': {
         if (f.kind === 'inodoro') boxMesh(root, W * 0.92, fH, 18, matWhite, 0, fH / 2, -hd + 9);
-        const bowlH = 42 * fHScale;
-        addMesh(root, new THREE.CylinderGeometry(hw * 0.88, hw * 0.7, bowlH, 24), matWhite, 0, bowlH / 2, f.kind === 'inodoro' ? 8 : 0);
+        const bowlH = 42;
+        addMesh(root, new THREE.CylinderGeometry(hw * 0.88, hw * 0.7, bowlH, 20), matWhite, 0, bowlH / 2, f.kind === 'inodoro' ? 8 : 0);
         boxMesh(root, W * 0.82, bowlH, D * 0.5, matWhite, 0, bowlH / 2, -hd * 0.25);
         if (f.kind === 'bide') boxMesh(root, 3, 10, 8, matChrome, 0, bowlH + 5, -hd + 8);
         break;
@@ -394,7 +389,7 @@ const Plan3D = (() => {
       case 'columnaDucha': {
         boxMesh(root, 2.5, fH * 0.85, 2.5, matChrome, 0, fH * 0.5, -hd + 3);
         boxMesh(root, 22, 4, 8, matChrome, 0, fH * 0.52, -hd + 6);
-        addMesh(root, new THREE.CylinderGeometry(13, 13, 2, 24), matChrome, 0, fH - 4, 2);
+        addMesh(root, new THREE.CylinderGeometry(13, 13, 2, 20), matChrome, 0, fH - 4, 2);
         boxMesh(root, 2.5, 2.5, D * 0.75, matChrome, 0, fH - 2, -hd * 0.2);
         break;
       }
@@ -469,31 +464,30 @@ const Plan3D = (() => {
     }
 
     tagPick(root);
-    return { group: root, boxSize: [W, fH, D] };
+    return { group: root };
   }
 
-  /* ---------- Construcción completa de la escena 3D ---------- */
+  /* ---------- Construcción completa de la escena 3D (sin reconstruir al animar wallCut) ---------- */
   function buildScene(list, state3d, helpers) {
     const { wlen, clamp: clp, polyArea, SYMBOLS, SYM_GROUPS, DUCT_KINDS, Obra } = helpers;
     const night = !!state3d.nightMode;
-    const isFP = state3d.camMode === 'fp';
-    const hFactor = isFP ? 1 : clp(state3d.wallCut ?? 0.85, 0.2, 1);
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(night ? '#0f172a' : '#eaf0f8');
-    if (isFP) scene.fog = new THREE.Fog(night ? '#0f172a' : '#eaf0f8', 900, 3800);
 
     const animTargets = [];
+    const scalableRoot = new THREE.Group(); // escala en Y según wallCut en modo Maqueta (0 ms por fotograma)
+    scene.add(scalableRoot);
 
-    // Iluminación arquitectónica realista
-    const hemi = new THREE.HemisphereLight(night ? 0x334155 : 0xffffff, night ? 0x0f172a : 0xcbd5e1, night ? 0.42 : 0.95);
+    const hemi = new THREE.HemisphereLight(night ? 0x334155 : 0xffffff, night ? 0x0f172a : 0xcbd5e1, night ? 0.45 : 0.96);
     hemi.position.set(0, 800, 0);
     scene.add(hemi);
 
-    const sun = new THREE.DirectionalLight(night ? 0x93c5fd : 0xfffaf0, night ? 0.28 : 1.15);
+    const sun = new THREE.DirectionalLight(night ? 0x93c5fd : 0xfffaf0, night ? 0.28 : 1.12);
     sun.position.set(520, 980, 640);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
+    const smap = isTouchDevice() ? 1024 : 1536;
+    sun.shadow.mapSize.set(smap, smap);
     sun.shadow.camera.near = 100;
     sun.shadow.camera.far = 3500;
     const dCam = 1400;
@@ -502,11 +496,10 @@ const Plan3D = (() => {
     sun.shadow.bias = -0.0006;
     scene.add(sun);
 
-    const fillLight = new THREE.DirectionalLight(0xe0f2fe, night ? 0.12 : 0.38);
+    const fillLight = new THREE.DirectionalLight(0xe0f2fe, night ? 0.14 : 0.38);
     fillLight.position.set(-600, 500, -450);
     scene.add(fillLight);
 
-    // Plano base exterior receptor de sombras + rejilla técnica sutil
     const groundMat = new THREE.MeshStandardMaterial({ color: night ? 0x1e293b : 0xdde5ef, roughness: 0.95, metalness: 0 });
     const ground = new THREE.Mesh(new THREE.PlaneGeometry(12000, 12000), groundMat);
     ground.rotation.x = -Math.PI / 2;
@@ -518,30 +511,36 @@ const Plan3D = (() => {
     gridHelper.position.y = -0.3;
     scene.add(gridHelper);
 
-    // 1. Suelos de habitaciones (triangulados exactamente con THREE.ShapeGeometry para polígonos L/cóncavos)
+    // 1. Suelos de habitaciones (con limpieza de vértices consecutivos duplicados)
     const rooms = list.filter((e) => e.type === 'room' && Array.isArray(e.points) && e.points.length >= 3)
       .slice()
       .sort((a, b) => polyArea(b.points) - polyArea(a.points));
     rooms.forEach((r, idx) => {
-      const sh = new THREE.Shape();
-      r.points.forEach(([x, y], i) => { if (i === 0) sh.moveTo(x, -y); else sh.lineTo(x, -y); });
-      sh.closePath();
-      const geom = new THREE.ShapeGeometry(sh);
-      // Escalar UVs a centímetros reales (1 baldosa = 120 cm)
-      const uv = geom.attributes.uv;
-      for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) / 120, uv.getY(i) / 120);
-      const rMat = makeMat(r.color || '#f3ead8', r.floorTexture || 'liso', {
-        repX: 120, repY: 120,
-        polygonOffset: true, polygonOffsetFactor: -1 - idx, polygonOffsetUnits: -1,
-      });
-      const rMesh = new THREE.Mesh(geom, rMat);
-      rMesh.rotation.x = -Math.PI / 2;
-      rMesh.position.y = 0.2 + idx * 0.15;
-      rMesh.receiveShadow = true;
-      scene.add(rMesh);
+      try {
+        const cleanPts = r.points.filter((p, i, arr) => {
+          const prev = arr[(i + arr.length - 1) % arr.length];
+          return Math.hypot(p[0] - prev[0], p[1] - prev[1]) > 0.5;
+        });
+        if (cleanPts.length < 3) return;
+        const sh = new THREE.Shape();
+        cleanPts.forEach(([x, y], i) => { if (i === 0) sh.moveTo(x, -y); else sh.lineTo(x, -y); });
+        sh.closePath();
+        const geom = new THREE.ShapeGeometry(sh);
+        const uv = geom.attributes.uv;
+        if (uv) for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) / 120, uv.getY(i) / 120);
+        const rMat = makeMat(r.color || '#f3ead8', r.floorTexture || 'liso', {
+          repX: 120, repY: 120,
+          polygonOffset: true, polygonOffsetFactor: -1 - idx, polygonOffsetUnits: -1,
+        });
+        const rMesh = new THREE.Mesh(geom, rMat);
+        rMesh.rotation.x = -Math.PI / 2;
+        rMesh.position.y = 0.2 + idx * 0.15;
+        rMesh.receiveShadow = true;
+        scene.add(rMesh);
+      } catch (_) {}
     });
 
-    // 2. Muros con recortes exactos, encuentros limpios, rodapiés y carpintería 3D animada
+    // 2. Muros y carpinterías en 3D
     const opsByWall = new Map();
     list.filter((e) => e.type === 'door' || e.type === 'window').forEach((o) => {
       if (!opsByWall.has(o.wallId)) opsByWall.set(o.wallId, []);
@@ -554,14 +553,16 @@ const Plan3D = (() => {
     const matDoorWood = makeMat('#c49060', 'madera', { roughness: 0.42 });
     const matDoorSec = makeMat('#7c2d12', 'madera', { roughness: 0.38 });
     const matAlum = makeMat('#334155', 'liso', { roughness: 0.32, metalness: 0.55 });
+    const matChrome = makeMat('#cbd5e1', 'liso', { roughness: 0.18, metalness: 0.82 });
     const matWinGlass = makeMat('#7dd3fc', 'liso', { roughness: 0.06, metalness: 0.18, transparent: true, opacity: 0.32 });
 
     const selBoxTarget = { box: null };
+    const wallCapMeshes = [];
 
     list.filter((e) => e.type === 'wall').forEach((w) => {
       if (w.status === 'demoler' && state3d.hideDemo) return;
       const L = wlen(w); if (L < 1) return;
-      const wh = (w.height || 250) * hFactor;
+      const wh = w.height || 250;
       const thick = w.thick || 15;
       const angleY = -Math.atan2(w.y2 - w.y1, w.x2 - w.x1);
       const isDemo = w.status === 'demoler';
@@ -574,9 +575,8 @@ const Plan3D = (() => {
       const wGrp = new THREE.Group();
       wGrp.position.set(w.x1, 0, w.y1);
       wGrp.rotation.y = angleY;
-      scene.add(wGrp);
+      scalableRoot.add(wGrp);
 
-      // Postes de esquina para cerrar uniones entre muros sin huecos en V
       if (!isDemo) {
         boxMesh(wGrp, thick - 0.2, wh - 0.2, thick - 0.2, wMat, 0, (wh - 0.2) / 2, 0, { pickId: w.id, pickPrio: 2 });
         boxMesh(wGrp, thick - 0.2, wh - 0.2, thick - 0.2, wMat, L, (wh - 0.2) / 2, 0, { pickId: w.id, pickPrio: 2 });
@@ -587,8 +587,9 @@ const Plan3D = (() => {
         if (segL <= 0.5 || segH <= 0.5) return;
         const cx = (s0 + s1) / 2, cy = (y0 + y1) / 2;
         boxMesh(wGrp, segL, segH, thick, wMat, cx, cy, 0, { pickId: w.id, pickPrio: 2 });
-        if (hFactor < 0.98 && Math.abs(y1 - wh) < 0.5 && !isDemo) {
-          boxMesh(wGrp, segL + 0.1, 1.2, thick + 0.2, matCapTop, cx, wh + 0.4, 0, { cast: false, pickId: w.id, pickPrio: 2 });
+        if (Math.abs(y1 - wh) < 0.5 && !isDemo) {
+          const cap = boxMesh(wGrp, segL + 0.1, 1.2, thick + 0.2, matCapTop, cx, wh + 0.4, 0, { cast: false, pickId: w.id, pickPrio: 2 });
+          if (cap) wallCapMeshes.push(cap);
         }
         if (withSkirt && !isDemo && wh > 18) {
           boxMesh(wGrp, segL, 7.5, thick + 1.4, matSkirt, cx, 3.8, 0, { cast: false, pickId: w.id, pickPrio: 2 });
@@ -605,8 +606,8 @@ const Plan3D = (() => {
       ops.forEach(({ o, a, b }) => {
         if (a - cur > 0.5) addWallChunk(cur, a, 0, wh, true);
         const isWin = o.type === 'window';
-        const sill = isWin ? Math.min(wh, (o.sill || 90) * hFactor) : 0;
-        const zTop = Math.min(wh, (isWin ? (o.sill || 90) + (o.height || 120) : (o.height || 210)) * hFactor);
+        const sill = isWin ? Math.min(wh, o.sill || 90) : 0;
+        const zTop = Math.min(wh, isWin ? (o.sill || 90) + (o.height || 120) : (o.height || 210));
         if (sill > 0.5) {
           addWallChunk(a, b, 0, sill, true);
           boxMesh(wGrp, b - a + 2, 2.2, thick + 3, matSkirt, (a + b) / 2, sill, 0, { pickId: o.id, pickPrio: 1 });
@@ -670,7 +671,7 @@ const Plan3D = (() => {
               if (sl) animTargets.push((st3) => { sl.position.x = midS + inW / 4 - (isWin ? (st3.animWindows || 0) : (st3.animDoors || 0)) * (inW * 0.42); });
             }
             if (o.shutter === 'manual' || o.shutter === 'electric') {
-              const boxH = Math.min(18 * hFactor, opH * 0.22);
+              const boxH = Math.min(18, opH * 0.22);
               boxMesh(wGrp, opW, boxH, thick + 1.5, o.shutter === 'electric' ? makeMat('#475569', 'liso') : matAlum, midS, zTop - boxH / 2, 0, { pickId: o.id });
               const curtain = boxMesh(wGrp, opW - 4, opH - boxH, 2, makeMat('#94a3b8', 'madera'), midS, zTop - boxH - 1, -side * (fD / 2 + 1.2), { pickId: o.id });
               if (curtain) {
@@ -683,7 +684,6 @@ const Plan3D = (() => {
               }
             }
           } else {
-            // Puerta abatible / doble / corredera / entrada
             const dMat = o.kind === 'blindada' ? matDoorSec : matDoorWood;
             boxMesh(wGrp, 3.5, opH, thick + 2, matFrameWood, a + 1.75, sill + opH / 2, 0, { pickId: o.id });
             boxMesh(wGrp, 3.5, opH, thick + 2, matFrameWood, b - 1.75, sill + opH / 2, 0, { pickId: o.id });
@@ -706,7 +706,6 @@ const Plan3D = (() => {
               piv.position.set(isRight ? b - 3.5 : a + 3.5, sill + leafH / 2, 0);
               const dir = isRight ? -1 : 1;
               boxMesh(piv, leafW, leafH, 4.2, dMat, (leafW / 2) * dir, 0, 0, { pickId: o.id });
-              // Manilla metálica en ambos lados
               boxMesh(piv, 9, 1.8, 9, matChrome, (leafW - 8) * dir, -leafH * 0.04, 0, { pickId: o.id });
               wGrp.add(piv);
               animTargets.push((st3) => { piv.rotation.y = -(st3.animDoors || 0) * side * dir * 1.35; });
@@ -721,10 +720,12 @@ const Plan3D = (() => {
     });
 
     // 3. Mobiliario detallado en 3D
+    const furnRoot = new THREE.Group();
+    scene.add(furnRoot);
     if (state3d.showFurn !== false) {
       list.filter((e) => e.type === 'furn' && e.kind !== 'norte').forEach((f) => {
-        const { group } = buildFurniture3D(f, hFactor, helpers, animTargets);
-        scene.add(group);
+        const { group } = buildFurniture3D(f, helpers, animTargets);
+        furnRoot.add(group);
         if (state3d.editable && state3d.sel3dId === f.id) selBoxTarget.box = group;
       });
     }
@@ -736,12 +737,12 @@ const Plan3D = (() => {
       if (!grpVisible3d(dk.group)) return;
       const L = wlen(d); if (L < 1) return;
       const w = Math.max(6, d.width || dk.w);
-      const z1 = Math.max(10, (d.height ?? dk.h) * hFactor), hD = w >= 14 ? 14 : 5;
+      const z1 = Math.max(10, d.height ?? dk.h), hD = w >= 14 ? 14 : 5;
       const grp = new THREE.Group();
       grp.position.set(d.x1, z1 - hD / 2, d.y1);
       grp.rotation.y = -Math.atan2(d.y2 - d.y1, d.x2 - d.x1);
       boxMesh(grp, L, hD, w, makeMat(dk.color, 'liso', { roughness: 0.35, metalness: 0.25, transparent: true, opacity: 0.88 }), L / 2, 0, 0);
-      scene.add(grp);
+      scalableRoot.add(grp);
     });
 
     list.filter((e) => e.type === 'sym').forEach((y) => {
@@ -749,24 +750,24 @@ const Plan3D = (() => {
       if (grpVisible3d(d.group)) {
         const col = SYM_GROUPS[d.group].color;
         const sz = y.kind === 'maqInt' ? [80, 26, 50] : y.kind === 'maqExt' ? [85, 65, 35] : (y.kind === 'rejImp' || y.kind === 'rejRet') ? [45, 14, 16] : [14, 14, 14];
-        const zTop = Math.max(sz[1], (y.height ?? d.h) * hFactor);
+        const zTop = Math.max(sz[1], y.height ?? d.h);
         const grp = new THREE.Group();
         grp.position.set(y.x, zTop - sz[1] / 2, y.y);
         grp.rotation.y = -((y.angle || 0) * Math.PI) / 180;
         boxMesh(grp, sz[0], sz[1], sz[2], makeMat(col, 'liso', { roughness: 0.35 }), 0, 0, 0, { pickId: y.id });
-        scene.add(grp);
+        scalableRoot.add(grp);
       }
       if (night && ['luz', 'foco', 'tiraLed', 'aplique'].includes(y.kind)) {
         const live = Obra.isCircuitLive(Obra.inferCircuitId(y));
-        const zL = Math.max(45, ((y.height || 245) - 8) * hFactor);
+        const zL = Math.max(45, (y.height || 245) - 8);
         const bulbMat = new THREE.MeshBasicMaterial({ color: live ? 0xfef08a : 0x475569 });
-        const bulb = new THREE.Mesh(new THREE.SphereGeometry(5.5, 12, 12), bulbMat);
+        const bulb = new THREE.Mesh(new THREE.SphereGeometry(5.5, 10, 10), bulbMat);
         bulb.position.set(y.x, zL, y.y);
-        scene.add(bulb);
+        scalableRoot.add(bulb);
         if (live) {
           const pl = new THREE.PointLight(0xffdca8, y.kind === 'foco' ? 1.5 : 2.4, 620, 1.3);
           pl.position.set(y.x, zL - 6, y.y);
-          scene.add(pl);
+          scalableRoot.add(pl);
         }
       }
     });
@@ -775,16 +776,27 @@ const Plan3D = (() => {
       list.filter((e) => e.type === 'furn' && e.kind === 'espejoLed').forEach((f) => {
         if (Obra.isCircuitLive(Obra.inferCircuitId(f))) {
           const pl = new THREE.PointLight(0xfff1b8, 1.4, 380, 1.4);
-          pl.position.set(f.x, ((f.z0 ?? 120) + (f.h3d || 80) / 2) * hFactor, f.y);
-          scene.add(pl);
+          pl.position.set(f.x, (f.z0 ?? 120) + (f.h3d || 80) / 2, f.y);
+          furnRoot.add(pl);
         }
       });
     }
 
-    // Contorno arquitectónico naranja alrededor del elemento seleccionado (sin tapar su color real)
+    // Aplicar wallCut dinámicamente en cada fotograma sin reconstruir mallas (60 FPS garantizados)
+    animTargets.push((st3) => {
+      const fp = st3.camMode === 'fp';
+      const hf = fp ? 1 : clp(st3.wallCut ?? 0.85, 0.05, 1);
+      scalableRoot.scale.y = hf;
+      furnRoot.scale.y = fp ? 1 : Math.max(0.45, hf);
+      const showCaps = !fp && hf < 0.98;
+      for (let i = 0; i < wallCapMeshes.length; i++) wallCapMeshes[i].visible = showCaps;
+    });
+
+    let boxHelper = null;
     if (selBoxTarget.box) {
-      const helper = new THREE.BoxHelper(selBoxTarget.box, 0xf97316);
-      scene.add(helper);
+      boxHelper = new THREE.BoxHelper(selBoxTarget.box, 0xf97316);
+      scene.add(boxHelper);
+      animTargets.push(() => { if (boxHelper) boxHelper.update(); });
     }
 
     return { scene, animTargets };
@@ -796,16 +808,15 @@ const Plan3D = (() => {
       if (o.geometry) o.geometry.dispose();
       if (o.material) {
         const mats = Array.isArray(o.material) ? o.material : [o.material];
-        mats.forEach((m) => { if (m.map && !texCache.has(m.map)) m.map.dispose(); m.dispose(); });
+        mats.forEach((m) => m.dispose());
       }
     });
   }
 
   function makeSceneKey(list, state3d, Obra) {
-    const cirKey = (Obra && state3d.nightMode) ? JSON.stringify( window.Store?.state?.electrical || {} ) : '';
+    const cirKey = (Obra && state3d.nightMode) ? JSON.stringify(window.Store?.state?.electrical || {}) : '';
     return JSON.stringify([
       list,
-      state3d.camMode === 'fp' ? 1 : Math.round((state3d.wallCut ?? 0.85) * 100),
       !!state3d.hideDemo, !!state3d.showFurn, !!state3d.showClima, !!state3d.showElec, !!state3d.showFonta, !!state3d.showDomo,
       !!state3d.nightMode, state3d.editable ? (state3d.sel3dId || '') : '', cirKey,
     ]);
@@ -813,14 +824,31 @@ const Plan3D = (() => {
 
   /* ---------- Render principal hacia cualquier <canvas> 2D + Overlays nítidos ---------- */
   function render(canvas, state3d, targetPlan, helpers) {
-    if (!canvas || !window.THREE) return false;
+    if (!canvas) return false;
     const W = canvas.width, H = canvas.height;
     if (!W || !H) return false;
-    const renderer = ensureRenderer(W, H);
-    if (!renderer) return false;
+    const ctx = canvas.getContext('2d');
+    if (!window.THREE) {
+      if (ctx) {
+        ctx.fillStyle = '#eaf0f8'; ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = '#334155'; ctx.font = '600 14px Inter, sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText('Cargando motor 3D…', W / 2, H / 2);
+      }
+      return false;
+    }
+
+    let renderer;
+    try { renderer = ensureRenderer(W, H); } catch (err) {
+      if (ctx) {
+        ctx.fillStyle = '#eaf0f8'; ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = '#dc2626'; ctx.font = '600 14px Inter, sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText('WebGL no disponible en este navegador', W / 2, H / 2);
+      }
+      return false;
+    }
 
     const list = targetPlan.elements || [];
-    const { bbox, centroid, wlen, clamp: clp, S } = helpers;
+    const { bbox, centroid, clamp: clp, S } = helpers;
     const b = bbox(list) || { x1: 0, y1: 0, x2: 800, y2: 600 };
     const cx = (b.x1 + b.x2) / 2, cy = (b.y1 + b.y2) / 2;
     const span = Math.max(b.x2 - b.x1, b.y2 - b.y1, 260);
@@ -839,10 +867,8 @@ const Plan3D = (() => {
       st.key = newKey;
     }
 
-    // Actualizar animaciones en vivo sin reconstruir geometría (60 FPS)
     st.animTargets.forEach((fn) => fn(state3d));
 
-    // Configurar cámara (1ª persona interior o Maqueta 3D en perspectiva profesional)
     const cam = st.camera;
     cam.aspect = W / H;
     const isFP = state3d.camMode === 'fp';
@@ -866,7 +892,6 @@ const Plan3D = (() => {
       const pitch = (clp(state3d.pitch ?? 42, 12, 88) * Math.PI) / 180;
       const dist = (span * 1.38) / clp(state3d.zoom || 1, 0.45, 2.6);
       const targetY = 55 * (state3d.wallCut ?? 0.85);
-      // Coincidir exactamente con la orientación del plano 2D
       const horiz = Math.cos(pitch) * dist;
       cam.position.set(
         cx - Math.sin(yaw) * horiz,
@@ -881,8 +906,6 @@ const Plan3D = (() => {
 
     renderer.render(st.scene, cam);
 
-    // Volcar render WebGL nítido sobre el canvas 2D destino + dibujar etiquetas/minimapa/leyenda
-    const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, W, H);
     ctx.drawImage(renderer.domElement, 0, 0, W, H);
 
@@ -892,7 +915,6 @@ const Plan3D = (() => {
       return { x: (v.x * 0.5 + 0.5) * W, y: (-v.y * 0.5 + 0.5) * H };
     };
 
-    // Etiquetas de estancias en modo Maqueta 3D
     if (!isFP) {
       ctx.font = '700 13px Inter, sans-serif';
       ctx.textAlign = 'center';
@@ -908,7 +930,6 @@ const Plan3D = (() => {
       });
     }
 
-    // Anotaciones y pines
     if (state3d.showNotes) {
       ctx.font = '600 12px Inter, sans-serif';
       ctx.textAlign = 'center';
@@ -928,9 +949,8 @@ const Plan3D = (() => {
       });
     }
 
-    // Minimapa limpio en esquina superior izquierda en modo 1ª persona
     if (isFP) {
-      const mw = 128, mh = 98, mx0 = 12, my0 = 12, pad = 10;
+      const mw = 124, mh = 94, mx0 = 12, my0 = 12, pad = 9;
       const bw = Math.max(100, b.x2 - b.x1), bh = Math.max(100, b.y2 - b.y1);
       const ms = Math.min((mw - pad * 2) / bw, (mh - pad * 2) / bh);
       const ox = mx0 + (mw - bw * ms) / 2 - b.x1 * ms, oy = my0 + (mh - bh * ms) / 2 - b.y1 * ms;
@@ -947,12 +967,11 @@ const Plan3D = (() => {
       const fpX = state3d.fpX ?? cx, fpY = state3d.fpY ?? cy, fpYr = ((state3d.fpYaw ?? 0) * Math.PI) / 180;
       const px0 = ox + fpX * ms, py0 = oy + fpY * ms;
       ctx.fillStyle = 'rgba(249,115,22,0.24)';
-      ctx.beginPath(); ctx.moveTo(px0, py0); ctx.arc(px0, py0, 20, fpYr - 0.55, fpYr + 0.55); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(px0, py0); ctx.arc(px0, py0, 19, fpYr - 0.55, fpYr + 0.55); ctx.closePath(); ctx.fill();
       ctx.fillStyle = '#ea580c';
       ctx.beginPath(); ctx.arc(px0, py0, 4, 0, Math.PI * 2); ctx.fill();
     }
 
-    // Leyenda técnica (en Render 3D / PDF)
     if (state3d.showLegend) {
       const items = [
         ['#f1f5f9', 'Muro existente'],
@@ -993,7 +1012,6 @@ const Plan3D = (() => {
     return true;
   }
 
-  /* ---------- Raycasting GPU exacto (selección 3D + plano suelo para arrastrar muebles) ---------- */
   function pick(canvas, clientX, clientY) {
     const st = canvasStates.get(canvas);
     if (!st || !st.scene || !st.camera || !window.THREE) return null;
@@ -1007,7 +1025,7 @@ const Plan3D = (() => {
     rc.setFromCamera(ndc, st.camera);
     const hits = rc.intersectObjects(st.scene.children, true);
     for (const h of hits) {
-      if (h.object?.userData?.pickId) {
+      if (h.object?.visible && h.object?.userData?.pickId) {
         return { id: h.object.userData.pickId, point: { x: h.point.x, y: h.point.z, z: h.point.y }, dist: h.distance };
       }
     }
@@ -1031,5 +1049,5 @@ const Plan3D = (() => {
     return { x: target.x, y: target.z };
   }
 
-  return { render, pick, screenToFloor };
+  return { render, pick, screenToFloor, _buildScene: buildScene };
 })();

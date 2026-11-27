@@ -507,9 +507,9 @@ const Plan = (() => {
         out += `<polygon points="${pts}" fill="url(#tex-${r.floorTexture})" pointer-events="none"/>`;
       }
     });
-    // Muros: sombra sutil + contorno arquitectónico fusionado + relleno/textura
+    // Muros: contorno arquitectónico fusionado + relleno/textura (sin filtros SVG pesados para 60fps en iPad)
     const solid = walls.filter((w) => w.status !== 'demoler');
-    out += `<g filter="url(#softShadow2d)">` + solid.map((w) => `<line x1="${w.x1}" y1="${w.y1}" x2="${w.x2}" y2="${w.y2}" stroke="${th.wall}" stroke-width="${w.thick + px(2.6)}" stroke-linecap="square"/>`).join('') + `</g>`;
+    out += solid.map((w) => `<line x1="${w.x1}" y1="${w.y1}" x2="${w.x2}" y2="${w.y2}" stroke="${th.wall}" stroke-width="${w.thick + px(2.6)}" stroke-linecap="square"/>`).join('');
     out += solid.map((w) => {
       const fillC = w.status === 'nuevo' ? th.wallNew : (w.wallColor && w.wallColor !== '#e2e8f0' ? w.wallColor : th.wallFill);
       return `<line x1="${w.x1}" y1="${w.y1}" x2="${w.x2}" y2="${w.y2}" stroke="${fillC}" stroke-width="${w.thick}" stroke-linecap="square"/>`
@@ -551,7 +551,7 @@ const Plan = (() => {
       if (sim2d.lights && f.kind === 'espejoLed' && Obra.isCircuitLive(Obra.inferCircuitId(f) || 'c1')) {
         extra += `<ellipse cx="0" cy="0" rx="${f.w * 0.7}" ry="${f.w * 0.45}" fill="url(#lightGlow2d)" pointer-events="none"/>`;
       }
-      out += `<g data-id="${f.id}" filter="url(#softShadow2d)" transform="translate(${f.x} ${f.y}) rotate(${f.angle || 0})">${furnShape(f, s, th)}${extra}</g>`;
+      out += `<g data-id="${f.id}" transform="translate(${f.x} ${f.y}) rotate(${f.angle || 0})">${furnShape(f, s, th)}${extra}</g>`;
     });
     // Etiquetas de habitaciones
     vis.filter((e) => e.type === 'room' && e.points.length >= 3).forEach((r) => {
@@ -649,6 +649,7 @@ const Plan = (() => {
   }
 
   /* ---------- Editor: estructura ---------- */
+  let gridG, staticG, overG, lastDefsKey = '', lastStaticKey = '';
   function init() {
     root = $('#view-plano');
     root.innerHTML = `
@@ -658,37 +659,12 @@ const Plan = (() => {
           <select id="pPlanSel" title="Planta / versión del plano"></select>
           <span class="scope-badge" id="pScopeBadge">Interior</span>
           <button class="icon-btn" data-pa="addPlan" title="Nuevo plano (planta o exterior)">${icon('plus', 17)}</button>
-          <button class="icon-btn" data-pa="dupPlan" title="Duplicar plano (p. ej. Estado actual → Propuesta)">${icon('copy', 16)}</button>
-          <button class="icon-btn" data-pa="delPlan" title="Eliminar plano">${icon('trash', 16)}</button>
+          <button class="icon-btn" data-pa="undo" id="pUndo" title="Deshacer (Ctrl+Z / 2 dedos)">${icon('undo', 17)}</button>
+          <button class="icon-btn" data-pa="redo" id="pRedo" title="Rehacer (Ctrl+Y / 3 dedos)">${icon('redo', 17)}</button>
         </div>
-        <div class="pt-group">
-          <button class="icon-btn" data-pa="undo" id="pUndo" title="Deshacer (Ctrl+Z)">${icon('undo', 17)}</button>
-          <button class="icon-btn" data-pa="redo" id="pRedo" title="Rehacer (Ctrl+Y)">${icon('redo', 17)}</button>
-        </div>
-        <div class="pt-group">
-          <select id="pViewPreset" title="Vista por especialidad (muestra solo las capas relevantes)">${Object.entries(VIEW_PRESETS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('')}<option value="custom">Vista: Personalizada</option></select>
-          <details class="dropdown">
-            <summary class="tgl">${icon('eye', 15)}<span>Capas</span></summary>
-            <div class="dd-menu" id="pLayers"></div>
-          </details>
-        </div>
-        <div class="pt-group">
-          <button class="tgl" data-pt="snap" title="Imán: ajustar a rejilla y a puntos">${icon('magnet', 15)}<span>Imán</span></button>
-          <select id="pGrid" title="Paso de la rejilla de ajuste">${[1, 2, 5, 10, 25, 50].map((g) => `<option value="${g}">${g} cm</option>`).join('')}</select>
-          <button class="tgl" data-pt="ortho" title="Modo ortogonal (Shift lo alterna temporalmente)">${icon('ortho', 15)}<span>Orto</span></button>
-          <button class="tgl" data-pt="autoDims" title="Mostrar la longitud de cada muro">${icon('dim', 15)}<span>Medidas</span></button>
-          <button class="tgl" id="pMultiBtn" data-pa="toggleMulti" title="Multiselección: toca varios elementos o arrastra un recuadro para mover/borrar/bloquear en grupo">${icon('checksq', 15)}<span>Multi</span></button>
-          <button class="tgl" data-pt="pencilOnly" title="Modo Apple Pencil: el lápiz dibuja y el dedo solo mueve el plano (evita toques con la palma)">${icon('edit', 15)}<span>Pencil</span></button>
-        </div>
-        <div class="pt-group">
-          <button class="icon-btn" data-pa="zoomOut" title="Alejar (-)">${icon('zoomout', 17)}</button>
-          <button class="zoom-lbl" data-pa="zoom100" id="pZoom" title="Zoom 1:1">100%</button>
-          <button class="icon-btn" data-pa="zoomIn" title="Acercar (+)">${icon('zoomin', 17)}</button>
-          <button class="icon-btn" data-pa="fit" title="Encuadrar todo (0)">${icon('fit', 17)}</button>
-        </div>
-        <div class="pt-group">
-          <button class="tgl" id="pBgBtn" data-pa="bgModal" title="Imagen de fondo para calcar un plano real">${icon('image', 15)}<span>Calcar</span></button>
-          <button class="tgl" id="pCmpBtn" data-pa="compareModal" title="Comparar con otro plano (Antes / Después)">${icon('compare', 15)}<span>Comparar</span></button>
+        <div class="pt-group pt-3d-grp">
+          <button class="tgl pt-accent-tgl" id="pEdit3dBtn" data-pa="edit3d" title="Alternar entre plano 2D cenital y editor 3D interactivo">${icon('walk', 15)}<span>Editar 3D</span></button>
+          <button class="btn sm" data-pa="render3d" title="Render 3D: visualizar, pasear, ver animaciones y generar informes">${icon('box', 15)}<span>Render 3D</span></button>
           <details class="dropdown">
             <summary class="tgl" id="pSimBtn" title="Animar puertas, ventanas, persianas, cocina y luces en 2D y 3D">${icon('bolt', 15)}<span>Simular</span></summary>
             <div class="dd-menu" id="pSimMenu">
@@ -699,17 +675,43 @@ const Plan = (() => {
               <button data-pa="sim2dLights">${icon('hint', 15)} Encender / apagar luces (Cuadro CGE)</button>
             </div>
           </details>
-          <button class="tgl" id="pEdit3dBtn" data-pa="edit3d" title="Transformar el plano actual en editor 3D interactivo">${icon('walk', 15)}<span>Editar 3D</span></button>
-          <button class="btn sm" data-pa="render3d" title="Render 3D: visualizar, pasear, ver animaciones y generar informes">${icon('box', 15)}<span>Render 3D</span></button>
-          <button class="btn sm" data-pa="exportPdf" title="Generar Memoria Técnica de Planos en PDF">${icon('receipt', 15)}<span>Informe PDF</span></button>
-          <button class="tgl" id="pDeskPanelBtn" data-pa="toggleDeskPanel" title="Ocultar / mostrar panel derecho (más espacio en iPad)">${icon('sliders', 15)}<span>Panel</span></button>
-          <select id="pTheme" title="Estilo del plano">${Object.entries(THEMES).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('')}</select>
+        </div>
+        <div class="pt-group">
+          <select id="pViewPreset" title="Vista por especialidad">${Object.entries(VIEW_PRESETS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('')}<option value="custom">Vista: Personalizada</option></select>
+          <details class="dropdown">
+            <summary class="tgl">${icon('eye', 15)}<span>Capas</span></summary>
+            <div class="dd-menu" id="pLayers"></div>
+          </details>
+          <button class="tgl" data-pt="snap" title="Imán: ajustar a rejilla y esquinas">${icon('magnet', 15)}<span>Imán</span></button>
+          <button class="tgl" data-pt="ortho" title="Modo ortogonal">${icon('ortho', 15)}<span>Orto</span></button>
+          <button class="tgl" data-pt="autoDims" title="Mostrar medidas de muros">${icon('dim', 15)}<span>Cotas</span></button>
+          <button class="tgl" id="pMultiBtn" data-pa="toggleMulti" title="Multiselección">${icon('checksq', 15)}<span>Multi</span></button>
+          <button class="tgl" data-pt="pencilOnly" title="Modo Apple Pencil (evita toques con la palma)">${icon('edit', 15)}<span>Pencil</span></button>
+        </div>
+        <div class="pt-group">
+          <button class="icon-btn" data-pa="zoomOut" title="Alejar (-)">${icon('zoomout', 16)}</button>
+          <button class="zoom-lbl" data-pa="zoom100" id="pZoom" title="Zoom 1:1">100%</button>
+          <button class="icon-btn" data-pa="zoomIn" title="Acercar (+)">${icon('zoomin', 16)}</button>
+          <button class="icon-btn" data-pa="fit" title="Encuadrar todo (0)">${icon('fit', 16)}</button>
+          <details class="dropdown right">
+            <summary class="tgl" title="Más opciones del plano (calcar, comparar, rejilla, estilo)">${icon('settings', 15)}<span>Opciones</span></summary>
+            <div class="dd-menu dd-opts">
+              <button data-pa="bgModal" id="pBgBtn">${icon('image', 15)} Calcar imagen de fondo…</button>
+              <button data-pa="compareModal" id="pCmpBtn">${icon('compare', 15)} Comparar Antes / Después…</button>
+              <button data-pa="dupPlan">${icon('copy', 15)} Duplicar este plano…</button>
+              <button data-pa="delPlan">${icon('trash', 15)} Eliminar este plano…</button>
+              <div class="dd-sep"></div>
+              <label class="dd-row"><span>Paso rejilla</span><select id="pGrid">${[1, 2, 5, 10, 25, 50].map((g) => `<option value="${g}">${g} cm</option>`).join('')}</select></label>
+              <label class="dd-row"><span>Estilo plano</span><select id="pTheme">${Object.entries(THEMES).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('')}</select></label>
+            </div>
+          </details>
+          <button class="tgl" id="pDeskPanelBtn" data-pa="toggleDeskPanel" title="Mostrar u ocultar panel derecho">${icon('sliders', 15)}<span>Panel</span></button>
           <details class="dropdown right">
             <summary class="btn sm primary">${icon('download', 15)}<span>Exportar</span></summary>
             <div class="dd-menu">
+              <button data-pa="exportPdf">${icon('receipt', 15)} Memoria Técnica (PDF)…</button>
               <button data-pa="exportPng">${icon('image', 15)} Imagen PNG (alta resolución)</button>
               <button data-pa="exportSvg">${icon('file', 15)} Vectorial SVG</button>
-              <button data-pa="exportPdf">${icon('receipt', 15)} Memoria Técnica (PDF)…</button>
             </div>
           </details>
         </div>
@@ -717,7 +719,7 @@ const Plan = (() => {
       <div class="plan-body">
         <div class="plan-tools" id="pTools">${TOOLS.map((t) => t.sep ? '<span class="tsep"></span>' : `<button data-tool="${t.id}" title="${t.label} (${t.key})">${icon(t.icon, 20)}<kbd>${t.key}</kbd></button>`).join('')}</div>
         <div class="plan-canvas">
-          <svg id="planSvg" xmlns="http://www.w3.org/2000/svg"><defs id="planDefs"></defs><g id="planWorld"></g></svg>
+          <svg id="planSvg" xmlns="http://www.w3.org/2000/svg"><defs id="planDefs"></defs><g id="planWorld"><g id="planGrid"></g><g id="planStatic"></g><g id="planOverlay"></g></g></svg>
           <div class="plan-3d-stage" id="plan3dStage" aria-hidden="true">
             <canvas id="plan3dCanvas"></canvas>
             <div class="p3d-mini-hud">
@@ -740,7 +742,10 @@ const Plan = (() => {
         </div>
         <aside class="plan-panel" id="planPanel"></aside>
       </div>`;
-    svg = $('#planSvg'); world = $('#planWorld'); defs = $('#planDefs'); panel = $('#planPanel');
+    svg = $('#planSvg'); world = $('#planWorld'); defs = $('#planDefs');
+    gridG = $('#planGrid'); staticG = $('#planStatic'); overG = $('#planOverlay');
+    panel = $('#planPanel');
+    lastDefsKey = ''; lastStaticKey = '';
     bind();
     setTool('select', true);
   }
@@ -980,43 +985,67 @@ const Plan = (() => {
     const th = T(), s = view.s, r = svg.getBoundingClientRect();
     svg.style.background = th.bg;
     world.setAttribute('transform', `translate(${view.x} ${view.y}) scale(${s})`);
-    const texDefs = `
-      <filter id="softShadow2d" x="-15%" y="-15%" width="130%" height="130%"><feDropShadow dx="0" dy="${1.8 / s}" stdDeviation="${2.2 / s}" flood-color="#0f172a" flood-opacity="0.14"/></filter>
-      <radialGradient id="lightGlow2d"><stop offset="0%" stop-color="#fde047" stop-opacity=".75"/><stop offset="45%" stop-color="#fbbf24" stop-opacity=".28"/><stop offset="100%" stop-color="#fbbf24" stop-opacity="0"/></radialGradient>
-      <pattern id="tex-madera" width="40" height="14" patternUnits="userSpaceOnUse"><path d="M0 7H40 M15 0V7 M35 7V14" stroke="rgba(120,72,24,0.22)" stroke-width="1" fill="none"/></pattern>
-      <pattern id="tex-azulejo" width="30" height="30" patternUnits="userSpaceOnUse"><path d="M30 0H0V30" stroke="rgba(15,23,42,0.2)" stroke-width="1" fill="none"/></pattern>
-      <pattern id="tex-metro" width="30" height="15" patternUnits="userSpaceOnUse"><path d="M0 0H30 M0 7.5H30 M0 0V7.5 M15 7.5V15" stroke="rgba(15,23,42,0.2)" stroke-width="1" fill="none"/></pattern>
-      <pattern id="tex-marmol" width="60" height="60" patternUnits="userSpaceOnUse"><path d="M0 20 Q20 5 45 25 T60 40 M10 55 Q35 35 60 50" stroke="rgba(100,116,139,0.24)" stroke-width="1.2" fill="none"/></pattern>
-      <pattern id="tex-microcemento" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="5" cy="7" r="1" fill="rgba(15,23,42,0.14)"/><circle cx="17" cy="15" r="1.2" fill="rgba(15,23,42,0.12)"/><circle cx="12" cy="21" r=".8" fill="rgba(15,23,42,0.14)"/></pattern>
-      <pattern id="tex-piedra" width="40" height="30" patternUnits="userSpaceOnUse"><path d="M0 15L14 12L28 17L40 14 M14 0V12 M28 17V30" stroke="rgba(15,23,42,0.22)" stroke-width="1" fill="none"/></pattern>
-      <pattern id="tex-cesped" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M4 10L6 6M14 16L16 12M10 18L11 14" stroke="rgba(22,163,74,0.35)" stroke-width="1.2" stroke-linecap="round"/></pattern>`;
-    let grid = '';
+
+    // 1. Actualizar <defs> y rejilla solo cuando cambie escala/tema (evita recompilar patrones SVG en cada gesto en iPad)
+    let m = 0, M = 100;
     if (pui.layers.grid) {
-      let m = 10; if (m * s < 7) m = 50; if (m * s < 7) m = 0;
-      let M = 100; if (M * s < 10) M = 500; if (M * s < 10) M = 1000;
-      defs.innerHTML = texDefs + (m ? `<pattern id="gMinor" width="${m}" height="${m}" patternUnits="userSpaceOnUse"><path d="M${m} 0H0V${m}" fill="none" stroke="${th.grid}" stroke-width="${2 / s}"/></pattern>` : '')
-        + `<pattern id="gMajor" width="${M}" height="${M}" patternUnits="userSpaceOnUse"><path d="M${M} 0H0V${M}" fill="none" stroke="${th.gridMajor}" stroke-width="${2 / s}"/></pattern>`;
+      m = 10; if (m * s < 7) m = 50; if (m * s < 7) m = 0;
+      M = 100; if (M * s < 10) M = 500; if (M * s < 10) M = 1000;
+    }
+    const sBucket = Math.round(Math.log2(Math.max(0.02, s)) * 6);
+    const defsKey = `${S().settings.planTheme}:${pui.layers.grid ? `${m}:${M}:${sBucket}` : '0'}`;
+    if (defsKey !== lastDefsKey) {
+      lastDefsKey = defsKey;
+      const texDefs = `
+        <radialGradient id="lightGlow2d"><stop offset="0%" stop-color="#fde047" stop-opacity=".75"/><stop offset="45%" stop-color="#fbbf24" stop-opacity=".28"/><stop offset="100%" stop-color="#fbbf24" stop-opacity="0"/></radialGradient>
+        <pattern id="tex-madera" width="40" height="14" patternUnits="userSpaceOnUse"><path d="M0 7H40 M15 0V7 M35 7V14" stroke="rgba(120,72,24,0.22)" stroke-width="1" fill="none"/></pattern>
+        <pattern id="tex-azulejo" width="30" height="30" patternUnits="userSpaceOnUse"><path d="M30 0H0V30" stroke="rgba(15,23,42,0.2)" stroke-width="1" fill="none"/></pattern>
+        <pattern id="tex-metro" width="30" height="15" patternUnits="userSpaceOnUse"><path d="M0 0H30 M0 7.5H30 M0 0V7.5 M15 7.5V15" stroke="rgba(15,23,42,0.2)" stroke-width="1" fill="none"/></pattern>
+        <pattern id="tex-marmol" width="60" height="60" patternUnits="userSpaceOnUse"><path d="M0 20 Q20 5 45 25 T60 40 M10 55 Q35 35 60 50" stroke="rgba(100,116,139,0.24)" stroke-width="1.2" fill="none"/></pattern>
+        <pattern id="tex-microcemento" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="5" cy="7" r="1" fill="rgba(15,23,42,0.14)"/><circle cx="17" cy="15" r="1.2" fill="rgba(15,23,42,0.12)"/><circle cx="12" cy="21" r=".8" fill="rgba(15,23,42,0.14)"/></pattern>
+        <pattern id="tex-piedra" width="40" height="30" patternUnits="userSpaceOnUse"><path d="M0 15L14 12L28 17L40 14 M14 0V12 M28 17V30" stroke="rgba(15,23,42,0.22)" stroke-width="1" fill="none"/></pattern>
+        <pattern id="tex-cesped" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M4 10L6 6M14 16L16 12M10 18L11 14" stroke="rgba(22,163,74,0.35)" stroke-width="1.2" stroke-linecap="round"/></pattern>`;
+      defs.innerHTML = texDefs + (pui.layers.grid
+        ? (m ? `<pattern id="gMinor" width="${m}" height="${m}" patternUnits="userSpaceOnUse"><path d="M${m} 0H0V${m}" fill="none" stroke="${th.grid}" stroke-width="${1.6 / s}"/></pattern>` : '')
+          + `<pattern id="gMajor" width="${M}" height="${M}" patternUnits="userSpaceOnUse"><path d="M${M} 0H0V${M}" fill="none" stroke="${th.gridMajor}" stroke-width="${1.8 / s}"/></pattern>`
+        : '');
+    }
+
+    if (pui.layers.grid) {
       const x0 = -view.x / s, y0 = -view.y / s, w = r.width / s, h = r.height / s;
-      grid = (m ? `<rect x="${x0}" y="${y0}" width="${w}" height="${h}" fill="url(#gMinor)" pointer-events="none"/>` : '') + `<rect x="${x0}" y="${y0}" width="${w}" height="${h}" fill="url(#gMajor)" pointer-events="none"/>`;
-    } else defs.innerHTML = texDefs;
-    let bg = '';
-    const bgi = plan().bgImage;
-    if (bgi && bgi.src) {
-      bg = `<image href="${bgi.src}" x="${bgi.x || 0}" y="${bgi.y || 0}" width="${bgi.w || 1000}" height="${bgi.h || 800}" opacity="${bgi.opacity ?? 0.45}" preserveAspectRatio="none" pointer-events="none"/>`;
+      gridG.innerHTML = (m ? `<rect x="${x0}" y="${y0}" width="${w}" height="${h}" fill="url(#gMinor)" pointer-events="none"/>` : '')
+        + `<rect x="${x0}" y="${y0}" width="${w}" height="${h}" fill="url(#gMajor)" pointer-events="none"/>`;
+    } else if (gridG.innerHTML) gridG.innerHTML = '';
+
+    // 2. No regenerar los elementos estáticos del plano durante el paneo puro o movimiento de cursor (fluidez instantánea 120Hz)
+    const isPurePan = !!(drag && drag.mode === 'pan');
+    if (!isPurePan) {
+      const bgi = plan().bgImage;
+      const staticKey = `${plan().id}:${sBucket}:${S().settings.planTheme}:${pui.autoDims}:${compareId || ''}:${compareOpacity}:${JSON.stringify(pui.layers)}:${JSON.stringify(sim2d)}:${bgi ? `${bgi.x},${bgi.y},${bgi.w},${bgi.h},${bgi.opacity}` : ''}:${JSON.stringify(els())}`;
+      if (staticKey !== lastStaticKey) {
+        lastStaticKey = staticKey;
+        let bg = '';
+        if (bgi && bgi.src) {
+          bg = `<image href="${bgi.src}" x="${bgi.x || 0}" y="${bgi.y || 0}" width="${bgi.w || 1000}" height="${bgi.h || 800}" opacity="${bgi.opacity ?? 0.45}" preserveAspectRatio="none" pointer-events="none"/>`;
+        }
+        let cmp = '';
+        if (compareId && compareId !== plan().id) {
+          const cp = S().plans.find((x) => x.id === compareId);
+          if (cp) cmp = `<g opacity="${compareOpacity}" pointer-events="none">${renderElements(cp.elements, s, th, pui.layers, false).replace(/ data-id="[^"]*"/g, '')}</g>`;
+        }
+        staticG.innerHTML = bg + cmp + renderElements(els(), s, th, pui.layers, pui.autoDims);
+      }
     }
-    let cmp = '';
-    if (compareId && compareId !== plan().id) {
-      const cp = S().plans.find((x) => x.id === compareId);
-      if (cp) cmp = `<g opacity="${compareOpacity}" pointer-events="none" style="filter:saturate(0.35)">${renderElements(cp.elements, s, th, pui.layers, false).replace(/ data-id="[^"]*"/g, '')}</g>`;
-    }
+
+    // 3. Superposición ligera (selección, cursores y borradores en vivo)
     let calibSvg = '';
     if (calib && calib.a && cursor) {
       const px = (v) => v / s;
       calibSvg = `<line x1="${calib.a.x}" y1="${calib.a.y}" x2="${cursor.x}" y2="${cursor.y}" stroke="#ef4444" stroke-width="${px(2.5)}" stroke-dasharray="${px(6)} ${px(4)}" pointer-events="none"/><circle cx="${calib.a.x}" cy="${calib.a.y}" r="${px(5)}" fill="#ef4444"/>`;
     }
-    world.innerHTML = grid + bg + cmp + renderElements(els(), s, th, pui.layers, pui.autoDims) + overlay(s, th) + calibSvg;
+    overG.innerHTML = overlay(s, th) + calibSvg;
+
     $('#pZoom').textContent = Math.round(s * 100) + '%';
-    // Escala gráfica
     const cands = [5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 5000];
     const len = cands.find((c) => c * s >= 70) || 5000;
     const sb = $('#pScale'); sb.querySelector('i').style.width = len * s + 'px'; sb.querySelector('span').textContent = len >= 100 ? `${len / 100} m` : `${len} cm`;
