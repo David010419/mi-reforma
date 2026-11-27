@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795799117278,
+  "updatedAt": 1795799119424,
   "project": {
     "name": "Jijona",
     "address": "Av Joan Fuster 8",
@@ -1420,7 +1420,7 @@
           "type": "wall",
           "x1": 17,
           "y1": -251,
-          "x2": 121.5,
+          "x2": 122.5,
           "y2": -251,
           "thick": 15,
           "status": "existente",
