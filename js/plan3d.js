@@ -730,13 +730,13 @@ var Plan3D = window.Plan3D = (() => {
       });
     }
 
-    // 4. Instalaciones, tuberías/cables (techo o suelo, vistos o empotrados) y puntos de luz en Modo Noche
+    // 4. Instalaciones, tuberías/cables (techo o suelo, vistos o empotrados), bajantes verticales y empalmes 3D automáticos
     const grpVisible3d = (g) => (g === 'clima' && state3d.showClima) || (g === 'elec' && state3d.showElec) || (g === 'fonta' && state3d.showFonta) || (g === 'domo' && state3d.showDomo);
+    const renderedDuctNodes = [];
     list.filter((e) => e.type === 'duct').forEach((d) => {
       if (d.installVis === 'oculto') return;
       const dk = DUCT_KINDS[d.kind] || DUCT_KINDS.impulsion;
       const isVisto = d.installVis === 'visto';
-      // Si es visto en superficie, se muestra en 3D salvo que su especialidad esté apagada; si es empotrado, requiere activar su capa y Ver empotradas
       if (!isVisto && (!grpVisible3d(dk.group) || state3d.showEmpotrado === false)) return;
       if (isVisto && !grpVisible3d(dk.group) && !state3d.showFurn) return;
       const rt = d.route || ((d.height ?? dk.h) <= 35 ? 'suelo' : (d.height ?? dk.h) >= 195 ? 'techo' : 'pared');
@@ -752,35 +752,75 @@ var Plan3D = window.Plan3D = (() => {
         roughness: isVisto ? 0.3 : 0.45,
         metalness: isVisto ? 0.35 : 0.15,
         transparent: !isVisto,
-        opacity: isVisto ? 1 : 0.62,
+        opacity: isVisto ? 1 : 0.65,
       });
       if (w <= 12) {
-        // Tubería o canalización cilíndrica real con codos esféricos en los extremos
         const rPipe = Math.max(1.8, w / 2);
         const cyl = new THREE.CylinderGeometry(rPipe, rPipe, L, 14);
         cyl.rotateZ(Math.PI / 2);
         addMesh(grp, cyl, dMat, L / 2, 0, 0, isVisto, true, d.id, 1);
-        const joint = new THREE.SphereGeometry(rPipe * 1.12, 10, 10);
+        const joint = new THREE.SphereGeometry(rPipe * 1.15, 10, 10);
         addMesh(grp, joint, dMat, 0, 0, 0, false, false, d.id, 1);
         addMesh(grp, joint, dMat, L, 0, 0, false, false, d.id, 1);
       } else {
-        // Conducto rectangular de climatización
         const hD = Math.min(24, Math.max(12, w * 0.58));
         boxMesh(grp, L, hD, w, dMat, L / 2, 0, 0, { cast: isVisto, pickId: d.id, pickPrio: 1 });
       }
       if (rt === 'suelo') scene.add(grp);
       else scalableRoot.add(grp);
+      renderedDuctNodes.push({ x: d.x1, y: d.y1, z: zCenter, w, color: dk.color, isVisto, id: d.id });
+      renderedDuctNodes.push({ x: d.x2, y: d.y2, z: zCenter, w, color: dk.color, isVisto, id: d.id });
       if (state3d.editable && state3d.sel3dId === d.id) selBoxTarget.box = grp;
     });
+
+    // Tramos verticales automáticos cuando dos conductos/tuberías coinciden en (X, Y) a distinta altura (ej. suelo -> techo)
+    for (let i = 0; i < renderedDuctNodes.length; i++) {
+      for (let j = i + 1; j < renderedDuctNodes.length; j++) {
+        const a = renderedDuctNodes[i], b = renderedDuctNodes[j];
+        if (Math.hypot(a.x - b.x, a.y - b.y) < 6 && Math.abs(a.z - b.z) > 20) {
+          const zMin = Math.min(a.z, b.z), zMax = Math.max(a.z, b.z), vH = zMax - zMin;
+          const rV = Math.max(2, Math.min(a.w, b.w, 12) / 2);
+          const vMat = makeMat(a.color, 'liso', { roughness: 0.35, metalness: 0.25, transparent: !(a.isVisto || b.isVisto), opacity: (a.isVisto || b.isVisto) ? 1 : 0.7 });
+          addMesh(scalableRoot, new THREE.CylinderGeometry(rV, rV, vH, 14), vMat, (a.x + b.x) / 2, zMin + vH / 2, (a.y + b.y) / 2, false, true, a.id, 1);
+        }
+      }
+    }
 
     list.filter((e) => e.type === 'sym').forEach((y) => {
       if (y.installVis === 'oculto') return;
       const d = SYMBOLS[y.kind] || SYMBOLS.enchufe;
+      const col = SYM_GROUPS[d.group].color;
+      const isVisto = y.installVis === 'visto';
+      // Bajantes verticales (suelo a techo 0..250 cm con abrazaderas e injertos) y arquetas de suelo
+      if (d.riser) {
+        if (!isVisto && !grpVisible3d(d.group) && !state3d.editable) return;
+        const rRad = y.kind.startsWith('bajante') ? 5.8 : y.kind === 'montanteClima' ? 9 : 4.2;
+        const rH = 252;
+        const rMat = makeMat(col, 'liso', { roughness: 0.32, metalness: 0.28, transparent: !isVisto && !grpVisible3d(d.group), opacity: (!isVisto && !grpVisible3d(d.group)) ? 0.45 : 0.92 });
+        const grp = new THREE.Group();
+        grp.position.set(y.x, 0, y.y);
+        addMesh(grp, new THREE.CylinderGeometry(rRad, rRad, rH, 18), rMat, 0, rH / 2, 0, true, true, y.id, 1);
+        // Collarines / abrazaderas en suelo, mitad y techo
+        const clampMat = makeMat('#334155', 'liso', { roughness: 0.4, metalness: 0.6 });
+        [6, 125, 242].forEach((cy) => addMesh(grp, new THREE.CylinderGeometry(rRad + 1.2, rRad + 1.2, 3, 16), clampMat, 0, cy, 0, false, false, y.id, 1));
+        scalableRoot.add(grp);
+        if (state3d.editable && state3d.sel3dId === y.id) selBoxTarget.box = grp;
+        return;
+      }
+      if (d.manhole) {
+        if (!isVisto && !grpVisible3d(d.group) && !state3d.editable) return;
+        const grp = new THREE.Group();
+        grp.position.set(y.x, 0, y.y);
+        boxMesh(grp, 28, 5, 28, makeMat('#475569', 'liso', { metalness: 0.45, roughness: 0.35 }), 0, 2.5, 0, { pickId: y.id });
+        boxMesh(grp, 22, 5.4, 22, makeMat(col, 'liso', { roughness: 0.4 }), 0, 2.6, 0, { pickId: y.id });
+        scene.add(grp);
+        if (state3d.editable && state3d.sel3dId === y.id) selBoxTarget.box = grp;
+        return;
+      }
       const rt = y.route || ((y.height ?? d.h ?? 110) >= 195 ? 'techo' : 'suelo');
       const routeOk = (rt === 'techo' ? state3d.showTecho !== false : state3d.showSuelo !== false);
       const visOk = y.installVis === 'empotrado' ? state3d.showEmpotrado !== false : true;
       if (grpVisible3d(d.group) && routeOk && visOk) {
-        const col = SYM_GROUPS[d.group].color;
         const sz = y.kind === 'maqInt' ? [80, 26, 50] : y.kind === 'maqExt' ? [85, 65, 35] : (y.kind === 'rejImp' || y.kind === 'rejRet') ? [45, 14, 16] : [14, 14, 14];
         const zTop = Math.max(sz[1], y.height ?? d.h);
         const grp = new THREE.Group();
@@ -789,6 +829,7 @@ var Plan3D = window.Plan3D = (() => {
         boxMesh(grp, sz[0], sz[1], sz[2], makeMat(col, 'liso', { roughness: 0.35 }), 0, 0, 0, { pickId: y.id });
         if (rt === 'suelo' && zTop <= 40) scene.add(grp);
         else scalableRoot.add(grp);
+        if (state3d.editable && state3d.sel3dId === y.id) selBoxTarget.box = grp;
       }
       if (night && ['luz', 'foco', 'tiraLed', 'aplique'].includes(y.kind)) {
         const live = Obra.isCircuitLive(Obra.inferCircuitId(y));

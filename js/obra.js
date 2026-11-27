@@ -343,11 +343,13 @@ const Obra = (() => {
       const st = Plan.stats(p);
       st.rooms.forEach((r) => rooms.push({ planName: p.name, r }));
     });
-    if (!rooms.length) { toast('Dibuja primero alguna estancia en el Plano', 'warn'); return; }
+    const instItems = Plan.installationsTakeoff ? Plan.installationsTakeoff() : [];
+    if (!rooms.length && !instItems.length) { toast('Dibuja primero alguna estancia o instalación en el Plano', 'warn'); return; }
     Modal.open({
-      title: 'Calcular materiales desde el plano',
+      title: 'Calcular materiales e instalaciones desde el plano',
       wide: true,
-      body: `<p class="muted" style="margin-top:0">Selecciona qué mediciones quieres añadir a tu lista de materiales:</p>
+      body: `<p class="muted" style="margin-top:0">Selecciona qué mediciones calculadas automáticamente desde tus planos quieres añadir a Materiales:</p>
+        ${rooms.length ? `<h4 style="margin:8px 0">${icon('roomrect', 16)} Acabados por estancia</h4>
         <div class="plan-calc-list">${rooms.map((x, idx) => `
           <div class="pcalc-row">
             <div><b>${esc(x.r.name || 'Estancia')}</b> <small class="muted">(${esc(x.planName)} · ${fmtNum(x.r.area)} m²)</small></div>
@@ -356,10 +358,24 @@ const Obra = (() => {
               <button class="btn sm" data-add-calc="skirting" data-idx="${idx}">+ Rodapié (${fmtNum(x.r.perim * 1.1)} m)</button>
               <button class="btn sm" data-add-calc="paint" data-idx="${idx}">+ Paredes (${fmtNum(x.r.perim * (x.r.ceiling / 100))} m²)</button>
             </div>
-          </div>`).join('')}</div>`,
+          </div>`).join('')}</div>` : ''}
+        ${instItems.length ? `<h4 style="margin:16px 0 8px">${icon('bolt', 16)} Tuberías, cables, conductos, bajantes y mecanismos</h4>
+        <div class="plan-calc-list">${instItems.map((it, idx) => `
+          <div class="pcalc-row" style="flex-direction:row;align-items:center;justify-content:space-between;flex-wrap:wrap">
+            <div><b>${esc(it.name)}</b> <small class="muted">· ${fmtNum(it.qty, it.unit === 'ud' ? 0 : 1)} ${it.unit}</small></div>
+            <button class="btn sm" data-add-inst="${idx}">+ Añadir (${fmtNum(it.qty, it.unit === 'ud' ? 0 : 1)} ${it.unit})</button>
+          </div>`).join('')}</div>` : ''}`,
       foot: `<button class="btn primary" data-modal-close>Listo</button>`,
       onOpen(card) {
         card.addEventListener('click', (e) => {
+          const bi = e.target.closest('[data-add-inst]');
+          if (bi) {
+            const it = instItems[+bi.dataset.addInst];
+            S().materials.unshift(Object.assign({ id: uid(), unitPrice: 0, store: '', ref: '', status: 'Elegido' }, it));
+            Store.save(); render(); bi.disabled = true; bi.innerHTML = `${icon('check', 13)} Añadido`;
+            toast(`Añadido: <b>${esc(it.name)}</b>`, 'success');
+            return;
+          }
           const b = e.target.closest('[data-add-calc]'); if (!b) return;
           const x = rooms[+b.dataset.idx];
           const type = b.dataset.addCalc;

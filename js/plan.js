@@ -38,15 +38,21 @@ const Plan = (() => {
     tv: { label: 'Toma TV', group: 'elec', g: 'TV', h: 30, wall: true },
     red: { label: 'Toma red / datos', group: 'elec', g: 'RJ', h: 30, wall: true },
     cuadro: { label: 'Cuadro eléctrico', group: 'elec', g: 'CE', h: 180, wall: true },
+    montanteElec: { label: 'Montante vertical eléctrico / datos', group: 'elec', g: 'MV', h: 250, wall: false, riser: true },
     timbre: { label: 'Timbre / portero', group: 'elec', g: 'P', h: 150, wall: true },
     aguaFria: { label: 'Toma agua fría', group: 'fonta', g: 'AF', h: 55, wall: true },
     aguaCaliente: { label: 'Toma agua caliente', group: 'fonta', g: 'AC', h: 55, wall: true },
-    desague: { label: 'Desagüe', group: 'fonta', g: 'D', h: 0, wall: false },
+    desague: { label: 'Desagüe / bote sifónico', group: 'fonta', g: 'D', h: 0, wall: false },
+    bajanteFecal: { label: 'Bajante vertical fecales (Ø110)', group: 'fonta', g: 'BF', h: 250, wall: false, riser: true },
+    bajantePluv: { label: 'Bajante vertical pluviales (Ø110)', group: 'fonta', g: 'BP', h: 250, wall: false, riser: true },
+    montanteAgua: { label: 'Montante vertical agua (AF/AC)', group: 'fonta', g: 'MA', h: 250, wall: false, riser: true },
+    arqueta: { label: 'Arqueta de registro en suelo', group: 'fonta', g: 'AR', h: 10, wall: false, manhole: true },
     llave: { label: 'Llave de paso', group: 'fonta', g: 'LL', h: 40, wall: true },
     gas: { label: 'Toma de gas', group: 'fonta', g: 'G', h: 50, wall: true },
     calentador: { label: 'Termo / aerotermia', group: 'fonta', g: 'K', h: 150, wall: true },
     maqInt: { label: 'Máquina interior AA (conductos)', group: 'clima', g: 'MI', h: 245, wall: false },
     maqExt: { label: 'Máquina exterior AA (condensadora)', group: 'clima', g: 'ME', h: 100, wall: true },
+    montanteClima: { label: 'Patinejo / subida vertical AA', group: 'clima', g: 'PA', h: 250, wall: false, riser: true },
     rejImp: { label: 'Rejilla de impulsión', group: 'clima', g: 'RI', h: 240, wall: true },
     rejRet: { label: 'Rejilla de retorno', group: 'clima', g: 'RR', h: 240, wall: false },
     compuerta: { label: 'Compuerta motorizada (Airzone)', group: 'clima', g: 'AZ', h: 245, wall: false },
@@ -396,6 +402,12 @@ const Plan = (() => {
       o += `<circle r="${r}" fill="${th.bg}" stroke="${col}" stroke-width="${px(2)}"/><path d="M${-r * 0.7} ${-r * 0.7} L${r * 0.7} ${r * 0.7} M${r * 0.7} ${-r * 0.7} L${-r * 0.7} ${r * 0.7}" stroke="${col}" stroke-width="${px(2)}"/>`;
     } else if (y.kind === 'foco') {
       o += `<circle r="${r * 0.75}" fill="${th.bg}" stroke="${col}" stroke-width="${px(2)}"/><circle r="${r * 0.3}" fill="${col}"/>`;
+    } else if (d.riser) {
+      const rr = px(11.5);
+      o += `<circle r="${rr}" fill="${th.bg}" stroke="${col}" stroke-width="${px(2.2)}"/><circle r="${rr * 0.68}" fill="${col}"/><text text-anchor="middle" dominant-baseline="central" font-size="${px(6.8)}" font-weight="800" fill="#fff" pointer-events="none">${esc(d.g)}</text>`;
+    } else if (d.manhole) {
+      const hs = px(10.5);
+      o += `<rect x="${-hs}" y="${-hs}" width="${hs * 2}" height="${hs * 2}" rx="${px(2)}" fill="${th.bg}" stroke="${col}" stroke-width="${px(2.2)}"/><rect x="${-hs * 0.72}" y="${-hs * 0.72}" width="${hs * 1.44}" height="${hs * 1.44}" fill="${col}"/><text text-anchor="middle" dominant-baseline="central" font-size="${px(7)}" font-weight="800" fill="#fff" pointer-events="none">${esc(d.g)}</text>`;
     } else {
       o += `<circle r="${r}" fill="${col}" stroke="${th.bg}" stroke-width="${px(1.5)}"/><text text-anchor="middle" dominant-baseline="central" font-size="${px(d.g.length > 1 ? 7.5 : 9.5)}" font-weight="800" fill="#fff" pointer-events="none">${esc(d.g)}</text>`;
     }
@@ -614,6 +626,22 @@ const Plan = (() => {
       }
       out += `<line data-id="${d.id}" x1="${d.x1}" y1="${d.y1}" x2="${d.x2}" y2="${d.y2}" stroke="transparent" stroke-width="${Math.max(w, px(12))}"/>`;
     });
+    // Nudos de cambio de cota vertical (techo <-> suelo) entre tramos conectados
+    const visDucts = vis.filter((e) => e.type === 'duct');
+    for (let i = 0; i < visDucts.length; i++) {
+      for (let j = i + 1; j < visDucts.length; j++) {
+        const a = visDucts[i], b = visDucts[j];
+        const za = a.height ?? (DUCT_KINDS[a.kind]?.h ?? 240), zb = b.height ?? (DUCT_KINDS[b.kind]?.h ?? 240);
+        if (Math.abs(za - zb) < 25) continue;
+        const ptsA = [[a.x1, a.y1], [a.x2, a.y2]], ptsB = [[b.x1, b.y1], [b.x2, b.y2]];
+        ptsA.forEach(([ax, ay]) => ptsB.forEach(([bx, by]) => {
+          if (Math.hypot(ax - bx, ay - by) < 5) {
+            const col = (DUCT_KINDS[a.kind] || DUCT_KINDS.impulsion).color;
+            out += `<g transform="translate(${ax} ${ay})" pointer-events="none"><circle r="${px(7)}" fill="${th.bg}" stroke="${col}" stroke-width="${px(2)}"/><circle r="${px(3)}" fill="${col}"/></g>`;
+          }
+        }));
+      }
+    }
     // Instalaciones (con simulación de halos de luz en 2D respetando el Cuadro Eléctrico)
     if (sim2d.lights) {
       vis.filter((e) => e.type === 'sym' && ['luz', 'foco', 'tiraLed', 'aplique'].includes(e.kind)).forEach((y) => {
@@ -737,6 +765,7 @@ const Plan = (() => {
           <details class="dropdown right">
             <summary class="tgl" title="Más opciones del plano (calcar, comparar, rejilla, estilo)">${icon('settings', 15)}<span>Opciones</span></summary>
             <div class="dd-menu dd-opts">
+              <button data-pa="copyRefsModal">${icon('layers', 15)} Copiar pilares y bajantes de otra planta…</button>
               <button data-pa="bgModal" id="pBgBtn">${icon('image', 15)} Calcar imagen de fondo…</button>
               <button data-pa="compareModal" id="pCmpBtn">${icon('compare', 15)} Comparar Antes / Después…</button>
               <button data-pa="dupPlan">${icon('copy', 15)} Duplicar este plano…</button>
@@ -1285,14 +1314,16 @@ const Plan = (() => {
     const consider = (x, y) => { const d = Math.hypot(p.x - x, p.y - y); if (d < bd) { bd = d; best = { x, y, snapped: true, kind: 'end' }; } };
     els().forEach((e) => {
       if (e.id === opt.exclude) return;
-      if (e.type === 'wall') { consider(e.x1, e.y1); consider(e.x2, e.y2); }
+      if (e.type === 'wall' || e.type === 'duct') { consider(e.x1, e.y1); consider(e.x2, e.y2); }
+      else if (e.type === 'sym') consider(e.x, e.y);
+      else if (e.type === 'furn' && (e.kind === 'bajante' || e.kind === 'pilar')) consider(e.x, e.y);
       else if (e.type === 'room') e.points.forEach((q) => consider(q[0], q[1]));
     });
     if (draft && draft.type === 'poly') draft.pts.forEach((q) => consider(q.x, q.y));
     if (best) return best;
     const g = pui.grid;
     els().forEach((w) => {
-      if (w.type !== 'wall' || w.id === opt.exclude) return;
+      if ((w.type !== 'wall' && w.type !== 'duct') || w.id === opt.exclude) return;
       const a = { x: w.x1, y: w.y1 }, b = { x: w.x2, y: w.y2 }, t = projT(p, a, b);
       if (t < 0 || t > 1) return;
       const q = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
@@ -2033,7 +2064,15 @@ const Plan = (() => {
         <label class="pf"><span>Ancho / Ø</span><div class="inp-suf"><input type="number" data-do="ductWidth" value="${pui.ductWidth}" min="2"><em>cm</em></div></label>
         <label class="pf"><span>Altura (Z)</span><div class="inp-suf"><input type="number" data-do="ductHeight" value="${pui.ductHeight}" min="0"><em>cm</em></div></label>
       </div>
-      <p class="phint">${icon('hint', 14)} Toca inicio y cada esquina del recorrido. Pulsa <kbd>Esc</kbd> o <b>Terminar</b> al acabar.</p>
+      <p class="phint">${icon('hint', 14)} Toca inicio y cada esquina del recorrido (se imanta a bajantes, arquetas y otros tubos). Si unes un tramo de suelo con uno de techo en el mismo punto, se crea la subida vertical en 3D automáticamente.</p>
+    </div>
+    <div class="psec"><h4>${icon('drop', 16)} Bajantes, montantes y arquetas</h4>
+      <div class="sym-list">${['bajanteFecal', 'bajantePluv', 'montanteAgua', 'arqueta', 'montanteElec', 'montanteClima'].map((k) => {
+        const d = SYMBOLS[k];
+        return `<button class="sym-item" data-a="pickRiserTool" data-k="${k}">
+          <span style="width:18px;height:18px;border-radius:50%;border:2px solid ${SYM_GROUPS[d.group].color};display:grid;place-items:center;font-size:8px;font-weight:800;color:${SYM_GROUPS[d.group].color}">${d.g}</span>
+          <span>${d.label}</span></button>`;
+      }).join('')}</div>
     </div>`;
   }
 
@@ -2242,6 +2281,7 @@ const Plan = (() => {
           ${F.num('Ancho / diámetro', 'width', el.width || dk.w)}${F.num('Altura desde suelo (Z)', 'height', el.height ?? dk.h)}
         </div>
         <div class="pinfos">${F.info('Longitud tramo', fmtLenU(L))}${F.info('Trazado', DUCT_ROUTES[curRoute].label)}</div>
+        <button class="btn sm" data-a="addRiserAtEnd">${icon('drop', 14)} Añadir bajante / montante vertical en extremo</button>
         ${F.area('Notas', 'note', el.note, 'Sección, aislamiento, circuito…')}</div>
         ${actions(B.dup, B.del)}`;
       }
@@ -2304,6 +2344,13 @@ const Plan = (() => {
       <div class="psec"><h4>${icon('bolt', 16)} Instalaciones</h4>${symGroups || '<p class="phint">Añade enchufes, puntos de luz, tomas de agua… con la herramienta <kbd>E</kbd> o traza tubos/cables con <kbd>K</kbd>.</p>'}
         ${(() => { const hN = els().filter((x) => x.installVis === 'oculto').length; return hN ? `<div class="pinfos" style="margin-top:6px"><div class="pinfo"><span>${icon('eye', 13)} Tramos ocultos (${hN})</span><button class="link-btn" data-a="unhideInstall">Mostrar todos</button></div></div>` : ''; })()}
       </div>
+      ${(() => {
+        const warns = planAudit(plan());
+        return `<div class="psec"><h4>${icon('checksq', 16)} Revisión técnica rápida</h4>
+          ${warns.length ? `<div class="pinfos">${warns.map((w) => `<div class="pinfo"><span style="color:var(--warning)">• ${esc(w)}</span></div>`).join('')}</div>`
+            : `<p class="phint">${icon('check', 13)} Sin avisos pendientes en estancias ni instalaciones.</p>`}
+        </div>`;
+      })()}
       <details class="psec shortcuts"><summary>${icon('info', 16)} Atajos de teclado</summary>
         <div class="kbd-list">
           ${TOOLS.filter((t) => !t.sep).map((t) => `<div><kbd>${t.key}</kbd><span>${t.label}</span></div>`).join('')}
@@ -2393,6 +2440,7 @@ const Plan = (() => {
         case 'addPlan': openPlanModal(false); break;
         case 'dupPlan': openPlanModal(true); break;
         case 'bgModal': openBgModal(); break;
+        case 'copyRefsModal': openCopyRefsModal(); break;
         case 'compareModal': openCompareModal(); break;
         case 'edit3d': toggleInline3D(); break;
         case 'render3d': openRender3DModal(false); break;
@@ -2674,6 +2722,24 @@ const Plan = (() => {
           break;
         }
         case 'pickSym': placing = { t: 'sym', kind: b.dataset.k }; renderPanel(); if (window.innerWidth <= 900) setMobilePanel(false); break;
+        case 'pickRiserTool':
+          setTool('sym', true);
+          placing = { t: 'sym', kind: b.dataset.k };
+          renderPanel();
+          if (window.innerWidth <= 900) setMobilePanel(false);
+          break;
+        case 'addRiserAtEnd':
+          if (el && el.type === 'duct') {
+            const g = (DUCT_KINDS[el.kind] || DUCT_KINDS.impulsion).group;
+            const rk = g === 'elec' || g === 'domo' ? 'montanteElec' : g === 'clima' ? 'montanteClima' : el.kind === 'desague' ? 'bajanteFecal' : 'montanteAgua';
+            pushUndo();
+            const rItem = { id: uid(), type: 'sym', kind: rk, route: 'techo', installVis: el.installVis === 'visto' ? 'visto' : 'empotrado', x: el.x2, y: el.y2, angle: 0, height: 250, note: '' };
+            els().push(rItem);
+            sel = rItem.id;
+            commit();
+            toast(`${SYMBOLS[rk].label} colocada y unida al extremo`, 'success');
+          }
+          break;
         case 'unhideInstall':
           pushUndo();
           els().forEach((x) => { if (x.installVis === 'oculto') x.installVis = x.type === 'duct' ? 'empotrado' : 'visto'; });
@@ -3623,5 +3689,104 @@ Respeta exactamente la posición de muros, puertas, ventanas y muebles del plano
     return [...set].sort((a, b) => a.localeCompare(b));
   }
 
-  return { init, show, switchPlan, openReportModal, thumb, stats, roomNames, fmtLen, SYMBOLS, SYM_GROUPS, refresh: () => { if (svg) { syncTop(); renderPanel(); requestRender(); } } };
+  function pointInPoly(x, y, pts) {
+    let inside = false;
+    for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+      const xi = pts[i][0], yi = pts[i][1], xj = pts[j][0], yj = pts[j][1];
+      if (((yi > y) !== (yj > y)) && (x < ((xj - xi) * (y - yi)) / (yj - yi + 1e-9) + xi)) inside = !inside;
+    }
+    return inside;
+  }
+
+  function planAudit(p) {
+    const list = p.elements || [], warns = [];
+    const rooms = list.filter((e) => e.type === 'room' && e.points.length >= 3);
+    const lights = list.filter((e) => (e.type === 'sym' && ['luz', 'foco', 'tiraLed', 'aplique'].includes(e.kind)) || (e.type === 'furn' && e.kind === 'espejoLed'));
+    const drains = list.filter((e) => (e.type === 'sym' && ['desague', 'bajanteFecal', 'arqueta'].includes(e.kind)) || (e.type === 'furn' && e.kind === 'bajante') || (e.type === 'duct' && e.kind === 'desague'));
+    if (lights.length > 0) {
+      rooms.forEach((r) => {
+        if (!lights.some((l) => pointInPoly(l.x, l.y, r.points))) warns.push(`«${r.name || 'Estancia'}» no tiene ningún punto de luz dentro`);
+      });
+    }
+    rooms.forEach((r) => {
+      const nm = (r.name || '').toLowerCase();
+      if ((nm.includes('baño') || nm.includes('aseo') || nm.includes('cocina')) && drains.length > 0) {
+        const hasDrain = drains.some((d) => d.type === 'duct' ? (pointInPoly(d.x1, d.y1, r.points) || pointInPoly(d.x2, d.y2, r.points)) : pointInPoly(d.x, d.y, r.points));
+        if (!hasDrain) warns.push(`«${r.name}» aún no tiene desagüe, arqueta o bajante`);
+      }
+    });
+    return warns.slice(0, 5);
+  }
+
+  function openCopyRefsModal() {
+    const cur = plan();
+    const others = S().plans.filter((p) => p.id !== cur.id);
+    if (!others.length) { toast('Crea primero otra planta para copiar sus referencias verticales', 'info'); return; }
+    Modal.open({
+      title: `Copiar pilares, bajantes y escaleras a «${esc(cur.name)}»`,
+      body: `<p class="muted" style="margin-top:0">Proyecta en las <b>mismas coordenadas X, Y</b> los elementos verticales de otra planta (pilares, bajantes, montantes, arquetas y hueco de escalera) bloqueados para alinear plantas con precisión:</p>
+        <label class="field" style="margin-bottom:12px"><span>Planta de origen</span>
+          <select id="refSrcPlan">${others.map((p) => `<option value="${p.id}">${esc((p.level ? p.level + ' · ' : '') + p.name)}</option>`).join('')}</select>
+        </label>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <label class="chk"><input type="checkbox" id="refCopyRisers" checked> Bajantes, montantes verticales y arquetas</label>
+          <label class="chk"><input type="checkbox" id="refCopyStruct" checked> Pilares y escaleras</label>
+          <label class="chk"><input type="checkbox" id="refCopyPerim"> Muros perimetrales (como referencia bloqueada)</label>
+        </div>`,
+      foot: `<button class="btn" data-modal-close>Cancelar</button><button class="btn primary" id="refDoCopy">${icon('copy', 15)} Proyectar en esta planta</button>`,
+      onOpen(card) {
+        $('#refDoCopy', card).addEventListener('click', () => {
+          const src = S().plans.find((p) => p.id === $('#refSrcPlan', card).value);
+          if (!src) return;
+          const cRisers = $('#refCopyRisers', card).checked;
+          const cStruct = $('#refCopyStruct', card).checked;
+          const cWalls = $('#refCopyPerim', card).checked;
+          const toCopy = src.elements.filter((e) => {
+            if (cRisers && e.type === 'sym' && (SYMBOLS[e.kind]?.riser || SYMBOLS[e.kind]?.manhole)) return true;
+            if (cRisers && e.type === 'furn' && e.kind === 'bajante') return true;
+            if (cStruct && e.type === 'furn' && (e.kind === 'pilar' || e.kind === 'escalera')) return true;
+            if (cWalls && e.type === 'wall' && e.status !== 'demoler') return true;
+            return false;
+          });
+          if (!toCopy.length) { toast('Esa planta aún no tiene pilares, bajantes ni elementos seleccionados', 'warn'); return; }
+          pushUndo();
+          toCopy.forEach((e) => {
+            const c = clone(e);
+            c.id = uid();
+            c.locked = true;
+            els().push(c);
+          });
+          commit();
+          Modal.close();
+          toast(`Proyectados ${toCopy.length} elementos verticales desde «${src.name}» (bloqueados)`, 'success');
+        });
+      },
+    });
+  }
+
+  function installationsTakeoff() {
+    const res = [];
+    S().plans.forEach((p) => {
+      const byDuct = {}, bySym = {};
+      p.elements.forEach((e) => {
+        if (e.type === 'duct') {
+          const k = e.kind || 'impulsion';
+          byDuct[k] = (byDuct[k] || 0) + wlen(e) / 100;
+        } else if (e.type === 'sym') {
+          bySym[e.kind] = (bySym[e.kind] || 0) + 1;
+        }
+      });
+      Object.entries(byDuct).forEach(([k, m]) => {
+        const dk = DUCT_KINDS[k] || { label: k };
+        res.push({ planName: p.name, name: `${dk.label} (${p.name})`, zone: p.name, qty: r1(m * 1.1), unit: 'm', notes: `Trazado en plano (${fmtNum(m, 1)} m + 10% merma)` });
+      });
+      Object.entries(bySym).forEach(([k, n]) => {
+        const sd = SYMBOLS[k] || { label: k };
+        res.push({ planName: p.name, name: `${sd.label} (${p.name})`, zone: p.name, qty: n, unit: 'ud', notes: 'Conteo automático desde el plano' });
+      });
+    });
+    return res;
+  }
+
+  return { init, show, switchPlan, openReportModal, thumb, stats, roomNames, fmtLen, SYMBOLS, SYM_GROUPS, DUCT_KINDS, installationsTakeoff, refresh: () => { if (svg) { syncTop(); renderPanel(); requestRender(); } } };
 })();
