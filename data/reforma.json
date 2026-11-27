@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795806371739,
+  "updatedAt": 1795806374984,
   "project": {
     "name": "Jijona",
     "address": "Av Joan Fuster 8",
@@ -1740,81 +1740,6 @@
           "ceiling": 250,
           "note": "",
           "floorTexture": "microcemento"
-        },
-        {
-          "id": "mwzcqwfu14nqf1",
-          "type": "wall",
-          "x1": 17,
-          "y1": -858,
-          "x2": 185,
-          "y2": -858,
-          "thick": 15,
-          "status": "existente",
-          "height": 250,
-          "note": ""
-        },
-        {
-          "id": "mwzcqwfu2d285o",
-          "type": "wall",
-          "x1": 185,
-          "y1": -858,
-          "x2": 185,
-          "y2": -285,
-          "thick": 15,
-          "status": "existente",
-          "height": 250,
-          "note": ""
-        },
-        {
-          "id": "mwzcqwfuz5odns",
-          "type": "wall",
-          "x1": 185,
-          "y1": -285,
-          "x2": 17,
-          "y2": -285,
-          "thick": 15,
-          "status": "existente",
-          "height": 250,
-          "note": ""
-        },
-        {
-          "id": "mwzcqwfutpc3ob",
-          "type": "wall",
-          "x1": 17,
-          "y1": -285,
-          "x2": 17,
-          "y2": -858,
-          "thick": 15,
-          "status": "existente",
-          "height": 250,
-          "note": ""
-        },
-        {
-          "id": "mwzcqwfurrtn2z",
-          "type": "room",
-          "name": "Habitación 3",
-          "points": [
-            [
-              24.5,
-              -850.5
-            ],
-            [
-              177.5,
-              -850.5
-            ],
-            [
-              177.5,
-              -292.5
-            ],
-            [
-              24.5,
-              -292.5
-            ]
-          ],
-          "color": "#bbf7d0",
-          "floor": "",
-          "ceiling": 250,
-          "note": ""
         }
       ],
       "bgImage": null
