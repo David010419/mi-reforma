@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795806278228,
+  "updatedAt": 1795806280978,
   "project": {
     "name": "Jijona",
     "address": "Av Joan Fuster 8",
@@ -1651,7 +1651,7 @@
         {
           "id": "mwzcm9vbpcs9ta",
           "type": "room",
-          "name": "Habitación 1",
+          "name": "Salón",
           "points": [
             [
               122.5,
