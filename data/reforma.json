@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795795228468,
+  "updatedAt": 1795795252735,
   "project": {
     "name": "Jijona",
     "address": "Av Joan Fuster 8",
@@ -1213,7 +1213,7 @@
           "height": 210,
           "kind": "garaje",
           "hinge": "left",
-          "side": 1,
+          "side": -1,
           "note": ""
         },
         {
