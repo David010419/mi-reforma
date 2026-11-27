@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795794828915,
+  "updatedAt": 1795794840638,
   "project": {
     "name": "Jijona",
     "address": "Av Joan Fuster 8",
@@ -485,7 +485,8 @@
           "width": 10,
           "height": 242,
           "note": "",
-          "route": "techo"
+          "route": "techo",
+          "installVis": "visto"
         }
       ],
       "bgImage": null
