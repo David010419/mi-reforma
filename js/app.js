@@ -49,6 +49,7 @@ const App = {
     document.body.dataset.view = v;
     this.views[v]().show();
     window.scrollTo(0, 0);
+    const mn = $('.main'); if (mn) mn.scrollTop = 0;
   },
 
   openTask(id) {

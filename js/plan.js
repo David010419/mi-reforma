@@ -177,6 +177,7 @@ const Plan = (() => {
     { id: 'pan', icon: 'move', label: 'Desplazar vista', key: 'H' },
     { sep: true },
     { id: 'wall', icon: 'wall', label: 'Muro', key: 'W' },
+    { id: 'quick', icon: 'quickwall', label: 'Construcción rápida (pared + medida interior)', key: 'Q' },
     { id: 'wallrect', icon: 'wallrect', label: 'Estancia con muros', key: 'B' },
     { id: 'room', icon: 'roomrect', label: 'Habitación rectangular', key: 'M' },
     { id: 'poly', icon: 'polygon', label: 'Habitación poligonal', key: 'P' },
@@ -197,8 +198,9 @@ const Plan = (() => {
   const HINTS = {
     select: 'Clic para seleccionar · arrastra para mover · arrastra el fondo para desplazar · rueda para zoom · Supr para borrar · Alt al arrastrar un muro lo despega',
     pan: 'Arrastra para desplazar la vista · rueda del ratón para zoom',
-    wall: 'Clic para empezar y clic en cada esquina · escribe una longitud en cm y pulsa Enter · Shift alterna modo ortogonal · Esc o doble clic para terminar',
-    wallrect: 'Arrastra para crear una estancia rectangular con sus 4 muros (se usa el grosor indicado en el panel)',
+    wall: 'Clic para empezar y clic en cada esquina · escribe la medida interior en cm y pulsa Enter · toca cualquier cota de pared para editar su medida interior',
+    quick: 'Construcción rápida: escribe la medida interior (cm) y pulsa una flecha de dirección (o crea una estancia completa) · toca el plano para elegir inicio o toca una cota para editarla',
+    wallrect: 'Arrastra para crear una estancia rectangular con sus 4 muros · también puedes crearla con medidas exactas en Construcción rápida (Q)',
     room: 'Arrastra para dibujar una habitación rectangular (superficie sin muros)',
     poly: 'Clic en cada vértice · clic en el primer punto, doble clic o Enter para cerrar · Esc cancela',
     door: 'Acerca el cursor a un muro y haz clic para colocar la puerta · R gira la apertura tras colocarla',
@@ -226,6 +228,7 @@ const Plan = (() => {
   let undoStack = [], redoStack = [], fitted = false, raf = 0, pinch = null;
   let compareId = null, compareOpacity = 0.35, calib = null, tapGesture = null, pencilHintShown = false;
   let multiSel = new Set(), multiMode = false;
+  let quickState = { pt: null, chainIds: [], turnSign: 0, len: 350, angle: 0, roomName: '', roomW: 360, roomH: 300 };
   let sim2d = { doors: 0, windows: 0, shutters: 0, kitchen: 0, lights: false };
   let inline3d = {
     active: false, transitioning: false, camMode: 'fp',
@@ -274,6 +277,92 @@ const Plan = (() => {
     return fmtNum(cm / 100, 2);
   }
   function fmtLenU(cm) { const u = S().settings.units; return fmtLen(cm) + ' ' + (u === 'm' ? 'm' : u); }
+
+  /* ---------- Medición real de muros: cara interior (luz) vs cara exterior ---------- */
+  function wallMetrics(w, list = els()) {
+    const L = wlen(w);
+    if (L < 0.01) return { axis: 0, int: 0, ext: 0, intDelta: 0, extDelta: 0, intSide: 1, isPartition: false };
+    const ux = (w.x2 - w.x1) / L, uy = (w.y2 - w.y1) / L, nx = -uy, ny = ux;
+    const t1 = w.thick || 15;
+    const walls = list.filter((e) => e.type === 'wall' && e.id !== w.id && e.status !== 'demoler');
+    const endTrim = (px0, py0, ix, iy) => {
+      let hasPlus = false, hasMinus = false, trimPlus = 0, trimMinus = 0;
+      for (const o of walls) {
+        const Lo = wlen(o); if (Lo < 1) continue;
+        const to = clamp(projT({ x: px0, y: py0 }, { x: o.x1, y: o.y1 }, { x: o.x2, y: o.y2 }), 0, 1);
+        const qx = o.x1 + (o.x2 - o.x1) * to, qy = o.y1 + (o.y2 - o.y1) * to;
+        if (Math.hypot(px0 - qx, py0 - qy) > 2.5) continue;
+        const t2 = o.thick || 15;
+        const branches = [[o.x1 - qx, o.y1 - qy], [o.x2 - qx, o.y2 - qy]];
+        for (const [bx, by] of branches) {
+          const bL = Math.hypot(bx, by); if (bL <= 4) continue;
+          const vx = bx / bL, vy = by / bL;
+          const sinT = vx * nx + vy * ny, cosT = vx * ix + vy * iy;
+          const absSin = Math.abs(sinT);
+          if (absSin < 0.2) continue;
+          const miter = clamp(((t2 / 2) + (t1 / 2) * cosT) / absSin, -t1 * 1.5, Math.max(t1, t2) * 2.2);
+          if (sinT >= 0.2) { hasPlus = true; trimPlus = Math.max(trimPlus, miter); }
+          else if (sinT <= -0.2) { hasMinus = true; trimMinus = Math.max(trimMinus, miter); }
+        }
+      }
+      return {
+        plus: hasPlus ? trimPlus : (hasMinus ? -trimMinus : 0),
+        minus: hasMinus ? trimMinus : (hasPlus ? -trimPlus : 0),
+      };
+    };
+    const d1 = endTrim(w.x1, w.y1, ux, uy);
+    const d2 = endTrim(w.x2, w.y2, -ux, -uy);
+    const sidePlus = Math.max(0, r1(L - d1.plus - d2.plus));
+    const sideMinus = Math.max(0, r1(L - d1.minus - d2.minus));
+
+    const mx = (w.x1 + w.x2) / 2, my = (w.y1 + w.y2) / 2, probe = t1 / 2 + 8;
+    const pPlus = { x: mx + nx * probe, y: my + ny * probe };
+    const pMinus = { x: mx - nx * probe, y: my - ny * probe };
+    const rooms = list.filter((e) => e.type === 'room' && e.points && e.points.length >= 3);
+    const inPlus = rooms.some((r) => pointInPoly(pPlus.x, pPlus.y, r.points));
+    const inMinus = rooms.some((r) => pointInPoly(pMinus.x, pMinus.y, r.points));
+
+    const enclosure = (pt) => {
+      let dirs = 0;
+      const rays = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+      for (const [rx, ry] of rays) {
+        const ex = pt.x + rx * 9000, ey = pt.y + ry * 9000;
+        let hit = false;
+        for (const o of walls) {
+          if (segIntersect(pt.x, pt.y, ex, ey, o.x1, o.y1, o.x2, o.y2)) { hit = true; break; }
+        }
+        if (!hit && segIntersect(pt.x, pt.y, ex, ey, w.x1, w.y1, w.x2, w.y2)) hit = true;
+        if (hit) dirs++;
+      }
+      return dirs;
+    };
+    const encPlus = walls.length >= 2 ? enclosure(pPlus) : 0;
+    const encMinus = walls.length >= 2 ? enclosure(pMinus) : 0;
+    const isPartition = (inPlus && inMinus) || (encPlus >= 3 && encMinus >= 3);
+
+    let intSide = w.intSide === 1 || w.intSide === -1 ? w.intSide : 0;
+    if (!intSide) {
+      if (inPlus !== inMinus) intSide = inPlus ? 1 : -1;
+      else if (encPlus !== encMinus) intSide = encPlus > encMinus ? 1 : -1;
+      else if (Math.abs(sidePlus - sideMinus) > 0.4) intSide = sidePlus <= sideMinus ? 1 : -1;
+      else if (walls.length) {
+        const cx = walls.reduce((s, o) => s + (o.x1 + o.x2) / 2, (w.x1 + w.x2) / 2) / (walls.length + 1);
+        const cy = walls.reduce((s, o) => s + (o.y1 + o.y2) / 2, (w.y1 + w.y2) / 2) / (walls.length + 1);
+        intSide = ((cx - mx) * nx + (cy - my) * ny) >= 0 ? 1 : -1;
+      } else intSide = 1;
+    }
+    const intLen = intSide > 0 ? sidePlus : sideMinus;
+    const extLen = intSide > 0 ? sideMinus : sidePlus;
+    return {
+      axis: r1(L),
+      int: intLen,
+      ext: extLen,
+      intDelta: intLen - L,
+      extDelta: extLen - L,
+      intSide,
+      isPartition,
+    };
+  }
 
   /* ---------- Render de elementos (compartido editor / exportación / miniatura) ---------- */
   function furnShape(f, s, th, opts = {}) {
@@ -569,15 +658,27 @@ const Plan = (() => {
       const g = openingGeom(o, w);
       out += `<g data-id="${o.id}" transform="translate(${g.x} ${g.y}) rotate(${g.a})">${openingShape(o, g, s, th)}</g>`;
     });
-    // Medidas automáticas de muros
+    // Medidas automáticas de muros: cara interior real (clicable para editar al vuelo) + cara exterior
     if (autoDims && L.dims) {
       walls.forEach((w) => {
         const Lw = wlen(w); if (Lw * s < 34) return;
+        const wm = wallMetrics(w, list);
         const ux = (w.x2 - w.x1) / Lw, uy = (w.y2 - w.y1) / Lw, nx = -uy, ny = ux;
-        const off = w.thick / 2 + px(9);
-        const mx = (w.x1 + w.x2) / 2 + nx * off, my = (w.y1 + w.y2) / 2 + ny * off;
         const ra = readable(deg(Math.atan2(uy, ux)));
-        out += `<text x="${mx}" y="${my}" transform="rotate(${ra} ${mx} ${my})" text-anchor="middle" dominant-baseline="central" font-size="${px(10)}" font-weight="600" fill="${th.dim}" opacity=".9" paint-order="stroke" stroke="${th.bg}" stroke-width="${px(3)}" stroke-linejoin="round" pointer-events="none">${fmtLen(Lw)}</text>`;
+        const offInt = w.thick / 2 + px(11);
+        const ix = (w.x1 + w.x2) / 2 + nx * wm.intSide * offInt, iy = (w.y1 + w.y2) / 2 + ny * wm.intSide * offInt;
+        const intTxt = fmtLen(wm.int);
+        const bw = px(Math.max(26, intTxt.length * 6.4 + 10)), bh = px(15);
+        out += `<g class="wall-dim-hit" data-wall-dim="${w.id}" transform="translate(${ix} ${iy}) rotate(${ra})">
+          <rect x="${-bw / 2}" y="${-bh / 2}" width="${bw}" height="${bh}" rx="${px(4)}" fill="${th.bg}" fill-opacity=".86" stroke="${th.dim}" stroke-opacity=".28" stroke-width="${px(0.9)}"/>
+          <text text-anchor="middle" dominant-baseline="central" font-size="${px(10)}" font-weight="700" fill="${th.dim}">${esc(intTxt)}</text>
+        </g>`;
+        if (Math.abs(wm.ext - wm.int) >= 0.8 && Lw * s >= 48) {
+          const offExt = w.thick / 2 + px(10);
+          const ex = (w.x1 + w.x2) / 2 - nx * wm.intSide * offExt, ey = (w.y1 + w.y2) / 2 - ny * wm.intSide * offExt;
+          const extLbl = (wm.isPartition ? '' : 'ext ') + fmtLen(wm.ext);
+          out += `<text x="${ex}" y="${ey}" transform="rotate(${ra} ${ex} ${ey})" text-anchor="middle" dominant-baseline="central" font-size="${px(8.8)}" font-weight="600" fill="${th.dim}" opacity=".62" paint-order="stroke" stroke="${th.bg}" stroke-width="${px(2.8)}" stroke-linejoin="round" pointer-events="none">${esc(extLbl)}</text>`;
+        }
       });
     }
     // Mobiliario (con textura + animación de cajones/puertas de cocina en 2D)
@@ -806,6 +907,7 @@ const Plan = (() => {
           <div class="plan-hud">
             <div class="scale-bar" id="pScale"><i></i><span></span></div>
           </div>
+          <div class="quick-pad" id="pQuickPad" aria-hidden="true"></div>
           <div class="plan-fab-bar" id="pSelBar"></div>
           <button class="plan-panel-fab" id="pPanelToggle" data-pa="togglePanel">${icon('sliders', 17)}<span>Panel</span></button>
           <div class="plan-status"><span id="psCoords">X 0 · Y 0</span><span id="psHint"></span></div>
@@ -858,6 +960,7 @@ const Plan = (() => {
     }
     $('#pUndo').disabled = !undoStack.length; $('#pRedo').disabled = !redoStack.length;
     updateSelBar();
+    syncQuickPad();
   }
 
   function updateSelBar() {
@@ -901,10 +1004,17 @@ const Plan = (() => {
   function setTool(id, silent) {
     tool = id; draft = null; placing = null; hoverOpen = null; snapInd = null;
     if (id !== 'select') sel = null;
+    if (id === 'quick' && !quickState.pt) {
+      const ws = els().filter((e) => e.type === 'wall');
+      quickState.pt = ws.length ? { x: ws[ws.length - 1].x2, y: ws[ws.length - 1].y2 } : { x: 100, y: 100 };
+      quickState.chainIds = [];
+      quickState.turnSign = 0;
+    }
     if (!svg) return;
     $$('#pTools button').forEach((b) => b.classList.toggle('active', b.dataset.tool === id));
     svg.setAttribute('class', 'tool-' + id);
     $('#psHint').textContent = HINTS[id] || '';
+    syncQuickPad();
     if (!silent) {
       renderPanel();
       requestRender();
@@ -1104,7 +1214,7 @@ const Plan = (() => {
         let cmp = '';
         if (compareId && compareId !== plan().id) {
           const cp = S().plans.find((x) => x.id === compareId);
-          if (cp) cmp = `<g opacity="${compareOpacity}" pointer-events="none">${renderElements(cp.elements, s, th, pui.layers, false).replace(/ data-id="[^"]*"/g, '')}</g>`;
+          if (cp) cmp = `<g opacity="${compareOpacity}" pointer-events="none">${renderElements(cp.elements, s, th, pui.layers, false).replace(/ data-id="[^"]*"/g, '').replace(/ data-wall-dim="[^"]*"/g, '')}</g>`;
         }
         staticG.innerHTML = bg + cmp + renderElements(els(), s, th, pui.layers, pui.autoDims);
       }
@@ -1154,11 +1264,14 @@ const Plan = (() => {
         if (lb) o += label((lb.x1 + lb.x2) / 2, lb.y1 - px(14), 'Bloqueado');
       }
       switch (el.type) {
-        case 'wall':
+        case 'wall': {
+          const wm = wallMetrics(el, els());
+          const wLbl = Math.abs(wm.ext - wm.int) >= 0.5 ? `Int ${fmtLenU(wm.int)} · Ext ${fmtLenU(wm.ext)}` : fmtLenU(wm.int);
           o += `<line x1="${el.x1}" y1="${el.y1}" x2="${el.x2}" y2="${el.y2}" stroke="${sc}" stroke-opacity=".35" stroke-width="${el.thick + px(8)}" stroke-linecap="square" pointer-events="none"/>`;
-          o += label((el.x1 + el.x2) / 2, (el.y1 + el.y2) / 2, fmtLenU(wlen(el)), deg(Math.atan2(el.y2 - el.y1, el.x2 - el.x1)));
+          o += label((el.x1 + el.x2) / 2, (el.y1 + el.y2) / 2, wLbl, deg(Math.atan2(el.y2 - el.y1, el.x2 - el.x1)));
           o += handle(el.x1, el.y1, 'p1') + handle(el.x2, el.y2, 'p2');
           break;
+        }
         case 'duct':
           o += `<line x1="${el.x1}" y1="${el.y1}" x2="${el.x2}" y2="${el.y2}" stroke="${sc}" stroke-opacity=".4" stroke-width="${Math.max(el.width || 10, px(8))}" pointer-events="none"/>`;
           o += label((el.x1 + el.x2) / 2, (el.y1 + el.y2) / 2, fmtLenU(wlen(el)), deg(Math.atan2(el.y2 - el.y1, el.x2 - el.x1)));
@@ -1220,8 +1333,10 @@ const Plan = (() => {
           o += `<line x1="${draft.a.x}" y1="${draft.a.y}" x2="${b.x}" y2="${b.y}" stroke="${pui.wallStatus === 'nuevo' ? th.wallNew : th.wallFill}" stroke-opacity=".75" stroke-width="${pui.wallThick}" stroke-linecap="square" pointer-events="none"/>`;
           o += `<line x1="${draft.a.x}" y1="${draft.a.y}" x2="${b.x}" y2="${b.y}" stroke="${sc}" stroke-width="${px(1.5)}" stroke-dasharray="${px(6)} ${px(4)}" pointer-events="none"/>`;
           if (L > 0.5) {
+            const tmpW = { id: '_draft', type: 'wall', x1: draft.a.x, y1: draft.a.y, x2: b.x, y2: b.y, thick: pui.wallThick };
+            const wm = wallMetrics(tmpW, [...els(), tmpW]);
             const ang = deg(Math.atan2(b.y - draft.a.y, b.x - draft.a.x));
-            const txt = (draft.typed ? `⌨ ${draft.typed} cm` : fmtLenU(L)) + `  ·  ${Math.round(((-ang % 360) + 360) % 360)}°`;
+            const txt = (draft.typed ? `Int ${draft.typed} cm` : `Int ${fmtLenU(wm.int)}` + (Math.abs(wm.ext - wm.int) >= 0.8 ? ` · Ext ${fmtLenU(wm.ext)}` : '')) + `  ·  ${Math.round(((-ang % 360) + 360) % 360)}°`;
             const nx = -(b.y - draft.a.y) / L, ny = (b.x - draft.a.x) / L;
             o += label((draft.a.x + b.x) / 2 + nx * (pui.wallThick / 2 + px(18)), (draft.a.y + b.y) / 2 + ny * (pui.wallThick / 2 + px(18)), txt, ang);
           }
@@ -1240,11 +1355,13 @@ const Plan = (() => {
         case 'room': case 'wallrect': {
           const a = draft.a, b = draft.b || a;
           const x = Math.min(a.x, b.x), y = Math.min(a.y, b.y), w = Math.abs(b.x - a.x), h = Math.abs(b.y - a.y);
+          const wt = draft.type === 'wallrect' ? pui.wallThick : 0;
+          const iw = Math.max(0, w - wt), ih = Math.max(0, h - wt);
           if (draft.type === 'wallrect') o += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="${th.wallFill}" stroke-opacity=".7" stroke-width="${pui.wallThick}" stroke-linejoin="miter" pointer-events="none"/>`;
           o += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${sc}" fill-opacity=".08" stroke="${sc}" stroke-width="${px(1.5)}" stroke-dasharray="${px(6)} ${px(4)}" pointer-events="none"/>`;
-          if (w * s > 30) o += label(x + w / 2, y - px(16), fmtLenU(w));
-          if (h * s > 30) o += label(x - px(16), y + h / 2, fmtLenU(h), -90);
-          if (w * s > 80 && h * s > 40) o += label(x + w / 2, y + h / 2, fmtNum((w * h) / 10000, 2) + ' m²');
+          if (w * s > 30) o += label(x + w / 2, y - px(16), draft.type === 'wallrect' ? `Int ${fmtLenU(iw)} · Ext ${fmtLenU(w + wt)}` : fmtLenU(w));
+          if (h * s > 30) o += label(x - px(16), y + h / 2, draft.type === 'wallrect' ? `Int ${fmtLenU(ih)} · Ext ${fmtLenU(h + wt)}` : fmtLenU(h), -90);
+          if (w * s > 80 && h * s > 40) o += label(x + w / 2, y + h / 2, fmtNum((iw * ih) / 10000, 2) + ' m² útiles');
           break;
         }
         case 'poly': {
@@ -1297,6 +1414,17 @@ const Plan = (() => {
         const p = symPlacement(cursor);
         o += `<g transform="translate(${p.x} ${p.y})" opacity=".7" pointer-events="none">${symShape({ kind: placing.kind, angle: p.angle, height: SYMBOLS[placing.kind].h }, s, th)}</g>`;
       }
+    }
+    if (tool === 'quick' && quickState.pt) {
+      const qp = quickState.pt;
+      const chainWalls = (quickState.chainIds || []).map(byId).filter(Boolean);
+      if (chainWalls.length >= 2) {
+        const w0 = chainWalls[0];
+        o += `<line x1="${qp.x}" y1="${qp.y}" x2="${w0.x1}" y2="${w0.y1}" stroke="#10b981" stroke-width="${px(1.6)}" stroke-dasharray="${px(5)} ${px(4)}" pointer-events="none"/>`;
+        o += `<circle cx="${w0.x1}" cy="${w0.y1}" r="${px(6)}" fill="#10b981" fill-opacity=".22" stroke="#10b981" stroke-width="${px(2)}" pointer-events="none"/>`;
+      }
+      o += `<circle cx="${qp.x}" cy="${qp.y}" r="${px(11)}" fill="${sc}" fill-opacity=".16" stroke="${sc}" stroke-width="${px(2)}" pointer-events="none"/>`;
+      o += `<circle cx="${qp.x}" cy="${qp.y}" r="${px(4.2)}" fill="${sc}" stroke="#fff" stroke-width="${px(1.5)}" pointer-events="none"/>`;
     }
     if (snapInd) {
       o += snapInd.kind === 'line'
@@ -1487,7 +1615,288 @@ const Plan = (() => {
       let q = snap(cursor); if (orthoOn()) q = ortho(draft.a, q);
       const L = dist(draft.a, q); if (L > 0.01) dir = { x: (q.x - draft.a.x) / L, y: (q.y - draft.a.y) / L };
     }
-    return { x: r1(draft.a.x + dir.x * len), y: r1(draft.a.y + dir.y * len) };
+    if (len <= 0) return { x: draft.a.x, y: draft.a.y };
+    const tmp = { id: '_typed', type: 'wall', x1: draft.a.x, y1: draft.a.y, x2: draft.a.x + dir.x * len, y2: draft.a.y + dir.y * len, thick: pui.wallThick };
+    const wm = wallMetrics(tmp, [...els(), tmp]);
+    const axisLen = Math.max(2, len - wm.intDelta);
+    return { x: r1(draft.a.x + dir.x * axisLen), y: r1(draft.a.y + dir.y * axisLen) };
+  }
+
+  /* ---------- Construcción rápida por medida interior + edición directa de cotas ---------- */
+  function syncQuickPad() {
+    const pad = root && $('#pQuickPad', root);
+    if (!pad) return;
+    const show = tool === 'quick' && !inline3d.active;
+    pad.setAttribute('aria-hidden', show ? 'false' : 'true');
+    pad.classList.toggle('show', show);
+    if (!show) return;
+    const chainWalls = (quickState.chainIds || []).map(byId).filter(Boolean);
+    const canClose = chainWalls.length >= 2;
+    const lenM = fmtNum((num(quickState.len, 350)) / 100, 2);
+    pad.innerHTML = `
+      <div class="qp-head">
+        <span class="qp-title">${icon('quickwall', 15)} Construcción rápida <small>(luz interior)</small></span>
+        <div class="qp-thicks">${[10, 15, 20, 25].map((t) => `<button type="button" class="qp-chip ${pui.wallThick === t ? 'on' : ''}" data-qa="thick" data-v="${t}">${t}</button>`).join('')}<em>cm</em></div>
+      </div>
+      <div class="qp-main">
+        <label class="qp-len">
+          <span>Medida interior</span>
+          <div class="inp-suf"><input type="number" id="qpLenInp" inputmode="decimal" value="${r1(num(quickState.len, 350))}" min="5" step="1"><em>cm</em></div>
+          <small id="qpLenMeters">= ${lenM} m útiles</small>
+        </label>
+        <div class="qp-dirs" title="Añadir muro con esa medida interior en la dirección elegida">
+          <button type="button" class="qp-dir qp-up" data-qa="dir" data-dx="0" data-dy="-1" title="Arriba">${icon('arrowU', 17)}</button>
+          <button type="button" class="qp-dir qp-left" data-qa="dir" data-dx="-1" data-dy="0" title="Izquierda">${icon('arrowL', 17)}</button>
+          <button type="button" class="qp-dir qp-right" data-qa="dir" data-dx="1" data-dy="0" title="Derecha">${icon('arrowR', 17)}</button>
+          <button type="button" class="qp-dir qp-down" data-qa="dir" data-dx="0" data-dy="1" title="Abajo">${icon('arrowD', 17)}</button>
+        </div>
+      </div>
+      <div class="qp-foot">
+        <button type="button" class="btn sm ${canClose ? 'primary' : ''}" data-qa="closeRoom" ${canClose ? '' : 'disabled'} title="Cerrar muros con el inicio y crear estancia">${icon('check', 14)} Cerrar estancia</button>
+        <button type="button" class="btn sm" data-qa="newChain" title="Reiniciar cadena (o toca otro punto del plano)">${icon('pin', 14)} Nuevo inicio</button>
+      </div>`;
+  }
+
+  function buildInnerPolyFromChain(walls, sign) {
+    if (walls.length < 3) return null;
+    const s = sign || 1;
+    const lines = walls.map((w) => {
+      const L = wlen(w) || 1, ux = (w.x2 - w.x1) / L, uy = (w.y2 - w.y1) / L;
+      const nx = -uy * s, ny = ux * s, ht = (w.thick || 15) / 2;
+      return { px: w.x1 + nx * ht, py: w.y1 + ny * ht, ux, uy };
+    });
+    const pts = [];
+    for (let i = 0; i < lines.length; i++) {
+      const a = lines[(i - 1 + lines.length) % lines.length], b = lines[i];
+      const det = a.ux * b.uy - a.uy * b.ux;
+      if (Math.abs(det) < 1e-4) pts.push([r1(b.px), r1(b.py)]);
+      else {
+        const dx = b.px - a.px, dy = b.py - a.py;
+        const t = (dx * b.uy - dy * b.ux) / det;
+        pts.push([r1(a.px + a.ux * t), r1(a.py + a.uy * t)]);
+      }
+    }
+    return pts;
+  }
+
+  function quickAddSeg(dx, dy, rawLen) {
+    const intLen = Math.max(5, num(rawLen, quickState.len || 350));
+    quickState.len = intLen;
+    const uL = Math.hypot(dx, dy) || 1;
+    const ux = dx / uL, uy = dy / uL;
+    if (!quickState.pt) {
+      const ws = els().filter((e) => e.type === 'wall');
+      quickState.pt = ws.length ? { x: ws[ws.length - 1].x2, y: ws[ws.length - 1].y2 } : { x: 100, y: 100 };
+    }
+    const chainWalls = (quickState.chainIds || []).map(byId).filter(Boolean);
+    const prev = chainWalls.length ? chainWalls[chainWalls.length - 1] : null;
+    const tNew = pui.wallThick || 15;
+    pushUndo();
+
+    let startX = quickState.pt.x, startY = quickState.pt.y;
+    let axisLen = intLen;
+
+    if (prev && Math.hypot(prev.x2 - startX, prev.y2 - startY) < 2) {
+      const Lp = wlen(prev) || 1, pux = (prev.x2 - prev.x1) / Lp, puy = (prev.y2 - prev.y1) / Lp;
+      const cross = pux * uy - puy * ux;
+      const dot = pux * ux + puy * uy;
+      if (Math.abs(cross) > 0.2) {
+        const turn = cross > 0 ? 1 : -1;
+        if (!quickState.turnSign) quickState.turnSign = turn;
+        const sameTurn = turn === quickState.turnSign ? 1 : -1;
+        const absSin = Math.abs(cross);
+        const shiftPrev = sameTurn * (((tNew / 2) - (prev.thick / 2) * dot) / absSin);
+        const shiftNew = sameTurn * ((((prev.thick || 15) / 2) - (tNew / 2) * dot) / absSin);
+        prev.x2 = r1(prev.x2 + pux * shiftPrev);
+        prev.y2 = r1(prev.y2 + puy * shiftPrev);
+        prev.intSide = quickState.turnSign;
+        startX = prev.x2;
+        startY = prev.y2;
+        axisLen = Math.max(5, intLen + shiftNew);
+      }
+    }
+
+    const nw = {
+      id: uid(), type: 'wall',
+      x1: r1(startX), y1: r1(startY),
+      x2: r1(startX + ux * axisLen), y2: r1(startY + uy * axisLen),
+      thick: tNew, status: pui.wallStatus, height: 250, note: '',
+    };
+    if (quickState.turnSign) nw.intSide = quickState.turnSign;
+
+    // Si es el primer muro de la cadena y nace apoyado contra un muro ya existente, compensar grosor inicial
+    if (!prev) {
+      const wm0 = wallMetrics(nw, [...els(), nw]);
+      if (Math.abs(wm0.intDelta) > 0.2) {
+        const adj = Math.max(5, axisLen - wm0.intDelta);
+        nw.x2 = r1(nw.x1 + ux * adj);
+        nw.y2 = r1(nw.y1 + uy * adj);
+      }
+    }
+
+    els().push(nw);
+    quickState.chainIds.push(nw.id);
+    quickState.pt = { x: nw.x2, y: nw.y2 };
+
+    // Auto-cierre limpio si el tramo vuelve al origen de la cadena (>= 3 muros)
+    const allChain = quickState.chainIds.map(byId).filter(Boolean);
+    if (allChain.length >= 3) {
+      const w0 = allChain[0];
+      const closeDist = Math.hypot(nw.x2 - w0.x1, nw.y2 - w0.y1);
+      if (closeDist <= (w0.thick || 15) + tNew + 4) {
+        const L0 = wlen(w0) || 1, u0x = (w0.x2 - w0.x1) / L0, u0y = (w0.y2 - w0.y1) / L0;
+        const crossClose = ux * u0y - uy * u0x;
+        if (Math.abs(crossClose) > 0.2) {
+          const signC = ((crossClose > 0 ? 1 : -1) === (quickState.turnSign || 1)) ? 1 : -1;
+          w0.x1 = r1(w0.x1 - u0x * signC * (tNew / 2));
+          w0.y1 = r1(w0.y1 - u0y * signC * (tNew / 2));
+        }
+        nw.x2 = w0.x1; nw.y2 = w0.y1;
+        const pts = buildInnerPolyFromChain(allChain, quickState.turnSign || 1);
+        if (pts && polyArea(pts) > 400) {
+          const rName = (quickState.roomName || '').trim() || nextRoomName();
+          els().push({ id: uid(), type: 'room', name: rName, points: pts, color: nextRoomColor(), floor: '', ceiling: 250, note: '' });
+          quickState.roomName = '';
+          toast(`Estancia «${rName}» cerrada con medidas interiores exactas`, 'success');
+        }
+        quickState.pt = { x: w0.x2, y: w0.y2 };
+        quickState.chainIds = [];
+        quickState.turnSign = 0;
+      }
+    }
+
+    commit();
+    syncQuickPad();
+    const inp = root && $('#qpLenInp', root);
+    if (inp) { inp.focus(); try { inp.select(); } catch (_) {} }
+  }
+
+  function quickCloseRoom() {
+    const chainWalls = (quickState.chainIds || []).map(byId).filter(Boolean);
+    if (chainWalls.length < 2) { toast('Añade al menos 2 tramos antes de cerrar la estancia', 'warn'); return; }
+    pushUndo();
+    const w0 = chainWalls[0], wLast = chainWalls[chainWalls.length - 1];
+    const tClose = pui.wallThick || 15;
+    const L0 = wlen(w0) || 1, u0x = (w0.x2 - w0.x1) / L0, u0y = (w0.y2 - w0.y1) / L0;
+    const LL = wlen(wLast) || 1, uLx = (wLast.x2 - wLast.x1) / LL, uLy = (wLast.y2 - wLast.y1) / LL;
+    const sign = quickState.turnSign || 1;
+
+    // Extender inicio del primer muro y final del último muro para que el muro de cierre respete todas las caras interiores
+    const targetStartX = r1(w0.x1 - u0x * (tClose / 2));
+    const targetStartY = r1(w0.y1 - u0y * (tClose / 2));
+    const dxC = targetStartX - wLast.x2, dyC = targetStartY - wLast.y2;
+    const dClose = Math.hypot(dxC, dyC);
+    if (dClose > 4) {
+      const uCx = dxC / dClose, uCy = dyC / dClose;
+      const crossLast = uLx * uCy - uLy * uCx;
+      if (Math.abs(crossLast) > 0.2) {
+        const sL = ((crossLast > 0 ? 1 : -1) === sign) ? 1 : -1;
+        wLast.x2 = r1(wLast.x2 + uLx * sL * (tClose / 2));
+        wLast.y2 = r1(wLast.y2 + uLy * sL * (tClose / 2));
+      }
+      w0.x1 = targetStartX; w0.y1 = targetStartY;
+      const wClose = {
+        id: uid(), type: 'wall',
+        x1: wLast.x2, y1: wLast.y2, x2: w0.x1, y2: w0.y1,
+        thick: tClose, status: pui.wallStatus, height: 250, intSide: sign, note: '',
+      };
+      els().push(wClose);
+      chainWalls.push(wClose);
+    } else {
+      wLast.x2 = w0.x1; wLast.y2 = w0.y1;
+    }
+
+    const pts = buildInnerPolyFromChain(chainWalls, sign);
+    const rName = (quickState.roomName || '').trim() || nextRoomName();
+    if (pts && polyArea(pts) > 400) {
+      els().push({ id: uid(), type: 'room', name: rName, points: pts, color: nextRoomColor(), floor: '', ceiling: 250, note: '' });
+    }
+    quickState.roomName = '';
+    quickState.chainIds = [];
+    quickState.turnSign = 0;
+    quickState.pt = { x: w0.x2, y: w0.y2 };
+    commit();
+    syncQuickPad();
+    toast(`Estancia «${rName}» cerrada con medidas interiores exactas`, 'success');
+  }
+
+  function quickCreateRoomBox(name, intW, intH) {
+    const iw = Math.max(30, num(intW, 360)), ih = Math.max(30, num(intH, 300));
+    const t = pui.wallThick || 15, ht = t / 2;
+    let ox = 100, oy = 100;
+    if (quickState.pt) {
+      ox = quickState.pt.x; oy = quickState.pt.y;
+    } else {
+      const bb = bbox(els());
+      if (bb) { ox = r1(bb.x2 + 60); oy = r1(bb.y1 + ht); }
+    }
+    // Ejes desplazados ht hacia fuera para que la luz interior sea exactamente iw × ih
+    const x1 = r1(ox - ht), y1 = r1(oy - ht), x2 = r1(ox + iw + ht), y2 = r1(oy + ih + ht);
+    pushUndo();
+    const W = (ax, ay, bx, by) => ({ id: uid(), type: 'wall', x1: ax, y1: ay, x2: bx, y2: by, thick: t, status: pui.wallStatus, height: 250, intSide: 1, note: '' });
+    els().push(W(x1, y1, x2, y1), W(x2, y1, x2, y2), W(x2, y2, x1, y2), W(x1, y2, x1, y1));
+    const rName = (name || '').trim() || nextRoomName();
+    const r = {
+      id: uid(), type: 'room', name: rName,
+      points: [[r1(ox), r1(oy)], [r1(ox + iw), r1(oy)], [r1(ox + iw), r1(oy + ih)], [r1(ox), r1(oy + ih)]],
+      color: nextRoomColor(), floor: '', ceiling: 250, note: '',
+    };
+    els().push(r);
+    // Colocar el siguiente origen justo a la derecha compartiendo tabique por si quiere encadenar otra habitación
+    quickState.pt = { x: r1(x2 + ht), y: r1(oy) };
+    quickState.chainIds = [];
+    quickState.turnSign = 0;
+    quickState.roomName = '';
+    commit();
+    syncQuickPad();
+    toast(`«${rName}» creada (${fmtLenU(iw)} × ${fmtLenU(ih)} interiores = ${fmtNum((iw * ih) / 10000, 2)} m²)`, 'success');
+  }
+
+  function openWallDimModal(w) {
+    if (!w || w.type !== 'wall') return;
+    if (w.locked) { toast('Este muro está bloqueado (desbloquéalo primero para cambiar su medida)', 'warn'); return; }
+    const wm = wallMetrics(w, els());
+    Modal.open({
+      title: 'Medida interior real del muro',
+      body: `<form id="wallDimForm" class="grid2">
+        <label class="field span2">
+          <span>Medida cara interior útil (luz real en cm)</span>
+          <div class="inp-suf"><input type="number" name="intLen" id="wdIntInp" inputmode="decimal" value="${r1(wm.int)}" min="5" step="0.5" required><em>cm</em></div>
+          <small class="muted" id="wdPreview">Equivale a <b>${fmtNum(wm.int / 100, 2)} m</b> interiores · Cara exterior resultante: <b>${fmtLenU(wm.ext)}</b> (grosor ${w.thick} cm)</small>
+        </label>
+        <label class="field span2">
+          <span>Cómo ajustar las esquinas al cambiar la medida</span>
+          <select name="anchor">
+            <option value="start">Fijar punto inicial y desplazar el extremo final</option>
+            <option value="end">Fijar extremo final y desplazar el punto inicial</option>
+            <option value="both">Repartir por igual hacia ambos extremos</option>
+          </select>
+        </label>
+      </form>`,
+      foot: `<button class="btn" data-modal-close>Cancelar</button><button class="btn primary" id="wdSaveBtn">${icon('check', 15)} Aplicar medida interior</button>`,
+      onOpen(card) {
+        const inp = $('#wdIntInp', card), prev = $('#wdPreview', card), form = $('#wallDimForm', card);
+        setTimeout(() => { inp.focus(); inp.select(); }, 30);
+        inp.addEventListener('input', () => {
+          const v = Math.max(5, num(inp.value, wm.int));
+          const newAxis = Math.max(2, v - wm.intDelta);
+          const newExt = Math.max(0, r1(newAxis + wm.extDelta));
+          prev.innerHTML = `Equivale a <b>${fmtNum(v / 100, 2)} m</b> interiores · Cara exterior resultante: <b>${fmtLenU(newExt)}</b> (grosor ${w.thick} cm)`;
+        });
+        const apply = () => {
+          const v = num(inp.value, 0);
+          if (v < 5) return;
+          const anchor = form.querySelector('[name="anchor"]').value;
+          pushUndo();
+          resizeWallInterior(w, v, anchor);
+          Modal.close();
+          commit();
+          toast(`Medida interior ajustada a ${fmtLenU(v)}`, 'success');
+        };
+        $('#wdSaveBtn', card).addEventListener('click', apply);
+        form.addEventListener('submit', (ev) => { ev.preventDefault(); apply(); });
+      },
+    });
   }
 
   /* ---------- Creación ---------- */
@@ -1576,8 +1985,23 @@ const Plan = (() => {
       requestRender(); return;
     }
     if (e.button === 1 || tool === 'pan' || spaceDown) { startPan(e); return; }
+    const dimHit = e.target.closest('[data-wall-dim]');
+    if (dimHit && !draft && !placing) {
+      const dw = byId(dimHit.dataset.wallDim);
+      if (dw) { openWallDimModal(dw); return; }
+    }
     switch (tool) {
       case 'select': selectDown(e, p); break;
+      case 'quick': {
+        const q = snap(p);
+        quickState.pt = { x: q.x, y: q.y };
+        quickState.chainIds = [];
+        quickState.turnSign = 0;
+        syncQuickPad();
+        renderPanel();
+        toast(`Origen fijado en X ${fmtLen(q.x)} · Y ${fmtLen(q.y)}`, 'info');
+        break;
+      }
       case 'wall': {
         let q = snap(p);
         if (draft && draft.type === 'wall') {
@@ -1973,13 +2397,39 @@ const Plan = (() => {
     commit(); toast('Muro dividido en dos', 'success');
   }
   function moveWallEnd(w, end, nx, ny) {
-    const links = linksAt({ x: w['x' + end], y: w['y' + end] }, w.id);
+    const ox = w['x' + end], oy = w['y' + end];
+    const dx = r1(nx) - ox, dy = r1(ny) - oy;
+    const links = linksAt({ x: ox, y: oy }, w.id);
     w['x' + end] = r1(nx); w['y' + end] = r1(ny);
-    links.forEach((l) => { const o = byId(l.id); o['x' + l.end] = r1(nx); o['y' + l.end] = r1(ny); });
+    links.forEach((l) => { const o = byId(l.id); if (o) { o['x' + l.end] = r1(nx); o['y' + l.end] = r1(ny); } });
+    // Mantener unidos los vértices de habitaciones adyacentes a esa esquina
+    const tol = (w.thick || 15) + 4;
+    els().forEach((r) => {
+      if (r.type !== 'room' || !Array.isArray(r.points)) return;
+      r.points.forEach((pt) => {
+        if (Math.hypot(pt[0] - ox, pt[1] - oy) <= tol) { pt[0] = r1(pt[0] + dx); pt[1] = r1(pt[1] + dy); }
+      });
+    });
+  }
+  function resizeWallInterior(w, targetInt, anchor = 'start') {
+    const wm = wallMetrics(w, els());
+    const newAxis = Math.max(2, targetInt - wm.intDelta);
+    const L = wlen(w) || 1, ux = (w.x2 - w.x1) / L, uy = (w.y2 - w.y1) / L;
+    if (anchor === 'end') {
+      moveWallEnd(w, 1, w.x2 - ux * newAxis, w.y2 - uy * newAxis);
+    } else if (anchor === 'both') {
+      const mx = (w.x1 + w.x2) / 2, my = (w.y1 + w.y2) / 2;
+      moveWallEnd(w, 1, mx - ux * (newAxis / 2), my - uy * (newAxis / 2));
+      moveWallEnd(w, 2, mx + ux * (newAxis / 2), my + uy * (newAxis / 2));
+    } else {
+      moveWallEnd(w, 2, w.x1 + ux * newAxis, w.y1 + uy * newAxis);
+    }
   }
   function setProp(el, k, v) {
     const n = num(v, NaN);
     switch (k) {
+      case 'lengthInt': if (el.type === 'wall' && n > 0) resizeWallInterior(el, n, 'start'); return;
+      case 'lengthExt': if (el.type === 'wall' && n > 0) { const wm = wallMetrics(el, els()); const newAxis = Math.max(2, n - wm.extDelta); const a = Math.atan2(el.y2 - el.y1, el.x2 - el.x1); moveWallEnd(el, 2, el.x1 + Math.cos(a) * newAxis, el.y1 + Math.sin(a) * newAxis); } return;
       case 'length': if (el.type === 'wall' && n > 0) { const a = Math.atan2(el.y2 - el.y1, el.x2 - el.x1); moveWallEnd(el, 2, el.x1 + Math.cos(a) * n, el.y1 + Math.sin(a) * n); } return;
       case 'wangle': if (el.type === 'wall' && Number.isFinite(n)) { const L = wlen(el), a = (-n * Math.PI) / 180; moveWallEnd(el, 2, el.x1 + Math.cos(a) * L, el.y1 + Math.sin(a) * L); } return;
       case 'pos': { const w = byId(el.wallId); if (w && Number.isFinite(n)) { const L = wlen(w); el.t = clamp(n + el.width / 2, el.width / 2, L - el.width / 2) / L; } return; }
@@ -2023,9 +2473,10 @@ const Plan = (() => {
   function renderPanel() {
     if (!panel) return;
     const el = sel && byId(sel);
-    let h = `<div class="panel-mobile-head"><span>${multiSel.size > 1 ? `Multiselección (${multiSel.size})` : el ? 'Propiedades' : tool === 'furn' ? 'Mobiliario y cocina' : tool === 'sym' ? 'Instalaciones' : 'Resumen del plano'}</span><button class="icon-btn sm" data-a="closePanel" title="Cerrar panel">${icon('x', 18)}</button></div>`;
+    let h = `<div class="panel-mobile-head"><span>${multiSel.size > 1 ? `Multiselección (${multiSel.size})` : el ? 'Propiedades' : tool === 'quick' ? 'Construcción rápida' : tool === 'furn' ? 'Mobiliario y cocina' : tool === 'sym' ? 'Instalaciones' : 'Resumen del plano'}</span><button class="icon-btn sm" data-a="closePanel" title="Cerrar panel">${icon('x', 18)}</button></div>`;
     if (multiSel.size > 1) h += multiProps();
     else if (el) h += propsFor(el);
+    else if (tool === 'quick') h += quickToolOpts() + summary();
     else if (tool === 'furn') h += furnLibrary();
     else if (tool === 'sym') h += symLibrary();
     else if (tool === 'duct') h += ductToolOpts() + summary();
@@ -2076,6 +2527,40 @@ const Plan = (() => {
     </div>`;
   }
 
+  function quickToolOpts() {
+    const chainN = (quickState.chainIds || []).map(byId).filter(Boolean).length;
+    const qp = quickState.pt || { x: 100, y: 100 };
+    return `<div class="psec"><h4>${icon('quickwall', 16)} Construcción rápida por medidas</h4>
+      <p class="phint">${icon('hint', 14)} Introduce las <b>medidas reales interiores</b> (láser / cinta por dentro de la habitación). El grosor de las esquinas se compensa solo.</p>
+      <div class="chips">${[7, 10, 12, 15, 20, 25, 30].map((t) => `<button class="chip ${pui.wallThick === t ? 'on' : ''}" data-a="wthick" data-v="${t}">${t} cm</button>`).join('')}</div>
+      <div class="pgrid">
+        <label class="pf"><span>Grosor muro</span><div class="inp-suf"><input type="number" data-wo="wallThick" value="${pui.wallThick}" min="1"><em>cm</em></div></label>
+        <label class="pf"><span>Estado</span><select data-wo="wallStatus">${Object.entries(WALL_STATUS).map(([k, l]) => `<option value="${k}" ${k === pui.wallStatus ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+      </div>
+      <label class="pf full pf-highlight"><span>Medida interior del tramo</span><div class="inp-suf"><input type="number" data-qo="len" inputmode="decimal" value="${r1(num(quickState.len, 350))}" min="5"><em>cm</em></div></label>
+      <div class="qb-compass">
+        <button type="button" class="btn sm" data-a="qdir" data-dx="0" data-dy="-1">${icon('arrowU', 15)} Arriba</button>
+        <button type="button" class="btn sm" data-a="qdir" data-dx="-1" data-dy="0">${icon('arrowL', 15)} Izq.</button>
+        <button type="button" class="btn sm" data-a="qdir" data-dx="1" data-dy="0">${icon('arrowR', 15)} Der.</button>
+        <button type="button" class="btn sm" data-a="qdir" data-dx="0" data-dy="1">${icon('arrowD', 15)} Abajo</button>
+      </div>
+      <div class="pactions">
+        <button type="button" class="btn sm ${chainN >= 2 ? 'primary' : ''}" data-a="qCloseRoom" ${chainN >= 2 ? '' : 'disabled'}>${icon('check', 14)} Cerrar estancia (${chainN})</button>
+        <button type="button" class="btn sm" data-a="qResetOrigin">${icon('pin', 14)} Nuevo inicio</button>
+      </div>
+      <div class="pinfos">${F.info('Punto activo', `X ${fmtLen(qp.x)} · Y ${fmtLen(qp.y)}`)}</div>
+    </div>
+    <div class="psec"><h4>${icon('wallrect', 16)} Estancia rectangular de una vez</h4>
+      <label class="pf full"><span>Nombre de la estancia</span><input type="text" data-qo="roomName" value="${esc(quickState.roomName || '')}" placeholder="Ej. Salón, Dormitorio 1, Baño…"></label>
+      <div class="pgrid">
+        <label class="pf pf-highlight"><span>Ancho interior</span><div class="inp-suf"><input type="number" data-qo="roomW" inputmode="decimal" value="${r1(num(quickState.roomW, 360))}" min="30"><em>cm</em></div></label>
+        <label class="pf pf-highlight"><span>Largo interior</span><div class="inp-suf"><input type="number" data-qo="roomH" inputmode="decimal" value="${r1(num(quickState.roomH, 300))}" min="30"><em>cm</em></div></label>
+      </div>
+      <button type="button" class="btn primary" data-a="qCreateRoom">${icon('plus', 15)} Crear estancia con 4 muros</button>
+      <p class="phint">${icon('ruler', 14)} También puedes tocar directamente <b>cualquier medida de pared</b> en el plano para editar su luz interior sin cambiar al selector.</p>
+    </div>`;
+  }
+
   function wallToolOpts() {
     return `<div class="psec"><h4>${icon('wall', 16)} Opciones de muro</h4>
       <div class="chips">${[7, 10, 12, 15, 20, 25, 30].map((t) => `<button class="chip ${pui.wallThick === t ? 'on' : ''}" data-a="wthick" data-v="${t}">${t} cm</button>`).join('')}</div>
@@ -2083,7 +2568,8 @@ const Plan = (() => {
         <label class="pf"><span>Grosor</span><div class="inp-suf"><input type="number" data-wo="wallThick" value="${pui.wallThick}" min="1"><em>cm</em></div></label>
         <label class="pf"><span>Estado</span><select data-wo="wallStatus">${Object.entries(WALL_STATUS).map(([k, l]) => `<option value="${k}" ${k === pui.wallStatus ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
       </div>
-      <p class="phint">${icon('hint', 14)} Mientras dibujas, teclea la longitud exacta (en cm) y pulsa <kbd>Enter</kbd>.</p>
+      <button type="button" class="btn sm primary" data-a="goQuickTool">${icon('quickwall', 15)} Abrir Construcción rápida (pared + medida)</button>
+      <p class="phint">${icon('hint', 14)} Mientras dibujas, teclea la <b>medida interior</b> (en cm) y pulsa <kbd>Enter</kbd>, o toca cualquier cota en el plano para editarla.</p>
     </div>`;
   }
 
@@ -2154,16 +2640,27 @@ const Plan = (() => {
       <button class="icon-btn sm" data-a="deselect" title="Cerrar (Esc)">${icon('x', 16)}</button></div>`;
     switch (el.type) {
       case 'wall': {
-        const L = wlen(el), ops = els().filter((o) => o.wallId === el.id);
+        const wm = wallMetrics(el, els()), L = wm.axis, H = el.height || 250;
+        const ops = els().filter((o) => o.wallId === el.id);
         const huecos = ops.reduce((s, o) => s + (o.width * (o.height || 0)) / 10000, 0);
-        return head('wall', 'Muro', WALL_STATUS[el.status || 'existente']) + `<div class="psec"><div class="pgrid">
-          ${F.num('Longitud', 'length', L)}${F.num('Grosor', 'thick', el.thick)}
-          ${F.num('Ángulo', 'wangle', Math.round((((-deg(Math.atan2(el.y2 - el.y1, el.x2 - el.x1))) % 360) + 360) % 360 * 10) / 10, '°')}${F.num('Altura', 'height', el.height || 250)}
+        const surfInt = Math.max(0, (wm.int * H) / 10000 - huecos);
+        const surfExt = Math.max(0, (wm.ext * H) / 10000 - huecos);
+        return head('wall', 'Muro', `${WALL_STATUS[el.status || 'existente']} · Int ${fmtLenU(wm.int)}`) + `<div class="psec"><div class="pgrid">
+          <label class="pf pf-highlight"><span>${wm.isPartition ? 'Cara interior (A)' : 'Medida interior real'}</span><div class="inp-suf"><input type="number" data-p="lengthInt" value="${r1(wm.int)}" step="0.5"><em>cm</em></div></label>
+          <label class="pf"><span>${wm.isPartition ? 'Cara opuesta (B)' : 'Cara exterior'}</span><div class="inp-suf"><input type="number" data-p="lengthExt" value="${r1(wm.ext)}" step="0.5"><em>cm</em></div></label>
+          ${F.num('Longitud a ejes', 'length', L)}${F.num('Grosor', 'thick', el.thick)}
+          ${F.num('Ángulo', 'wangle', Math.round((((-deg(Math.atan2(el.y2 - el.y1, el.x2 - el.x1))) % 360) + 360) % 360 * 10) / 10, '°')}${F.num('Altura', 'height', H)}
           ${F.sel('Estado', 'status', el.status || 'existente', WALL_STATUS, true)}
           <label class="pf"><span>Color / pintura</span><input type="color" data-p="wallColor" value="${el.wallColor || '#e2e8f0'}"></label>
           ${F.sel('Textura / revestimiento', 'wallTexture', el.wallTexture || 'liso', TEXTURES, true)}
         </div>
-        <div class="pinfos">${F.info('Superficie por cara', fmtNum((L * (el.height || 250)) / 10000) + ' m²')}${F.info('Huecos en el muro', ops.length + (huecos ? ` (${fmtNum(huecos)} m²)` : ''))}${F.info('Superficie neta por cara', fmtNum((L * (el.height || 250)) / 10000 - huecos) + ' m²')}</div>
+        <div class="pinfos">
+          ${F.info('Medida cara interior / exterior', `${fmtLenU(wm.int)} / ${fmtLenU(wm.ext)}`)}
+          ${F.info('Superficie neta cara interior', fmtNum(surfInt) + ' m²')}
+          ${F.info('Superficie neta cara exterior', fmtNum(surfExt) + ' m²')}
+          ${F.info('Huecos en el muro', ops.length + (huecos ? ` (${fmtNum(huecos)} m²)` : ''))}
+        </div>
+        <div class="pactions"><button class="btn sm" data-a="flipWallSide" title="Intercambiar qué lado del muro se considera cara interior">${icon('flip', 14)} Invertir cara int./ext.</button></div>
         ${F.area('Notas', 'note', el.note, 'Material, refuerzos, rozas…')}</div>
         ${actions(`<button class="btn sm" data-a="split">${icon('split', 14)} Dividir</button>`, B.dup, B.del)}`;
       }
@@ -2371,7 +2868,7 @@ const Plan = (() => {
     const s = clamp((fmt === 'png' ? 2400 : 1400) / Math.max(bw, bh), 0.3, 6);
     const pad = 70, head = 80, W = Math.ceil(bw * s + pad * 2), H = Math.ceil(bh * s + pad * 2 + head);
     const st = stats(plan());
-    const inner = renderElements(list, s, th, pui.layers, pui.autoDims).replace(/ data-id="[^"]*"/g, '');
+    const inner = renderElements(list, s, th, pui.layers, pui.autoDims).replace(/ data-id="[^"]*"/g, '').replace(/ data-wall-dim="[^"]*"/g, '');
     const cands = [50, 100, 200, 500, 1000], sbl = cands.find((c) => c * s >= 120) || 1000;
     const svgStr = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif">
       <rect width="${W}" height="${H}" fill="${th.bg}"/>
@@ -2397,7 +2894,7 @@ const Plan = (() => {
     const bw = b.x2 - b.x1, bh = b.y2 - b.y1, pad = 16;
     const s = Math.min((W - pad * 2) / bw, (H - pad * 2) / bh);
     const tx = (W - bw * s) / 2 - b.x1 * s, ty = (H - bh * s) / 2 - b.y1 * s;
-    return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" font-family="Inter, sans-serif"><rect width="${W}" height="${H}" fill="${th.bg}"/><g transform="translate(${tx} ${ty}) scale(${s})">${renderElements(p.elements, s, th, DEF_LAYERS, false).replace(/ data-id="[^"]*"/g, '')}</g></svg>`;
+    return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" font-family="Inter, sans-serif"><rect width="${W}" height="${H}" fill="${th.bg}"/><g transform="translate(${tx} ${ty}) scale(${s})">${renderElements(p.elements, s, th, DEF_LAYERS, false).replace(/ data-id="[^"]*"/g, '').replace(/ data-wall-dim="[^"]*"/g, '')}</g></svg>`;
   }
 
   /* ---------- Enlaces de eventos ---------- */
@@ -2411,7 +2908,7 @@ const Plan = (() => {
     svg.addEventListener('dblclick', (e) => {
       if (draft && draft.type === 'wall') { draft = null; requestRender(); }
       else if (draft && draft.type === 'poly') closePoly();
-      else if (tool === 'select') { const t = e.target.closest('[data-id]'); if (t) setTimeout(() => { const i = panel.querySelector('[data-p="name"], [data-p="text"], [data-p="length"]'); if (i) { i.focus(); i.select && i.select(); } }, 20); }
+      else if (tool === 'select') { const t = e.target.closest('[data-id]'); if (t) setTimeout(() => { const i = panel.querySelector('[data-p="name"], [data-p="text"], [data-p="lengthInt"], [data-p="length"]'); if (i) { i.focus(); i.select && i.select(); } }, 20); }
     });
     svg.addEventListener('wheel', (e) => {
       e.preventDefault();
@@ -2454,7 +2951,7 @@ const Plan = (() => {
         case 'toggleDeskPanel': pui.panelHidden = !pui.panelHidden; savePui(); syncTop(); requestRender(); break;
         case 'wallLenPrompt': {
           if (!draft || draft.type !== 'wall') break;
-          const v = num(prompt('Longitud exacta del muro en centímetros (ej. 350 para 3,50 m):', '300'), 0);
+          const v = num(prompt('Medida interior exacta del muro en centímetros (ej. 350 para 3,50 m):', '300'), 0);
           if (v > 0) {
             draft.typed = String(v);
             const q = typedEnd();
@@ -2620,11 +3117,50 @@ const Plan = (() => {
     }
     document.addEventListener('click', (e) => { $$('details.dropdown[open]').forEach((d) => { if (!d.contains(e.target)) d.open = false; }); });
 
+    const qPad = $('#pQuickPad', root);
+    if (qPad) {
+      qPad.addEventListener('input', (e) => {
+        if (e.target.id === 'qpLenInp') {
+          quickState.len = Math.max(5, num(e.target.value, 350));
+          const sm = $('#qpLenMeters', qPad);
+          if (sm) sm.textContent = `= ${fmtNum(quickState.len / 100, 2)} m útiles`;
+          const pInp = panel && panel.querySelector('[data-qo="len"]');
+          if (pInp && pInp !== e.target) pInp.value = quickState.len;
+        }
+      });
+      qPad.addEventListener('keydown', (e) => {
+        if (e.target.id !== 'qpLenInp') return;
+        if (e.key === 'ArrowRight') { e.preventDefault(); quickAddSeg(1, 0, e.target.value); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); quickAddSeg(-1, 0, e.target.value); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); quickAddSeg(0, -1, e.target.value); }
+        else if (e.key === 'ArrowDown') { e.preventDefault(); quickAddSeg(0, 1, e.target.value); }
+      });
+      qPad.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-qa]'); if (!b) return;
+        if (b.dataset.qa === 'thick') { pui.wallThick = +b.dataset.v; savePui(); syncQuickPad(); renderPanel(); requestRender(); }
+        else if (b.dataset.qa === 'dir') {
+          const inp = $('#qpLenInp', qPad);
+          quickAddSeg(+b.dataset.dx, +b.dataset.dy, inp ? inp.value : quickState.len);
+        } else if (b.dataset.qa === 'closeRoom') quickCloseRoom();
+        else if (b.dataset.qa === 'newChain') {
+          quickState.chainIds = []; quickState.turnSign = 0;
+          syncQuickPad(); renderPanel(); requestRender();
+          toast('Toca en el plano donde quieras empezar el nuevo tramo', 'info');
+        }
+      });
+    }
+
     // Panel
     let panelSnap = null;
     panel.addEventListener('focusin', (e) => { if (e.target.dataset.p) panelSnap = JSON.stringify(els()); });
     panel.addEventListener('input', (e) => {
       const t = e.target;
+      if (t.dataset.qo) {
+        if (t.dataset.qo === 'roomName') quickState.roomName = t.value;
+        else quickState[t.dataset.qo] = Math.max(5, num(t.value, 300));
+        if (t.dataset.qo === 'len') syncQuickPad();
+        return;
+      }
       if (t.id === 'furnSearch') {
         furnQuery = t.value;
         const pos = t.selectionStart;
@@ -2685,6 +3221,12 @@ const Plan = (() => {
         case 'unlockAllSel': toggleLockSel(false); break;
         case 'unlockAll': pushUndo(); els().forEach((x) => { x.locked = false; }); commit(); toast('Todos los elementos desbloqueados', 'success'); break;
         case 'split': if (el) splitWall(el); break;
+        case 'flipWallSide': if (el && el.type === 'wall') { pushUndo(); const wm = wallMetrics(el, els()); el.intSide = -(wm.intSide || 1); commit(); } break;
+        case 'goQuickTool': setTool('quick'); break;
+        case 'qdir': quickAddSeg(+b.dataset.dx, +b.dataset.dy, quickState.len); break;
+        case 'qCloseRoom': quickCloseRoom(); break;
+        case 'qResetOrigin': quickState.chainIds = []; quickState.turnSign = 0; syncQuickPad(); renderPanel(); requestRender(); toast('Toca el plano para elegir el nuevo punto inicial', 'info'); break;
+        case 'qCreateRoom': quickCreateRoomBox(quickState.roomName, quickState.roomW, quickState.roomH); break;
         case 'hinge': if (el) { pushUndo(); el.hinge = el.hinge === 'right' ? 'left' : 'right'; commit(); } break;
         case 'flip': if (el) { pushUndo(); el.side = -(el.side || 1); commit(); } break;
         case 'color': if (el) { pushUndo(); el.color = b.dataset.c; commit(); } break;
