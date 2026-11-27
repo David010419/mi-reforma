@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795806443298,
+  "updatedAt": 1795806448731,
   "project": {
     "name": "Jijona",
     "address": "Av Joan Fuster 8",
@@ -1806,7 +1806,8 @@
           "color": "#bbf7d0",
           "floor": "",
           "ceiling": 250,
-          "note": ""
+          "note": "",
+          "locked": true
         }
       ],
       "bgImage": null
