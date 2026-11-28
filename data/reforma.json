@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "updatedAt": 1795822282960,
+  "updatedAt": 1795861858464,
   "project": {
     "name": "Jijona",
     "address": "Av Joan Fuster 8",
@@ -9,7 +9,7 @@
     "budget": 130000
   },
   "settings": {
-    "theme": "dark",
+    "theme": "auto",
     "units": "m",
     "planTheme": "paper"
   },
