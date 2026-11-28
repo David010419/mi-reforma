@@ -484,7 +484,7 @@ const Obra = (() => {
 
   /* ---------- 5. Cuadro General Eléctrico (CGE) y Consumos ---------- */
   const DEFAULT_WATTS = {
-    luz: 18, foco: 9, tiraLed: 35, aplique: 12,
+    luz: 18, foco: 9, tiraLed: 35, aplique: 12, espejoLed: 22,
     enchufe: 200, enchufe2: 350, enchufeEnc: 800, enchufeUsb: 60, tv: 120, red: 20, timbre: 10,
     maqInt: 150, maqExt: 1800, aire: 1200, extractor: 45, radiador: 1200, compuerta: 15, mandoCentral: 8, termostatoZona: 5,
     domotica: 25, persiana: 120, motorGaraje: 450, cargadorEV: 3700, camara: 12, sensorPres: 3, videoportero: 15, wifi: 18,
@@ -494,6 +494,7 @@ const Obra = (() => {
     if (el.circuitId) return el.circuitId;
     const k = el.kind || '';
     if (['luz', 'foco', 'tiraLed', 'aplique'].includes(k)) return 'c1';
+    if (k === 'espejoLed') return (S().electrical?.circuits || []).some((x) => x.id === 'c5') ? 'c5' : 'c1';
     if (['enchufe', 'enchufe2', 'enchufeUsb', 'tv', 'red', 'timbre'].includes(k)) return 'c2';
     if (['enchufeEnc'].includes(k)) return 'c5';
     if (['placa', 'horno', 'microondas', 'campana'].includes(k)) return 'c3';
@@ -505,11 +506,14 @@ const Obra = (() => {
   }
   function isCircuitLive(circuitId) {
     const E = S().electrical;
-    if (!E || !E.igaOn) return false;
-    const c = E.circuits.find((x) => x.id === circuitId);
-    if (!c || !c.on) return false;
-    const d = E.differentials.find((x) => x.id === c.diffId);
-    return !d || !!d.on;
+    if (!E) return true;
+    if (E.igaOn === false) return false;
+    if (!circuitId) return true;
+    const c = (E.circuits || []).find((x) => x.id === circuitId);
+    if (!c) return true;
+    if (c.on === false) return false;
+    const d = (E.differentials || []).find((x) => x.id === c.diffId);
+    return !d || d.on !== false;
   }
   function computeElectrical() {
     const E = S().electrical;

@@ -228,6 +228,7 @@ const Settings = (() => {
         }
         case 'ghPush': b.disabled = true; await GitHubSync.push({ silent: false }); b.disabled = false; render(); break;
         case 'ghPull': b.disabled = true; await GitHubSync.pull({ force: true, silent: false }); b.disabled = false; render(); break;
+        case 'ghHistory': GitHubSync.openHistoryModal(); break;
         case 'addCat': addCat(); break;
         case 'delCat': {
           const i = +b.dataset.i, c = S().categories[i];
@@ -291,6 +292,7 @@ const Settings = (() => {
             <button class="btn" data-a="ghTest">${icon('check', 16)} Probar conexión</button>
             <button class="btn primary" data-a="ghPush" ${ghOk ? '' : 'disabled'}>${icon('upload', 16)} Guardar ahora en GitHub</button>
             <button class="btn" data-a="ghPull" ${ghOk ? '' : 'disabled'}>${icon('download', 16)} Cargar desde GitHub</button>
+            <button class="btn" data-a="ghHistory">${icon('clock', 16)} Historial / Recuperar planos…</button>
           </div>
           ${GitHubSync.lastError ? `<div class="danger-txt small">Último error: ${esc(GitHubSync.lastError)}</div>` : ''}
           <details class="gh-help">

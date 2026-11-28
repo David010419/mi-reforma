@@ -130,6 +130,39 @@ var Plan3D = window.Plan3D = (() => {
     return tex;
   }
 
+  let glowTex = null;
+  function getGlowTexture() {
+    if (glowTex || typeof document === 'undefined') return glowTex;
+    const c = document.createElement('canvas');
+    c.width = 128; c.height = 128;
+    const g = c.getContext('2d');
+    const grd = g.createRadialGradient(64, 64, 2, 64, 64, 64);
+    grd.addColorStop(0, 'rgba(255, 250, 220, 0.95)');
+    grd.addColorStop(0.28, 'rgba(255, 224, 130, 0.55)');
+    grd.addColorStop(0.65, 'rgba(251, 191, 36, 0.16)');
+    grd.addColorStop(1, 'rgba(251, 191, 36, 0)');
+    g.fillStyle = grd;
+    g.fillRect(0, 0, 128, 128);
+    glowTex = new THREE.CanvasTexture(c);
+    if ('colorSpace' in glowTex && THREE.SRGBColorSpace) glowTex.colorSpace = THREE.SRGBColorSpace;
+    return glowTex;
+  }
+
+  function makeGlowSprite(scaleW, scaleH, hex = 0xffe49e, opacity = 0.85) {
+    const map = getGlowTexture();
+    const mat = new THREE.SpriteMaterial({
+      map: map || null,
+      color: hex,
+      transparent: true,
+      opacity,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    const sp = new THREE.Sprite(mat);
+    sp.scale.set(scaleW, scaleH, 1);
+    return sp;
+  }
+
   function makeMat(hex, texKind = 'liso', opts = {}) {
     const roughness = opts.roughness ?? (texKind === 'marmol' || texKind === 'azulejo' || texKind === 'metro' ? 0.25 : texKind === 'madera' ? 0.55 : 0.72);
     const metalness = opts.metalness ?? 0.04;
@@ -173,8 +206,8 @@ var Plan3D = window.Plan3D = (() => {
   }
 
   /* ---------- Construcción de Mobiliario Detallado en 3D ---------- */
-  function buildFurniture3D(f, helpers, animTargets) {
-    const { furn3DStyle, num } = helpers;
+  function buildFurniture3D(f, helpers, animTargets, night = false) {
+    const { furn3DStyle, num, Obra } = helpers;
     const st = furn3DStyle(f.kind);
     const fH = f.h3d || st.h || 75;
     const fZ0 = f.z0 ?? st.z0 ?? 0;
@@ -409,8 +442,29 @@ var Plan3D = window.Plan3D = (() => {
         break;
       }
       case 'espejoLed': {
-        boxMesh(root, W, fH, 2.5, makeMat('#e2e8f0', 'liso', { roughness: 0.04, metalness: 0.88 }), 0, fH / 2, 0);
-        boxMesh(root, W + 3, fH + 3, 1, makeMat('#fef08a', 'liso', { roughness: 0.3 }), 0, fH / 2, -1.4);
+        const ledLive = night && (!Obra || Obra.isCircuitLive(Obra.inferCircuitId(f)));
+        // Marco LED retroiluminado perimetral (emite luz propia brillante en modo noche)
+        const ledFrameMat = ledLive
+          ? new THREE.MeshBasicMaterial({ color: 0xfff8d6 })
+          : makeMat('#fef9c3', 'liso', { roughness: 0.25 });
+        boxMesh(root, W + 4, fH + 4, 1.4, ledFrameMat, 0, fH / 2, -1.2, { cast: false });
+        // Cristal del espejo en el frente (+z mira hacia el interior del baño)
+        boxMesh(root, W - 2, fH - 2, 2.2, makeMat(ledLive ? '#f1f5f9' : '#e2e8f0', 'liso', { roughness: 0.04, metalness: 0.9 }), 0, fH / 2, 0.4, { cast: false });
+        // Tira LED frontal esmerilada perimetral visible en el propio espejo
+        if (ledLive) {
+          const stripMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+          boxMesh(root, W - 5, 1.8, 0.5, stripMat, 0, fH - 3.5, 1.65, { cast: false });
+          boxMesh(root, W - 5, 1.8, 0.5, stripMat, 0, 3.5, 1.65, { cast: false });
+          boxMesh(root, 1.8, fH - 7, 0.5, stripMat, -hw + 3.5, fH / 2, 1.65, { cast: false });
+          boxMesh(root, 1.8, fH - 7, 0.5, stripMat, hw - 3.5, fH / 2, 1.65, { cast: false });
+          const halo = makeGlowSprite(Math.max(110, W * 2.1), Math.max(110, fH * 2.1), 0xfff3c4, 0.72);
+          halo.position.set(0, fH / 2, 3);
+          root.add(halo);
+          // Luz puntual calibrada para unidades en cm en Three.js r158 (delante del cristal para iluminar lavabo y paredes)
+          const pl = new THREE.PointLight(0xfff4cc, 14, 460, 0.35);
+          pl.position.set(0, fH / 2, 16);
+          root.add(pl);
+        }
         break;
       }
       case 'fregadero': {
@@ -473,17 +527,17 @@ var Plan3D = window.Plan3D = (() => {
     const night = !!state3d.nightMode;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(night ? '#0f172a' : '#eaf0f8');
+    scene.background = new THREE.Color(night ? '#090f1d' : '#eaf0f8');
 
     const animTargets = [];
     const scalableRoot = new THREE.Group(); // escala en Y según wallCut en modo Maqueta (0 ms por fotograma)
     scene.add(scalableRoot);
 
-    const hemi = new THREE.HemisphereLight(night ? 0x334155 : 0xffffff, night ? 0x0f172a : 0xcbd5e1, night ? 0.45 : 0.96);
+    const hemi = new THREE.HemisphereLight(night ? 0x3b4d6b : 0xffffff, night ? 0x090f1d : 0xcbd5e1, night ? 0.24 : 0.96);
     hemi.position.set(0, 800, 0);
     scene.add(hemi);
 
-    const sun = new THREE.DirectionalLight(night ? 0x93c5fd : 0xfffaf0, night ? 0.28 : 1.12);
+    const sun = new THREE.DirectionalLight(night ? 0x93c5fd : 0xfffaf0, night ? 0.10 : 1.12);
     sun.position.set(520, 980, 640);
     sun.castShadow = true;
     const smap = isTouchDevice() ? 1024 : 1536;
@@ -496,7 +550,7 @@ var Plan3D = window.Plan3D = (() => {
     sun.shadow.bias = -0.0006;
     scene.add(sun);
 
-    const fillLight = new THREE.DirectionalLight(0xe0f2fe, night ? 0.14 : 0.38);
+    const fillLight = new THREE.DirectionalLight(0xe0f2fe, night ? 0.06 : 0.38);
     fillLight.position.set(-600, 500, -450);
     scene.add(fillLight);
 
@@ -724,7 +778,7 @@ var Plan3D = window.Plan3D = (() => {
     scene.add(furnRoot);
     if (state3d.showFurn !== false) {
       list.filter((e) => e.type === 'furn' && e.kind !== 'norte').forEach((f) => {
-        const { group } = buildFurniture3D(f, helpers, animTargets);
+        const { group } = buildFurniture3D(f, helpers, animTargets, night);
         furnRoot.add(group);
         if (state3d.editable && state3d.sel3dId === f.id) selBoxTarget.box = group;
       });
@@ -817,10 +871,11 @@ var Plan3D = window.Plan3D = (() => {
         if (state3d.editable && state3d.sel3dId === y.id) selBoxTarget.box = grp;
         return;
       }
+      const isLightSym = ['luz', 'foco', 'tiraLed', 'aplique'].includes(y.kind);
       const rt = y.route || ((y.height ?? d.h ?? 110) >= 195 ? 'techo' : 'suelo');
       const routeOk = (rt === 'techo' ? state3d.showTecho !== false : state3d.showSuelo !== false);
       const visOk = y.installVis === 'empotrado' ? state3d.showEmpotrado !== false : true;
-      if (grpVisible3d(d.group) && routeOk && visOk) {
+      if (!isLightSym && grpVisible3d(d.group) && routeOk && visOk) {
         const sz = y.kind === 'maqInt' ? [80, 26, 50] : y.kind === 'maqExt' ? [85, 65, 35] : (y.kind === 'rejImp' || y.kind === 'rejRet') ? [45, 14, 16] : [14, 14, 14];
         const zTop = Math.max(sz[1], y.height ?? d.h);
         const grp = new THREE.Group();
@@ -831,28 +886,80 @@ var Plan3D = window.Plan3D = (() => {
         else scalableRoot.add(grp);
         if (state3d.editable && state3d.sel3dId === y.id) selBoxTarget.box = grp;
       }
-      if (night && ['luz', 'foco', 'tiraLed', 'aplique'].includes(y.kind)) {
-        const live = Obra.isCircuitLive(Obra.inferCircuitId(y));
-        const zL = Math.max(45, (y.height || 245) - 8);
-        const bulbMat = new THREE.MeshBasicMaterial({ color: live ? 0xfef08a : 0x475569 });
-        const bulb = new THREE.Mesh(new THREE.SphereGeometry(5.5, 10, 10), bulbMat);
-        bulb.position.set(y.x, zL, y.y);
-        scalableRoot.add(bulb);
-        if (live) {
-          const pl = new THREE.PointLight(0xffdca8, y.kind === 'foco' ? 1.5 : 2.4, 620, 1.3);
-          pl.position.set(y.x, zL - 6, y.y);
-          scalableRoot.add(pl);
+      if (isLightSym && (night || (grpVisible3d(d.group) && routeOk && visOk))) {
+        const live = night && (!Obra || Obra.isCircuitLive(Obra.inferCircuitId(y)));
+        const zL = Math.max(40, (y.height ?? d.h ?? 248) - 4);
+        const lGrp = new THREE.Group();
+        lGrp.position.set(y.x, zL, y.y);
+        lGrp.rotation.y = -((y.angle || 0) * Math.PI) / 180;
+        const bodyMat = makeMat('#cbd5e1', 'liso', { roughness: 0.3, metalness: 0.5 });
+        const emitMat = live
+          ? new THREE.MeshBasicMaterial({ color: y.kind === 'tiraLed' ? 0xffe885 : 0xfff6c2 })
+          : makeMat(night ? '#475569' : '#f8fafc', 'liso', { roughness: 0.35 });
+
+        if (y.kind === 'tiraLed') {
+          boxMesh(lGrp, 92, 2.2, 4, bodyMat, 0, 1.2, 0, { cast: false, pickId: y.id });
+          boxMesh(lGrp, 90, 1.8, 3.2, emitMat, 0, -0.4, 0, { cast: false, pickId: y.id });
+          if (live) {
+            const halo = makeGlowSprite(155, 85, 0xffe082, 0.78);
+            halo.position.set(0, -4, 0);
+            lGrp.add(halo);
+          }
+        } else if (y.kind === 'foco') {
+          addMesh(lGrp, new THREE.CylinderGeometry(7.5, 7.5, 2.2, 18), bodyMat, 0, 1, 0, false, false, y.id, 1);
+          addMesh(lGrp, new THREE.CylinderGeometry(5.5, 5.5, 1.6, 18), emitMat, 0, -0.3, 0, false, false, y.id, 1);
+          if (live) {
+            const halo = makeGlowSprite(78, 78, 0xfff3b0, 0.82);
+            halo.position.set(0, -4, 0);
+            lGrp.add(halo);
+          }
+        } else if (y.kind === 'aplique') {
+          boxMesh(lGrp, 18, 10, 9, bodyMat, 0, 0, 0, { cast: false, pickId: y.id });
+          boxMesh(lGrp, 15, 11.5, 6, emitMat, 0, 0, 1.5, { cast: false, pickId: y.id });
+          if (live) {
+            const halo = makeGlowSprite(95, 95, 0xffdfa0, 0.8);
+            halo.position.set(0, 0, 8);
+            lGrp.add(halo);
+          }
+        } else {
+          addMesh(lGrp, new THREE.CylinderGeometry(14, 14, 3.2, 22), bodyMat, 0, 1.8, 0, false, false, y.id, 1);
+          addMesh(lGrp, new THREE.CylinderGeometry(12.5, 11, 3.5, 22), emitMat, 0, -0.8, 0, false, false, y.id, 1);
+          if (live) {
+            const halo = makeGlowSprite(125, 125, 0xffe89e, 0.85);
+            halo.position.set(0, -5, 0);
+            lGrp.add(halo);
+          }
         }
+        scalableRoot.add(lGrp);
+        if (state3d.editable && state3d.sel3dId === y.id) selBoxTarget.box = lGrp;
       }
     });
 
+    // Luces puntuales reales en modo noche (calibradas a escala en cm de Three.js r158 con decay=0.35 y agrupadas si hay muchas para fluidez 60fps en iPad)
     if (night) {
-      list.filter((e) => e.type === 'furn' && e.kind === 'espejoLed').forEach((f) => {
-        if (Obra.isCircuitLive(Obra.inferCircuitId(f))) {
-          const pl = new THREE.PointLight(0xfff1b8, 1.4, 380, 1.4);
-          pl.position.set(f.x, (f.z0 ?? 120) + (f.h3d || 80) / 2, f.y);
-          furnRoot.add(pl);
-        }
+      const rawLights = [];
+      list.filter((e) => e.type === 'sym' && e.installVis !== 'oculto' && ['luz', 'foco', 'tiraLed', 'aplique'].includes(e.kind)).forEach((y) => {
+        if (Obra && !Obra.isCircuitLive(Obra.inferCircuitId(y))) return;
+        const d = SYMBOLS[y.kind] || SYMBOLS.luz;
+        const zL = Math.max(40, (y.height ?? d.h ?? 245) - 12);
+        const power = y.kind === 'foco' ? 12 : y.kind === 'aplique' ? 13 : y.kind === 'tiraLed' ? 15 : 18;
+        rawLights.push({ x: y.x, y: y.y, z: zL, power, color: y.kind === 'tiraLed' ? 0xffe494 : 0xffdf9e });
+      });
+      // Si hay más de 14 focos/tiras en una misma planta, agrupar los muy cercanos (< 85 cm) para no superar el límite de uniformes WebGL en iPad
+      const emitters = [];
+      rawLights.forEach((lt) => {
+        const near = rawLights.length > 14 ? emitters.find((e) => Math.hypot(e.x - lt.x, e.y - lt.y) < 85 && Math.abs(e.z - lt.z) < 50) : null;
+        if (near) {
+          near.x = (near.x * near.n + lt.x) / (near.n + 1);
+          near.y = (near.y * near.n + lt.y) / (near.n + 1);
+          near.power = Math.min(30, near.power + lt.power * 0.55);
+          near.n++;
+        } else emitters.push(Object.assign({ n: 1 }, lt));
+      });
+      emitters.slice(0, 16).forEach((em) => {
+        const pl = new THREE.PointLight(em.color, em.power, 580, 0.35);
+        pl.position.set(em.x, em.z, em.y);
+        scalableRoot.add(pl);
       });
     }
 
@@ -979,6 +1086,7 @@ var Plan3D = window.Plan3D = (() => {
     cam.updateProjectionMatrix();
     cam.updateMatrixWorld();
 
+    renderer.toneMappingExposure = state3d.nightMode ? 1.18 : 1.05;
     renderer.render(st.scene, cam);
 
     ctx.clearRect(0, 0, W, H);

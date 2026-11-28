@@ -881,6 +881,7 @@ const Plan = (() => {
             <summary class="tgl" title="Más opciones del plano (calcar, comparar, rejilla, estilo)">${icon('settings', 15)}<span>Opciones</span></summary>
             <div class="dd-menu dd-opts">
               <button data-pa="squareWalls">${icon('ortho', 15)} Enderezar y escuadrar muros a 90°</button>
+              <button data-pa="ghHistory">${icon('clock', 15)} Recuperar versión anterior (GitHub)…</button>
               <button data-pa="copyRefsModal">${icon('layers', 15)} Copiar pilares y bajantes de otra planta…</button>
               <button data-pa="bgModal" id="pBgBtn">${icon('image', 15)} Calcar imagen de fondo…</button>
               <button data-pa="compareModal" id="pCmpBtn">${icon('compare', 15)} Comparar Antes / Después…</button>
@@ -3330,13 +3331,15 @@ const Plan = (() => {
         case 'bgModal': openBgModal(); break;
         case 'copyRefsModal': openCopyRefsModal(); break;
         case 'squareWalls': squarePlanWalls(); break;
+        case 'ghHistory': GitHubSync.openHistoryModal(); break;
         case 'compareModal': openCompareModal(); break;
         case 'edit3d': toggleInline3D(); break;
         case 'render3d': openRender3DModal(false); break;
         case 'delPlan': {
           if (!confirm(`¿Eliminar el plano «${plan().name}» y todo su contenido?`)) break;
+          Store._explicitPlanWipe = true;
           if (S().plans.length === 1) { pushUndo(); plan().elements = []; commit(); break; }
-          S().plans = S().plans.filter((p) => p.id !== plan().id); switchPlan(S().plans[0].id); break;
+          S().plans = S().plans.filter((p) => p.id !== plan().id); switchPlan(S().plans[0].id, true); break;
         }
         case 'togglePanel': setMobilePanel(!root.classList.contains('panel-open')); break;
         case 'openPanel': setMobilePanel(true); break;
@@ -4599,7 +4602,7 @@ Respeta exactamente la posición de muros, puertas, ventanas y muebles del plano
           };
           S().plans.push(p);
           Modal.close();
-          switchPlan(p.id);
+          switchPlan(p.id, true);
           toast(duplicate ? 'Plano duplicado' : 'Plano creado', 'success');
         };
         $('#planCreateBtn', card).addEventListener('click', submit);
@@ -4608,9 +4611,11 @@ Respeta exactamente la posición de muros, puertas, ventanas y muebles del plano
     });
   }
 
-  function switchPlan(id) {
+  function switchPlan(id, persistRemote = false) {
     S().activePlan = id; sel = null; draft = null; undoStack = []; redoStack = [];
-    Store.save(); syncTop(); renderPanel();
+    // Cambiar de planta al consultar en móvil/iPad solo guarda preferencia local sin machacar GitHub
+    if (persistRemote) Store.save(); else Store.saveLocalOnly();
+    syncTop(); renderPanel();
     requestAnimationFrame(fit);
   }
 

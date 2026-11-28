@@ -416,10 +416,13 @@ function sampleState() {
   return st;
 }
 
-/* ---------- Sincronización con GitHub (API REST Contents) ---------- */
+/* ---------- Sincronización segura multi-dispositivo con GitHub (API REST Contents + Historial) ---------- */
 const GitHubSync = (() => {
   const CFG_KEY = 'mi-reforma:gh:v1';
+  const META_KEY = 'mi-reforma:gh:meta:v1';
+  const BACKUP_KEY = 'mi-reforma:backup:conflict';
   let cfg = Object.assign({ owner: '', repo: '', branch: 'main', path: 'data/reforma.json', token: '', auto: true }, safeJSON(localStorage.getItem(CFG_KEY)) || {});
+  let meta = Object.assign({ syncedSha: '', syncedUpdatedAt: 0, dirtySinceSync: false }, safeJSON(localStorage.getItem(META_KEY)) || {});
   // Autodetección si está publicado en *.github.io/<repo>
   if (!cfg.owner && /\.github\.io$/i.test(location.hostname)) {
     cfg.owner = location.hostname.split('.')[0];
@@ -428,15 +431,24 @@ const GitHubSync = (() => {
   }
   let status = 'idle'; // idle | syncing | synced | error | offline
   let lastSync = null;
+  let lastPullAt = 0;
   let lastError = '';
-  let remoteSha = null;
+  let remoteSha = meta.syncedSha || null;
   let timer = null;
   let inFlight = false;
   let queued = false;
+  let initialPullDone = false;
+  let pendingPushAfterInit = false;
+  let conflictOpen = false;
   const subs = [];
 
   const emit = () => subs.forEach((f) => { try { f(); } catch (e) { /* noop */ } });
   const isConfigured = () => !!(cfg.owner && cfg.repo && cfg.token && cfg.path);
+  const saveMeta = (patch) => {
+    meta = Object.assign({}, meta, patch);
+    try { localStorage.setItem(META_KEY, JSON.stringify(meta)); } catch (e) { /* noop */ }
+  };
+  const markDirty = () => { saveMeta({ dirtySinceSync: true }); };
   const saveCfg = (next) => {
     cfg = Object.assign({}, cfg, next);
     localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
@@ -459,64 +471,194 @@ const GitHubSync = (() => {
     const path = cfg.path.replace(/^\/+/, '').split('/').map(encodeURIComponent).join('/');
     return `https://api.github.com/repos/${encodeURIComponent(cfg.owner)}/${encodeURIComponent(cfg.repo)}/contents/${path}`;
   }
+  function commitsUrl(perPage = 16) {
+    const path = cfg.path.replace(/^\/+/, '');
+    return `https://api.github.com/repos/${encodeURIComponent(cfg.owner)}/${encodeURIComponent(cfg.repo)}/commits?sha=${encodeURIComponent(cfg.branch || 'main')}&path=${encodeURIComponent(path)}&per_page=${perPage}&_=${Date.now()}`;
+  }
   function headers() {
     const h = { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' };
     if (cfg.token) h.Authorization = 'Bearer ' + cfg.token.trim();
     return h;
   }
 
-  async function fetchRemote() {
+  async function fetchRemote(refOverride = null) {
     if (!cfg.owner || !cfg.repo || !cfg.path) return null;
-    const url = `${apiUrl()}?ref=${encodeURIComponent(cfg.branch || 'main')}&_=${Date.now()}`;
+    const ref = refOverride || cfg.branch || 'main';
+    const url = `${apiUrl()}?ref=${encodeURIComponent(ref)}&_=${Date.now()}`;
     const res = await fetch(url, { headers: headers(), cache: 'no-store' });
-    if (res.status === 404) { remoteSha = null; return { missing: true }; }
+    if (res.status === 404) { if (!refOverride) remoteSha = null; return { missing: true }; }
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.message || `HTTP ${res.status}`);
     }
     const json = await res.json();
-    remoteSha = json.sha;
+    if (!refOverride) remoteSha = json.sha;
     const data = safeJSON(b64Decode(json.content || ''));
     return { sha: json.sha, data };
   }
 
-  async function pull({ force = false, silent = false } = {}) {
+  function hasSuspiciousPlanLoss(remData, locData) {
+    if (!remData || !Array.isArray(remData.plans) || !locData || !Array.isArray(locData.plans)) return null;
+    if (Store._explicitPlanWipe) return null;
+    for (const rp of remData.plans) {
+      const rLen = (rp.elements || []).length;
+      if (rLen < 5) continue;
+      const lp = locData.plans.find((p) => p.id === rp.id || p.name === rp.name);
+      const lLen = lp ? (lp.elements || []).length : 0;
+      if (lLen < Math.ceil(rLen * 0.45)) return { name: rp.name, remoteCount: rLen, localCount: lLen };
+    }
+    return null;
+  }
+
+  function mergeStates(remData, locData) {
+    const merged = clone(remData);
+    merged.updatedAt = Date.now();
+    // Para cada plano, conservar el que tenga más elementos y añadir planos nuevos que solo existan en local
+    const byId = new Map((merged.plans || []).map((p) => [p.id, p]));
+    (locData.plans || []).forEach((lp) => {
+      const rp = byId.get(lp.id) || (merged.plans || []).find((x) => x.name === lp.name);
+      if (!rp) merged.plans.push(clone(lp));
+      else if ((lp.elements || []).length > (rp.elements || []).length) {
+        rp.elements = clone(lp.elements);
+        if (lp.bgImage && !rp.bgImage) rp.bgImage = lp.bgImage;
+      }
+    });
+    // Unir tareas y gastos por id sin perder ninguno
+    ['tasks', 'expenses', 'diary', 'contacts', 'materials', 'quotes'].forEach((k) => {
+      const map = new Map((merged[k] || []).map((x) => [x.id, x]));
+      (locData[k] || []).forEach((x) => { if (x && x.id && !map.has(x.id)) merged[k].push(clone(x)); });
+    });
+    return merged;
+  }
+
+  function openConflictModal(rem, reason = '') {
+    if (conflictOpen || !rem || !rem.data) return;
+    conflictOpen = true;
+    clearTimeout(timer);
+    try { localStorage.setItem(BACKUP_KEY, JSON.stringify(Store.state)); } catch (e) { /* noop */ }
+    const remPlans = (rem.data.plans || []).map((p) => `${esc(p.name)} (<b>${(p.elements || []).length}</b> elem.)`).join(' · ');
+    const locPlans = (Store.state.plans || []).map((p) => `${esc(p.name)} (<b>${(p.elements || []).length}</b> elem.)`).join(' · ');
+    const remDate = rem.data.updatedAt ? fmtDateTime(rem.data.updatedAt) : 'Desconocida';
+    const locDate = Store.state.updatedAt ? fmtDateTime(Store.state.updatedAt) : 'Desconocida';
+
+    Modal.open({
+      title: 'Protección de sincronización entre dispositivos',
+      wide: true,
+      onClose: () => { conflictOpen = false; },
+      body: `<div class="callout" style="margin-bottom:14px">${icon('alert', 18)}
+          <div><b>Se ha bloqueado un guardado automático para proteger tus planos.</b><br>
+          ${reason ? esc(reason) + '<br>' : ''}GitHub contiene cambios guardados desde otro dispositivo (PC / iPad / móvil). Elige qué versión quieres conservar:</div>
+        </div>
+        <div class="grid2" style="margin-bottom:12px">
+          <div class="card" style="padding:12px 14px">
+            <b>En GitHub (nube)</b>
+            <div class="muted small" style="margin:4px 0 8px">Actualizado: ${remDate}</div>
+            <div class="small">${remPlans || 'Sin planos'}</div>
+          </div>
+          <div class="card" style="padding:12px 14px">
+            <b>En este navegador</b>
+            <div class="muted small" style="margin:4px 0 8px">Actualizado: ${locDate}</div>
+            <div class="small">${locPlans || 'Sin planos'}</div>
+          </div>
+        </div>`,
+      foot: `
+        <button class="btn" id="cfForceLocal">${icon('upload', 15)} Subir este dispositivo</button>
+        <button class="btn" id="cfMerge">${icon('layers', 15)} Combinar (conservar planos más completos)</button>
+        <button class="btn primary" id="cfUseRemote">${icon('download', 15)} Usar versión de GitHub (Recomendado)</button>`,
+      onOpen(card) {
+        $('#cfUseRemote', card).addEventListener('click', () => {
+          conflictOpen = false;
+          Modal.close();
+          Store.applyRemote(rem.data, rem.sha);
+          toast('Versión de GitHub cargada de forma segura', 'success');
+        });
+        $('#cfMerge', card).addEventListener('click', async () => {
+          conflictOpen = false;
+          Modal.close();
+          const merged = mergeStates(rem.data, Store.state);
+          remoteSha = rem.sha;
+          saveMeta({ syncedSha: rem.sha, syncedUpdatedAt: rem.data.updatedAt || 0, dirtySinceSync: true });
+          Store.replace(merged, { forceOverwrite: true });
+          toast('Planos y datos combinados sin pérdidas y guardados en GitHub', 'success');
+        });
+        $('#cfForceLocal', card).addEventListener('click', async () => {
+          if (!confirm('¿Seguro que quieres sobrescribir GitHub con los datos de este navegador?')) return;
+          conflictOpen = false;
+          Modal.close();
+          remoteSha = rem.sha;
+          saveMeta({ syncedSha: rem.sha, dirtySinceSync: true });
+          await push({ silent: false, forceOverwrite: true });
+        });
+      },
+    });
+  }
+
+  async function pull({ force = false, silent = false, isInitial = false } = {}) {
+    lastPullAt = Date.now();
     if (!isConfigured()) {
-      // Modo solo lectura si existe ./data/reforma.json publicado en GitHub Pages y no hay datos locales guardados por el usuario
       try {
         const res = await fetch(`${cfg.path}?_=${Date.now()}`, { cache: 'no-store' });
         if (res.ok) {
           const data = await res.json();
-          if (data && Array.isArray(data.plans) && (!Store.hasUserLocal || (data.updatedAt || 0) > (Store.state.updatedAt || 0))) {
-            Store.applyRemote(data);
+          if (data && Array.isArray(data.plans) && (force || !Store.hasUserLocal || !meta.dirtySinceSync || (data.updatedAt || 0) > (Store.state.updatedAt || 0))) {
+            Store.applyRemote(data, '');
             if (!silent) toast('Datos cargados desde GitHub Pages', 'success');
+            initialPullDone = true;
             return true;
           }
         }
       } catch (e) { /* sin archivo estático */ }
+      initialPullDone = true;
       return false;
     }
     status = 'syncing'; lastError = ''; emit();
     try {
       const r = await fetchRemote();
+      initialPullDone = true;
       if (r && r.missing) {
         status = 'idle'; emit();
         if (!silent) toast('Aún no existe el archivo en el repositorio. Se creará al guardar.', 'info');
+        if (pendingPushAfterInit) { pendingPushAfterInit = false; schedulePush(); }
         return false;
       }
       if (r && r.data) {
         const remTs = r.data.updatedAt || 0;
         const locTs = Store.state.updatedAt || 0;
-        if (force || remTs > locTs) {
-          Store.applyRemote(r.data);
+        const isNewRemoteSha = !!(r.sha && r.sha !== meta.syncedSha);
+        const planLoss = hasSuspiciousPlanLoss(r.data, Store.state);
+
+        if (force) {
+          clearTimeout(timer); pendingPushAfterInit = false;
+          Store.applyRemote(r.data, r.sha);
           lastSync = Date.now(); status = 'synced'; emit();
-          if (!silent) toast('Datos actualizados desde GitHub', 'success');
+          if (!silent) toast('Datos cargados desde GitHub', 'success');
           return true;
         }
+
+        // Si GitHub tiene un commit nuevo y este dispositivo NO tenía ediciones pendientes sin subir (o GitHub es más reciente), descargar SIEMPRE antes de permitir cualquier subida
+        if (isNewRemoteSha && (!meta.dirtySinceSync || remTs >= locTs)) {
+          clearTimeout(timer); pendingPushAfterInit = false;
+          Store.applyRemote(r.data, r.sha);
+          lastSync = Date.now(); status = 'synced'; emit();
+          if (!silent || isInitial) toast('Sincronizado con la última versión de GitHub', 'success');
+          return true;
+        }
+
+        // Si ambos cambiaron o este navegador tiene un plano vacío frente a uno completo en GitHub: pedir confirmación en vez de machacar
+        if ((isNewRemoteSha && meta.dirtySinceSync && remTs < locTs) || planLoss) {
+          lastSync = Date.now(); status = 'synced'; emit();
+          openConflictModal(r, planLoss ? `El plano «${planLoss.name}» tiene ${planLoss.remoteCount} elementos en GitHub frente a ${planLoss.localCount} en este dispositivo.` : '');
+          return false;
+        }
+
+        // Mismo SHA ya sincronizado
+        if (!meta.syncedSha && r.sha) saveMeta({ syncedSha: r.sha, syncedUpdatedAt: remTs });
       }
       lastSync = Date.now(); status = 'synced'; emit();
+      if (pendingPushAfterInit && meta.dirtySinceSync) { pendingPushAfterInit = false; schedulePush(); }
       return false;
     } catch (e) {
+      initialPullDone = true;
       status = navigator.onLine ? 'error' : 'offline';
       lastError = e.message || 'Error de conexión';
       emit();
@@ -525,15 +667,31 @@ const GitHubSync = (() => {
     }
   }
 
-  async function push({ silent = false } = {}) {
+  async function push({ silent = false, forceOverwrite = false } = {}) {
     if (!isConfigured()) return false;
+    if (conflictOpen && !forceOverwrite) return false;
+    // Nunca subir a ciegas si aún no se ha comprobado GitHub al abrir la app
+    if (!initialPullDone && !forceOverwrite) {
+      pendingPushAfterInit = true;
+      await pull({ silent: true, isInitial: true });
+      if (conflictOpen || !meta.dirtySinceSync) return false;
+    }
     if (inFlight) { queued = true; return false; }
     inFlight = true;
     status = 'syncing'; lastError = ''; emit();
     try {
       const attempt = async (retry) => {
-        if (!remoteSha) {
-          try { await fetchRemote(); } catch (e) { /* puede no existir */ }
+        // Comprobar siempre el estado actual en GitHub antes de escribir para impedir pisar cambios hechos en otro dispositivo
+        let rem = null;
+        try { rem = await fetchRemote(); } catch (e) { if (!remoteSha) throw e; }
+        if (!forceOverwrite && rem && rem.data) {
+          const remChangedElsewhere = !!(meta.syncedSha && rem.sha && rem.sha !== meta.syncedSha);
+          const firstUnsyncedNewerRemote = !meta.syncedSha && (rem.data.updatedAt || 0) > (Store.state.updatedAt || 0);
+          const planLoss = hasSuspiciousPlanLoss(rem.data, Store.state);
+          if (remChangedElsewhere || firstUnsyncedNewerRemote || planLoss) {
+            openConflictModal(rem, planLoss ? `El plano «${planLoss.name}» tiene ${planLoss.remoteCount} elementos en GitHub y solo ${planLoss.localCount} aquí.` : 'Otro dispositivo guardó cambios más recientes en GitHub.');
+            return 'conflict';
+          }
         }
         const payload = {
           message: `Actualizar reforma (${new Date().toLocaleString('es-ES')})`,
@@ -547,7 +705,11 @@ const GitHubSync = (() => {
           body: JSON.stringify(payload),
         });
         if (res.status === 409 && retry) {
-          await fetchRemote();
+          const fresh = await fetchRemote();
+          if (!forceOverwrite && fresh && fresh.data) {
+            openConflictModal(fresh, 'GitHub acaba de recibir un cambio desde otro dispositivo.');
+            return 'conflict';
+          }
           return attempt(false);
         }
         if (!res.ok) {
@@ -556,8 +718,15 @@ const GitHubSync = (() => {
         }
         const out = await res.json();
         remoteSha = out.content ? out.content.sha : remoteSha;
+        saveMeta({ syncedSha: remoteSha || '', syncedUpdatedAt: Store.state.updatedAt || Date.now(), dirtySinceSync: false });
+        Store._explicitPlanWipe = false;
+        return 'ok';
       };
-      await attempt(true);
+      const resState = await attempt(true);
+      if (resState === 'conflict') {
+        status = 'idle';
+        return false;
+      }
       lastSync = Date.now(); status = 'synced'; lastError = '';
       if (!silent) toast('Guardado en GitHub', 'success');
       return true;
@@ -569,14 +738,107 @@ const GitHubSync = (() => {
     } finally {
       inFlight = false;
       emit();
-      if (queued) { queued = false; schedulePush(); }
+      if (queued && !conflictOpen) { queued = false; schedulePush(); } else queued = false;
     }
   }
 
-  function schedulePush() {
-    if (!isConfigured() || !cfg.auto) return;
+  function schedulePush(opts = {}) {
+    if (!isConfigured() || (!cfg.auto && !opts.forceOverwrite)) return;
+    if (!initialPullDone && !opts.forceOverwrite) {
+      pendingPushAfterInit = true;
+      return;
+    }
     clearTimeout(timer);
-    timer = setTimeout(() => push({ silent: true }), 1400);
+    timer = setTimeout(() => push({ silent: true, forceOverwrite: !!opts.forceOverwrite }), 1400);
+  }
+
+  async function openHistoryModal() {
+    if (!cfg.owner || !cfg.repo || !cfg.path) {
+      toast('Configura primero el usuario y repositorio de GitHub en Ajustes', 'warn');
+      return;
+    }
+    Modal.open({
+      title: 'Historial de versiones en GitHub (Recuperar planos)',
+      wide: true,
+      body: `<div id="ghHistList" class="muted small" style="padding:12px 0">Consultando historial de commits en GitHub…</div>`,
+      foot: `<button class="btn" data-modal-close>Cerrar</button>`,
+      async onOpen(card) {
+        const box = $('#ghHistList', card);
+        try {
+          const res = await fetch(commitsUrl(18), { headers: headers(), cache: 'no-store' });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const commits = await res.json();
+          if (!Array.isArray(commits) || !commits.length) {
+            box.innerHTML = '<p class="muted">No se encontraron versiones anteriores en este repositorio.</p>';
+            return;
+          }
+          box.innerHTML = `<p class="muted small" style="margin:0 0 10px">Pulsa <b>Inspeccionar</b> en cualquier punto de guardado para ver cuántos elementos tenía cada planta y restaurar solo un plano o todo el proyecto:</p>
+            <div style="display:flex;flex-direction:column;gap:8px;max-height:58vh;overflow-y:auto">
+              ${commits.map((c) => {
+                const sha = c.sha;
+                const dt = c.commit?.author?.date ? fmtDateTime(c.commit.author.date) : sha.slice(0, 7);
+                const msg = c.commit?.message?.split('\n')[0] || 'Guardado';
+                return `<div class="card" style="padding:10px 12px" data-csha="${esc(sha)}">
+                  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+                    <div><b>${esc(dt)}</b> <code style="font-size:11px;opacity:.7">${esc(sha.slice(0, 7))}</code><div class="muted small">${esc(msg)}</div></div>
+                    <button class="btn sm" data-ha="inspect" data-sha="${esc(sha)}">${icon('eye', 14)} Inspeccionar / Restaurar</button>
+                  </div>
+                  <div class="gh-hist-det" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)"></div>
+                </div>`;
+              }).join('')}
+            </div>`;
+          const loaded = new Map();
+          box.addEventListener('click', async (ev) => {
+            const btn = ev.target.closest('[data-ha]'); if (!btn) return;
+            const sha = btn.dataset.sha;
+            const row = btn.closest('[data-csha]');
+            const det = $('.gh-hist-det', row);
+            if (btn.dataset.ha === 'inspect') {
+              det.style.display = 'block';
+              det.innerHTML = '<span class="muted small">Cargando contenido de esta versión…</span>';
+              try {
+                const r = await fetchRemote(sha);
+                if (!r || !r.data) throw new Error('Sin datos JSON');
+                loaded.set(sha, r.data);
+                const plansHtml = (r.data.plans || []).map((p) => `
+                  <button class="btn sm" data-ha="restorePlan" data-sha="${esc(sha)}" data-pid="${esc(p.id)}" data-pname="${esc(p.name)}">
+                    ${icon('plan', 14)} Restaurar solo «${esc(p.name)}» (${(p.elements || []).length} elem.)
+                  </button>`).join(' ');
+                det.innerHTML = `<div class="small" style="margin-bottom:8px"><b>Planos en esta copia:</b> ${(r.data.plans || []).map((p) => `${esc(p.name)}: <b>${(p.elements || []).length}</b> elem.`).join(' · ')} · Gastos: ${(r.data.expenses || []).length} · Tareas: ${(r.data.tasks || []).length}</div>
+                  <div style="display:flex;gap:6px;flex-wrap:wrap">
+                    ${plansHtml}
+                    <button class="btn sm primary" data-ha="restoreAll" data-sha="${esc(sha)}">${icon('rotate', 14)} Restaurar proyecto completo</button>
+                  </div>`;
+              } catch (err) {
+                det.innerHTML = `<span class="danger-txt small">Error: ${esc(err.message)}</span>`;
+              }
+            } else if (btn.dataset.ha === 'restorePlan') {
+              const snap = loaded.get(sha); if (!snap) return;
+              const srcPlan = (snap.plans || []).find((p) => p.id === btn.dataset.pid || p.name === btn.dataset.pname);
+              if (!srcPlan) return;
+              if (!confirm(`¿Restaurar el plano «${srcPlan.name}» (${(srcPlan.elements || []).length} elementos) de esta versión sin tocar el resto de tus planos ni gastos?`)) return;
+              const idx = Store.state.plans.findIndex((p) => p.id === srcPlan.id || p.name === srcPlan.name);
+              if (idx >= 0) Store.state.plans[idx] = clone(srcPlan);
+              else Store.state.plans.push(clone(srcPlan));
+              Store.state.activePlan = srcPlan.id;
+              Modal.close();
+              Store.saveNow({ forceOverwrite: true });
+              Store.emit(true);
+              toast(`Plano «${srcPlan.name}» restaurado y guardado en GitHub`, 'success');
+            } else if (btn.dataset.ha === 'restoreAll') {
+              const snap = loaded.get(sha); if (!snap) return;
+              if (!confirm('¿Restaurar TODOS los planos, gastos y tareas de esta versión?')) return;
+              Modal.close();
+              Store.replace(clone(snap), { forceOverwrite: true });
+              Store.emit(true);
+              toast('Versión completa restaurada y guardada en GitHub', 'success');
+            }
+          });
+        } catch (err) {
+          box.innerHTML = `<div class="danger-txt small">No se pudo leer el historial de GitHub: ${esc(err.message)}</div>`;
+        }
+      },
+    });
   }
 
   async function test() {
@@ -590,14 +852,25 @@ const GitHubSync = (() => {
     return { fullName: repo.full_name, priv: repo.private, push: !!(repo.permissions && repo.permissions.push) };
   }
 
-  window.addEventListener('online', () => { if (status === 'offline' && isConfigured() && cfg.auto) push({ silent: true }); });
+  // Al volver a la pestaña / desbloquear móvil o iPad, comprobar siempre primero si hay cambios nuevos en GitHub
+  const pullOnWake = () => {
+    if (document.visibilityState === 'hidden') return;
+    if (Date.now() - lastPullAt > 8000 && !inFlight && !conflictOpen) {
+      pull({ silent: true });
+    }
+  };
+  document.addEventListener('visibilitychange', pullOnWake);
+  window.addEventListener('focus', pullOnWake);
+  window.addEventListener('online', () => {
+    if (isConfigured()) pull({ silent: true }).then(() => { if (meta.dirtySinceSync && cfg.auto) push({ silent: true }); });
+  });
 
   return {
     get cfg() { return cfg; },
     get status() { return status; },
     get lastSync() { return lastSync; },
     get lastError() { return lastError; },
-    isConfigured, saveCfg, pull, push, schedulePush, test,
+    isConfigured, saveCfg, pull, push, schedulePush, test, openHistoryModal, markDirty, saveMeta,
     on(fn) { subs.push(fn); },
   };
 })();
@@ -608,6 +881,7 @@ const Store = {
   state: null,
   savedAt: null,
   hasUserLocal: false,
+  _explicitPlanWipe: false,
   _subs: [],
   _t: null,
   load() {
@@ -615,7 +889,7 @@ const Store = {
     const d = raw ? safeJSON(raw) : null;
     this.hasUserLocal = !!d;
     this.state = this.migrate(d || sampleState());
-    if (!d) this.saveNow({ sync: false });
+    if (!d) this.saveLocalOnly();
   },
   migrate(d) {
     const base = emptyState();
@@ -657,13 +931,28 @@ const Store = {
     if (!d.plans.find((p) => p.id === d.activePlan)) d.activePlan = d.plans[0].id;
     return d;
   },
-  applyRemote(data) {
+  applyRemote(data, sha = null) {
+    clearTimeout(this._t);
+    this._t = null;
     this.state = this.migrate(data);
     try { localStorage.setItem(this.KEY, JSON.stringify(this.state)); } catch (e) { /* noop */ }
     this.savedAt = Date.now();
+    this.hasUserLocal = true;
+    GitHubSync.saveMeta({
+      syncedSha: sha !== null ? sha : (GitHubSync.cfg ? undefined : ''),
+      syncedUpdatedAt: this.state.updatedAt || Date.now(),
+      dirtySinceSync: false,
+    });
     this.emit(true);
   },
-  saveNow({ sync = true } = {}) {
+  saveLocalOnly() {
+    try {
+      localStorage.setItem(this.KEY, JSON.stringify(this.state));
+      this.savedAt = Date.now();
+    } catch (e) { /* noop */ }
+    this.emit(false);
+  },
+  saveNow({ sync = true, forceOverwrite = false } = {}) {
     clearTimeout(this._t);
     this._t = null;
     this.state.updatedAt = Date.now();
@@ -674,16 +963,18 @@ const Store = {
     } catch (e) {
       toast('No se ha podido guardar: el almacenamiento del navegador está lleno.', 'error');
     }
+    if (sync) GitHubSync.markDirty();
     this.emit(false);
-    if (sync) GitHubSync.schedulePush();
+    if (sync) GitHubSync.schedulePush({ forceOverwrite });
   },
   save() {
     clearTimeout(this._t);
     this._t = setTimeout(() => this.saveNow(), 220);
   },
-  replace(data) {
+  replace(data, opts = {}) {
+    this._explicitPlanWipe = true;
     this.state = this.migrate(data);
-    this.saveNow();
+    this.saveNow({ sync: true, forceOverwrite: !!opts.forceOverwrite });
   },
   on(fn) { this._subs.push(fn); },
   emit(fromRemote = false) { this._subs.forEach((f) => { try { f(fromRemote); } catch (e) { console.error(e); } }); },

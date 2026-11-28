@@ -36,8 +36,8 @@ const App = {
     this.updateChrome();
     this.updateSyncUI();
 
-    // Sincronización inicial en segundo plano al abrir la app
-    GitHubSync.pull({ silent: true });
+    // Sincronización inicial prioritaria al abrir la app (bloquea cualquier auto-push hasta comprobar GitHub)
+    GitHubSync.pull({ silent: true, isInitial: true });
   },
 
   route() {
